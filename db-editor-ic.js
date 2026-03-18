@@ -149,7 +149,7 @@ window.firebaseDb.loadIcItems()
             // Show empty state
             icTableBody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 20px;">
+                    <td colspan="9" class="empty-state-cell">
                         No I&C items found in database. Add your first item to get started.
                     </td>
                 </tr>
@@ -177,11 +177,11 @@ let providersDisplay = '';
 if (item.providers && item.providers.length > 0) {
     providersDisplay = item.providers.join(', ');
 } else {
-    providersDisplay = '<span style="color: #888;">None</span>';
+    providersDisplay = '<span class="text-muted">None</span>';
 }
 
 // Format sublocation for display
-let sublocationDisplay = item.sublocation || '<span style="color: #888;">General</span>';
+let sublocationDisplay = item.sublocation || '<span class="text-muted">General</span>';
 
 row.innerHTML = `
     <td>${item.displayOrder || item.id}</td>
@@ -193,10 +193,10 @@ row.innerHTML = `
     <td>${providersDisplay}</td>
     <td>${item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never'}</td>
     <td>
-        <div style="display: flex; gap: 5px; justify-content: flex-end;">
+        <div class="actions-cell">
             <button class="edit-button" data-id="${item.id}">Edit</button>
-            <button class="move-up-button" data-id="${item.id}" title="Move Up" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&uarr;</button>
-            <button class="move-down-button" data-id="${item.id}" title="Move Down" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&darr;</button>
+            <button class="move-button move-up-button" data-id="${item.id}" title="Move Up">&uarr;</button>
+            <button class="move-button move-down-button" data-id="${item.id}" title="Move Down">&darr;</button>
         </div>
     </td>
 `;

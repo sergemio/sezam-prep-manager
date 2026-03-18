@@ -186,7 +186,7 @@ function loadItemsFromFirebase() {
                     // Show empty state
                     itemsTableBody.innerHTML = `
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 20px;">
+                            <td colspan="8" class="empty-state-cell">
                                 No items found in database. Add your first item to get started.
                             </td>
                         </tr>
@@ -218,10 +218,10 @@ function renderItemsTable() {
             <td>${item.lastCheckedTime || 'Never'}</td>
             <td>${item.lastCheckedBy || 'N/A'}</td>
             <td>
-                <div style="display: flex; gap: 5px; justify-content: flex-end;">
+                <div class="actions-cell">
                     <button class="edit-button" data-id="${item.id}">Edit</button>
-                    <button class="move-up-button" data-id="${item.id}" title="Move Up" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&uarr;</button>
-                    <button class="move-down-button" data-id="${item.id}" title="Move Down" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&darr;</button>
+                    <button class="move-button move-up-button" data-id="${item.id}" title="Move Up">&uarr;</button>
+                    <button class="move-button move-down-button" data-id="${item.id}" title="Move Down">&darr;</button>
                 </div>
             </td>
     `;
@@ -567,7 +567,7 @@ function loadStaffFromFirebase() {
                         // Show empty state
                         staffTableBody.innerHTML = `
                             <tr>
-                                <td colspan="4" style="text-align: center; padding: 20px;">
+                                <td colspan="4" class="empty-state-cell">
                                     No staff members found in database. Add your first staff member to get started.
                                 </td>
                             </tr>
@@ -592,8 +592,8 @@ function renderStaffTable() {
         const row = document.createElement('tr');
         
         const activeStatus = staff.active ? 
-            '<span style="color: green; font-weight: bold;">Yes</span>' : 
-            '<span style="color: red;">No</span>';
+            '<span class="status-active">Yes</span>' :
+            '<span class="status-inactive">No</span>';
         
         row.innerHTML = `
             <td>${staff.id}</td>

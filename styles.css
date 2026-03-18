@@ -687,6 +687,46 @@ body {
     to { transform: translateY(0); opacity: 1; }
 }
 
+/* DB Editor utility classes */
+.move-button {
+    width: 36px;
+    height: 36px;
+    background-color: var(--primary-medium);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.actions-cell {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+}
+
+.empty-state-cell {
+    text-align: center;
+    padding: 20px;
+}
+
+.text-muted {
+    color: #888;
+}
+
+.status-active {
+    color: green;
+    font-weight: bold;
+}
+
+.status-inactive {
+    color: red;
+}
+
 /* Staff selection modal styles */
 .modal-backdrop {
     animation: modalFadeIn 0.3s ease-out;
