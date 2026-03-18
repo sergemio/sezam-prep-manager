@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteLogEntry(logKey, logElement) {
         if (!window.firebaseDb || typeof window.firebaseDb.deleteActivityLog !== 'function') {
             console.error("Delete function not available");
-            showNotification("Delete function not available", "error");
+            showErrorMessage("Delete function not available");
             return;
         }
         
@@ -423,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         
                         // Show success notification
-                        showNotification("Log entry deleted successfully", "success");
+                        showSuccessMessage("Log entry deleted successfully");
                         
                         // Check if we need to update analytics
                         const historyContent = document.getElementById('history-content');
@@ -441,52 +441,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset opacity
                 logElement.style.opacity = "1";
                 // Show error notification
-                showNotification("Failed to delete log entry", "error");
+                showErrorMessage("Failed to delete log entry");
             });
     }
     
-    // Helper function to show notifications
-    function showNotification(message, type = "success") {
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.bottom = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '12px 20px';
-        notification.style.borderRadius = '4px';
-        notification.style.color = 'white';
-        notification.style.zIndex = '1000';
-        notification.style.boxShadow = '0 3px 10px rgba(0,0,0,0.15)';
-        notification.style.transition = 'all 0.3s ease';
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateY(20px)';
-        
-        if (type === "success") {
-            notification.style.backgroundColor = '#4CAF50';
-        } else {
-            notification.style.backgroundColor = '#F44336';
-        }
-        
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // Animate in
-        setTimeout(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateY(0)';
-        }, 10);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(20px)';
-            
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
+    // showNotification is now in notifications.js
     
     // Delete logs older than 15 days
     function cleanupOldLogs(logs, cutoffDate) {

@@ -573,51 +573,7 @@ function cancelEdit() {
     currentEditingId = null;
 }
 
-// Show success message
-function showSuccessMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.textContent = message;
-    messageElement.style.position = 'fixed';
-    messageElement.style.bottom = '20px';
-    messageElement.style.right = '20px';
-    messageElement.style.padding = '10px 20px';
-    messageElement.style.backgroundColor = '#10b981';
-    messageElement.style.color = 'white';
-    messageElement.style.borderRadius = '4px';
-    messageElement.style.zIndex = '1000';
-    
-    document.body.appendChild(messageElement);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        if (document.body.contains(messageElement)) {
-            document.body.removeChild(messageElement);
-        }
-    }, 3000);
-}
-
-// Show error message
-function showErrorMessage(message) {
-    const messageElement = document.createElement('div');
-    messageElement.textContent = message;
-    messageElement.style.position = 'fixed';
-    messageElement.style.bottom = '20px';
-    messageElement.style.right = '20px';
-    messageElement.style.padding = '10px 20px';
-    messageElement.style.backgroundColor = '#ef4444';
-    messageElement.style.color = 'white';
-    messageElement.style.borderRadius = '4px';
-    messageElement.style.zIndex = '1000';
-    
-    document.body.appendChild(messageElement);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        if (document.body.contains(messageElement)) {
-            document.body.removeChild(messageElement);
-        }
-    }, 3000);
-}
+// showSuccessMessage and showErrorMessage are now in notifications.js
 
 // Staff Management Functions
 // Initialize staff management

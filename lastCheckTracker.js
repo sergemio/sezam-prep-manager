@@ -30,7 +30,7 @@ const LastCheckTracker = {
         console.error(`LastCheckTracker Error (${context}):`, error);
         
         if (showNotification) {
-            this.showNotification(
+            showNotification(
                 'Error syncing check time',
                 'Using last known data',
                 'error'
@@ -38,66 +38,7 @@ const LastCheckTracker = {
         }
     },
 
-    // Notification helper
-    showNotification(title, message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `check-tracker-notification ${type}`;
-        notification.innerHTML = `
-            <div class="notification-title">${title}</div>
-            <div class="notification-message">${message}</div>
-        `;
-        
-        // Add styles if not already added
-        if (!document.getElementById('check-tracker-notification-styles')) {
-            const styles = document.createElement('style');
-            styles.id = 'check-tracker-notification-styles';
-            styles.textContent = `
-                .check-tracker-notification {
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    padding: 15px 20px;
-                    border-radius: 8px;
-                    background: white;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    z-index: 1000;
-                    animation: slideIn 0.3s ease-out;
-                }
-                .check-tracker-notification.error {
-                    border-left: 4px solid #ef4444;
-                }
-                .check-tracker-notification.warning {
-                    border-left: 4px solid #f97316;
-                }
-                .check-tracker-notification.success {
-                    border-left: 4px solid #22c55e;
-                }
-                .notification-title {
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                @keyframes slideIn {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-        
-        document.body.appendChild(notification);
-        
-        // Remove after 5 seconds
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                notification.style.animation = 'slideOut 0.3s ease-in';
-                setTimeout(() => {
-                    if (document.body.contains(notification)) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
-            }
-        }, 5000);
-    },
+    // Uses global showNotification from notifications.js
 
     // Initialize the tracker with error handling
     async init() {
@@ -203,7 +144,7 @@ const LastCheckTracker = {
                 this.state.isFullCheck = Boolean(data.isFullCheck);
                 this.saveToLocalStorage();
                 
-                this.showNotification(
+                showNotification(
                     'Sync Complete',
                     'Check times synchronized with server',
                     'success'
@@ -233,7 +174,7 @@ const LastCheckTracker = {
             await window.firebaseDb.set(window.firebaseDb.ref('lastCompleteCheck'), dataToSave);
             this.saveToLocalStorage(); // Keep localStorage in sync
             
-            this.showNotification(
+            showNotification(
                 'Check Time Saved',
                 'Successfully updated on server',
                 'success'
@@ -243,7 +184,7 @@ const LastCheckTracker = {
             // Still save to localStorage
             this.saveToLocalStorage();
             
-            this.showNotification(
+            showNotification(
                 'Offline Mode',
                 'Changes saved locally, will sync when online',
                 'warning'

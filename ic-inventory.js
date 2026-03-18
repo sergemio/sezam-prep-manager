@@ -821,51 +821,7 @@ function showAddNewItemModal() {
         }
     }
     
-    // Function to show error message
-    function showErrorMessage(message) {
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.bottom = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '15px';
-        notification.style.backgroundColor = '#ef4444';
-        notification.style.color = 'white';
-        notification.style.borderRadius = '5px';
-        notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        notification.style.zIndex = '1000';
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
-            }
-        }, 5000);
-    }
-    
-    // Function to show success message
-    function showSuccessMessage(message) {
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.bottom = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '15px';
-        notification.style.backgroundColor = '#4CAF50';
-        notification.style.color = 'white';
-        notification.style.borderRadius = '5px';
-        notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        notification.style.zIndex = '1000';
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
-            }
-        }, 3000);
-    }
+    // showErrorMessage and showSuccessMessage are now in notifications.js
     
     // Save button event
     saveButton.addEventListener('click', () => {
