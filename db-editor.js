@@ -171,6 +171,9 @@ function initApp() {
     
     // Initialize staff management
     initStaffManagement();
+
+    // Initialize tasks management
+    initTasksManagement();
 }
 
 // Load items from Firebase
@@ -937,8 +940,11 @@ if (taskEditForm) {
     });
 }
 
-// Firebase real-time listener
-window.firebaseDb.onTasksChange(function(tasks) {
-    allTasks = tasks || [];
-    renderTasksTable();
-});
+function initTasksManagement() {
+    if (window.firebaseDb) {
+        window.firebaseDb.onTasksChange(function(tasks) {
+            allTasks = tasks || [];
+            renderTasksTable();
+        });
+    }
+}
