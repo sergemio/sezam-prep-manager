@@ -91,6 +91,7 @@ const staffMembers = createCrudHelpers('staffMembers');
 const icItems = createCrudHelpers('icItems');
 const activityLogs = createLogHelpers('activityLogs', 'log');
 const icActivityLogs = createLogHelpers('icActivityLogs', 'iclog');
+const tasks = createCrudHelpers('tasks');
 
 // Global Firebase API — same interface as before, nothing breaks
 window.firebaseDb = {
@@ -132,7 +133,14 @@ window.firebaseDb = {
     saveIcActivityLog: icActivityLogs.save,
     loadIcActivityLogs: icActivityLogs.load,
     deleteIcActivityLogs: icActivityLogs.delete,
-    onIcActivityLogsChange: icActivityLogs.onChange
+    onIcActivityLogsChange: icActivityLogs.onChange,
+
+    // Tasks
+    saveTask: tasks.save,
+    saveAllTasks: tasks.saveAll,
+    loadTasks: tasks.load,
+    deleteTasks: tasks.delete,
+    onTasksChange: tasks.onChange
 };
 
 // Dispatch event so pages know Firebase is ready
