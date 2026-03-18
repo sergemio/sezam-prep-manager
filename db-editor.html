@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Editor - Restaurant Prep Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="history-styles.css">
+    
+    <!-- Firebase SDK Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDhp7efZHDj2fw3qx9XOW41YcaR3pWu3Hs",
+            authDomain: "sezam-prep-manager.firebaseapp.com",
+            projectId: "sezam-prep-manager",
+            storageBucket: "sezam-prep-manager.appspot.com",
+            messagingSenderId: "79982392454",
+            appId: "1:79982392454:web:326e2e83a3dde894810d07",
+            databaseURL: "https://sezam-prep-manager-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        // Global Firebase helpers
+        window.firebaseDb = {
+            saveItem: function(item) {
+                return set(ref(database, 'prepItems/' + item.id), item);
+            },
+            saveAllItems: function(items) {
+                // Create an object with all updates to perform
+                const updates = {};
+                items.forEach(item => {
+                    updates['prepItems/' + item.id] = item;
+                });
+                // Update multiple locations at once
+                return update(ref(database), updates);
+            },
+            loadItems: function() {
+                return get(ref(database, 'prepItems')).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        return Object.values(snapshot.val());
+                    } else {
+                        return [];
+                    }
+                });
+            },
+            deleteItem: function(itemId) {
+                return remove(ref(database, 'prepItems/' + itemId));
+            },
+            onItemsChange: function(callback) {
+                onValue(ref(database, 'prepItems'), (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        callback(Object.values(data));
+                    } else {
+                        callback([]);
+                    }
+                });
+            },
+            // New functions for activity logging
+            saveActivityLog: function(activity) {
+                // Generate a unique ID for the log entry
+                const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                return set(ref(database, 'activityLogs/' + logId), activity);
+            },
+            // Load all activity logs
+            loadActivityLogs: function() {
+                return get(ref(database, 'activityLogs')).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        return Object.values(snapshot.val());
+                    } else {
+                        return [];
+                    }
+                });
+            },
+            // Set up a real-time listener for activity logs
+            onActivityLogsChange: function(callback) {
+                onValue(ref(database, 'activityLogs'), (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        callback(Object.values(data));
+                    } else {
+                        callback([]);
+                    }
+                });
+            },
+            // Delete activity log function for removing old logs
+            deleteActivityLog: function(logId) {
+                return remove(ref(database, 'activityLogs/' + logId));
+            },
+            // Staff management functions
+            saveStaffMember: function(staff) {
+                return set(ref(database, 'staffMembers/' + staff.id), staff);
+            },
+            saveAllStaffMembers: function(staffList) {
+                // Create an object with all updates to perform
+                const updates = {};
+                staffList.forEach(staff => {
+                    updates['staffMembers/' + staff.id] = staff;
+                });
+                // Update multiple locations at once
+                return update(ref(database), updates);
+            },
+            loadStaffMembers: function() {
+                return get(ref(database, 'staffMembers')).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        return Object.values(snapshot.val());
+                    } else {
+                        return [];
+                    }
+                });
+            },
+            deleteStaffMember: function(staffId) {
+                return remove(ref(database, 'staffMembers/' + staffId));
+            },
+            onStaffChange: function(callback) {
+                onValue(ref(database, 'staffMembers'), (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        callback(Object.values(data));
+                    } else {
+                        callback([]);
+                    }
+                });
+            },
+            // I&C item management functions
+            saveIcItem: function(item) {
+                return set(ref(database, 'icItems/' + item.id), item);
+            },
+            saveAllIcItems: function(items) {
+                const updates = {};
+                items.forEach(item => {
+                    updates['icItems/' + item.id] = item;
+                });
+                return update(ref(database), updates);
+            },
+            loadIcItems: function() {
+                return get(ref(database, 'icItems')).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        return Object.values(snapshot.val());
+                    } else {
+                        return [];
+                    }
+                });
+            },
+            deleteIcItem: function(itemId) {
+                return remove(ref(database, 'icItems/' + itemId));
+            },
+            onIcItemsChange: function(callback) {
+                onValue(ref(database, 'icItems'), (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        callback(Object.values(data));
+                    } else {
+                        callback([]);
+                    }
+                });
+            },
+            saveIcActivityLog: function(activity) {
+                const logId = 'iclog_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                return set(ref(database, 'icActivityLogs/' + logId), activity);
+            },
+            loadIcActivityLogs: function() {
+                return get(ref(database, 'icActivityLogs')).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        return Object.values(snapshot.val());
+                    } else {
+                        return [];
+                    }
+                });
+            },
+            onIcActivityLogsChange: function(callback) {
+                onValue(ref(database, 'icActivityLogs'), (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        callback(Object.values(data));
+                    } else {
+                        callback([]);
+                    }
+                });
+            }
+        };
+        // I&C Items Management Functions
+
+// Global variables for I&C items management
+let icItems = [];
+let currentEditingIcId = null;
+let isAddingIc = false;
+
+// DOM Elements for I&C items management
+let icTableBody;
+let icEditForm;
+let icFormTitle;
+let icIdInput;
+let icNameInput;
+let icCurrentInput;
+let icTargetInput;
+let icUnitInput;
+let icLocationInput;
+let icSublocationInput;
+let icDisplayOrderInput;
+let icProvidersInput;
+let saveIcButton;
+let cancelIcEditButton;
+let deleteIcButton;
+let addNewIcButton;
+
+// Initialize I&C items management
+function initIcItemsManagement() {
+    console.log('I&C Items Management initialized');
+    
+    // Get DOM elements
+    icTableBody = document.getElementById('ic-table-body');
+    icEditForm = document.getElementById('ic-edit-form');
+    icFormTitle = document.getElementById('ic-form-title');
+    icIdInput = document.getElementById('ic-id');
+    icNameInput = document.getElementById('ic-name');
+    icCurrentInput = document.getElementById('ic-current');
+    icTargetInput = document.getElementById('ic-target');
+    icUnitInput = document.getElementById('ic-unit');
+    icLocationInput = document.getElementById('ic-location');
+    icSublocationInput = document.getElementById('ic-sublocation');
+    icDisplayOrderInput = document.getElementById('ic-display-order');
+    icProvidersInput = document.getElementById('ic-providers');
+    saveIcButton = document.getElementById('save-ic');
+    cancelIcEditButton = document.getElementById('cancel-ic-edit');
+    deleteIcButton = document.getElementById('delete-ic');
+    addNewIcButton = document.getElementById('add-new-ic');
+    
+    // Check if elements exist
+    if (!icTableBody || !icEditForm || !addNewIcButton) {
+        console.error('Required I&C management DOM elements not found!');
+        return;
+    }
+    
+// Load data from Firebase
+loadIcItemsFromFirebase();
+    
+    // Set up event listeners
+    addNewIcButton.addEventListener('click', showAddNewIcForm);
+    saveIcButton.addEventListener('click', saveIcItem);
+    cancelIcEditButton.addEventListener('click', cancelIcEdit);
+    deleteIcButton.addEventListener('click', confirmDeleteIcItem);
+    
+    // Close modal when clicking outside form
+    icEditForm.addEventListener('click', function(e) {
+        if (e.target === icEditForm) {
+            cancelIcEdit();
+        }
+    });
+    
+    // Set up real-time updates
+    if (window.firebaseDb && window.firebaseDb.onIcItemsChange) {
+        window.firebaseDb.onIcItemsChange((updatedIcItems) => {
+            if (updatedIcItems && updatedIcItems.length > 0) {
+                icItems = updatedIcItems;
+                renderIcItemsTable();
+            }
+        });
+    }
+}
+
+// Load I&C items from Firebase
+function loadIcItemsFromFirebase() {
+    if (window.firebaseDb && window.firebaseDb.loadIcItems) {
+        window.firebaseDb.loadIcItems()
+            .then(items => {
+                if (items && items.length > 0) {
+                    icItems = items;
+                    // Sort by displayOrder/ID first, then location, then sublocation
+                    icItems.sort((a, b) => {
+                        // First by displayOrder if both items have it
+                        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+                            return a.displayOrder - b.displayOrder;
+                        }
+                        
+                        // Otherwise use ID as fallback for order
+                        if (a.displayOrder !== undefined && b.displayOrder === undefined) {
+                            return -1; // Items with display order come first
+                        }
+                        if (a.displayOrder === undefined && b.displayOrder !== undefined) {
+                            return 1; // Items with display order come first
+                        }
+                        
+                        // If neither has displayOrder, sort by ID
+                        if (a.id !== b.id) {
+                            return a.id - b.id;
+                        }
+                        
+                        // Then by location
+                        if (a.location !== b.location) {
+                            return a.location.localeCompare(b.location);
+                        }
+                        
+                        // Then by sublocation
+                        if ((a.sublocation || '') !== (b.sublocation || '')) {
+                            return (a.sublocation || '').localeCompare(b.sublocation || '');
+                        }
+                        
+                        return 0;
+                    });
+                    renderIcItemsTable();
+                } else {
+                    // Show empty state
+                    icTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 20px;">
+                                No I&C items found in database. Add your first item to get started.
+                            </td>
+                        </tr>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading I&C items:', error);
+                showErrorMessage('Failed to load I&C items from database.');
+            });
+    } else {
+        showErrorMessage('Firebase database functions for I&C items not available.');
+    }
+}
+
+// Render the I&C items table
+function renderIcItemsTable() {
+    icTableBody.innerHTML = '';
+    
+    icItems.forEach(item => {
+        const row = document.createElement('tr');
+        
+        // Format providers for display
+        let providersDisplay = '';
+        if (item.providers && item.providers.length > 0) {
+            providersDisplay = item.providers.join(', ');
+        } else {
+            providersDisplay = '<span style="color: #888;">None</span>';
+        }
+        
+        // Format sublocation for display
+        let sublocationDisplay = item.sublocation || '<span style="color: #888;">General</span>';
+        
+        row.innerHTML = `
+            <td>${item.displayOrder || item.id}</td>
+            <td>${item.name}</td>
+            <td>${item.currentLevel} ${item.unit}</td>
+            <td>${item.targetLevel} ${item.unit}</td>
+            <td>${item.location}</td>
+            <td>${sublocationDisplay}</td>
+            <td>${providersDisplay}</td>
+            <td>${item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never'}</td>
+            <td>
+                <div style="display: flex; gap: 5px; justify-content: flex-end;">
+                    <button class="edit-button" data-id="${item.id}">Edit</button>
+                    <button class="move-up-button" data-id="${item.id}" title="Move Up" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&uarr;</button>
+                    <button class="move-down-button" data-id="${item.id}" title="Move Down" style="width: 36px; height: 36px; background-color: var(--primary-medium); color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&darr;</button>
+                </div>
+            </td>
+        `;
+        
+        icTableBody.appendChild(row);
+        
+        // Add event listener for this row's edit button immediately
+        const editButton = row.querySelector('.edit-button');
+        if (editButton) {
+            editButton.addEventListener('click', function() {
+                const itemId = parseInt(this.getAttribute('data-id'));
+                console.log('Edit button clicked for I&C item ID:', itemId);
+                showEditIcForm(itemId);
+            });
+        }
+        
+        // Add event listeners for move up/down buttons
+        const moveUpButton = row.querySelector('.move-up-button');
+        if (moveUpButton) {
+            moveUpButton.addEventListener('click', function() {
+                const itemId = parseInt(this.getAttribute('data-id'));
+                moveIcItemUp(itemId);
+            });
+        }
+
+        const moveDownButton = row.querySelector('.move-down-button');
+        if (moveDownButton) {
+            moveDownButton.addEventListener('click', function() {
+                const itemId = parseInt(this.getAttribute('data-id'));
+                moveIcItemDown(itemId);
+            });
+        }
+    });
+}
+
+// Function to move an I&C item up in the display order within its location/sublocation
+function moveIcItemUp(itemId) {
+    // Find the current item's index in the array
+    const currentIndex = icItems.findIndex(item => item.id === itemId);
+    if (currentIndex <= 0) {
+        // Already at the top, can't move up
+        return;
+    }
+    
+    // Get the current item
+    const currentItem = icItems[currentIndex];
+    
+    // Find the item above it that has the same location and sublocation
+    let aboveIndex = -1;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+        if (icItems[i].location === currentItem.location && 
+            (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
+            aboveIndex = i;
+            break;
+        }
+    }
+    
+    if (aboveIndex === -1) {
+        // No item above with same location/sublocation, can't move up
+        return;
+    }
+    
+    const aboveItem = icItems[aboveIndex];
+    
+    // Make sure both items have displayOrder set
+    if (currentItem.displayOrder === undefined) {
+        currentItem.displayOrder = currentItem.id;
+    }
+    if (aboveItem.displayOrder === undefined) {
+        aboveItem.displayOrder = aboveItem.id;
+    }
+    
+    // Swap the displayOrder values
+    const tempOrder = currentItem.displayOrder;
+    currentItem.displayOrder = aboveItem.displayOrder;
+    aboveItem.displayOrder = tempOrder;
+    
+    // Save both items to Firebase
+    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
+        // Update Firebase
+        window.firebaseDb.saveAllIcItems([currentItem, aboveItem])
+            .then(() => {
+                // Re-sort the array
+                icItems.sort((a, b) => {
+                    // First by location
+                    if (a.location !== b.location) {
+                        return a.location.localeCompare(b.location);
+                    }
+                    
+                    // Then by sublocation
+                    if ((a.sublocation || '') !== (b.sublocation || '')) {
+                        return (a.sublocation || '').localeCompare(b.sublocation || '');
+                    }
+                    
+                    // Then by displayOrder
+                    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+                        return a.displayOrder - b.displayOrder;
+                    }
+                    
+                    // Fallback to ID
+                    return a.id - b.id;
+                });
+                
+                // Re-render the table to show the new order
+                renderIcItemsTable();
+                showSuccessMessage('I&C item moved up in order.');
+            })
+            .catch(error => {
+                console.error('Error saving I&C items:', error);
+                showErrorMessage('Failed to change I&C item order.');
+            });
+    } else {
+        // Re-sort and re-render locally if Firebase not available
+        icItems.sort((a, b) => {
+            // First by location
+            if (a.location !== b.location) {
+                return a.location.localeCompare(b.location);
+            }
+            
+            // Then by sublocation
+            if ((a.sublocation || '') !== (b.sublocation || '')) {
+                return (a.sublocation || '').localeCompare(b.sublocation || '');
+            }
+            
+            // Then by displayOrder
+            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+                return a.displayOrder - b.displayOrder;
+            }
+            
+            // Fallback to ID
+            return a.id - b.id;
+        });
+        
+        renderIcItemsTable();
+    }
+}
+
+// Function to move an I&C item down in the display order within its location/sublocation
+function moveIcItemDown(itemId) {
+    // Find the current item's index in the array
+    const currentIndex = icItems.findIndex(item => item.id === itemId);
+    if (currentIndex < 0 || currentIndex >= icItems.length - 1) {
+        // Already at the bottom, can't move down
+        return;
+    }
+    
+    // Get the current item
+    const currentItem = icItems[currentIndex];
+    
+    // Find the item below it that has the same location and sublocation
+    let belowIndex = -1;
+    for (let i = currentIndex + 1; i < icItems.length; i++) {
+        if (icItems[i].location === currentItem.location && 
+            (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
+            belowIndex = i;
+            break;
+        }
+    }
+    
+    if (belowIndex === -1) {
+        // No item below with same location/sublocation, can't move down
+        return;
+    }
+    
+    const belowItem = icItems[belowIndex];
+    
+    // Make sure both items have displayOrder set
+    if (currentItem.displayOrder === undefined) {
+        currentItem.displayOrder = currentItem.id;
+    }
+    if (belowItem.displayOrder === undefined) {
+        belowItem.displayOrder = belowItem.id;
+    }
+    
+    // Swap the displayOrder values
+    const tempOrder = currentItem.displayOrder;
+    currentItem.displayOrder = belowItem.displayOrder;
+    belowItem.displayOrder = tempOrder;
+    
+    // Save both items to Firebase
+    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
+        // Update Firebase
+        window.firebaseDb.saveAllIcItems([currentItem, belowItem])
+            .then(() => {
+                // Re-sort the array
+                icItems.sort((a, b) => {
+                    // First by location
+                    if (a.location !== b.location) {
+                        return a.location.localeCompare(b.location);
+                    }
+                    
+                    // Then by sublocation
+                    if ((a.sublocation || '') !== (b.sublocation || '')) {
+                        return (a.sublocation || '').localeCompare(b.sublocation || '');
+                    }
+                    
+                    // Then by displayOrder
+                    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+                        return a.displayOrder - b.displayOrder;
+                    }
+                    
+                    // Fallback to ID
+                    return a.id - b.id;
+                });
+                
+                // Re-render the table to show the new order
+                renderIcItemsTable();
+                showSuccessMessage('I&C item moved down in order.');
+            })
+            .catch(error => {
+                console.error('Error saving I&C items:', error);
+                showErrorMessage('Failed to change I&C item order.');
+            });
+    } else {
+        // Re-sort and re-render locally if Firebase not available
+        icItems.sort((a, b) => {
+            // First by location
+            if (a.location !== b.location) {
+                return a.location.localeCompare(b.location);
+            }
+            
+            // Then by sublocation
+            if ((a.sublocation || '') !== (b.sublocation || '')) {
+                return (a.sublocation || '').localeCompare(b.sublocation || '');
+            }
+            
+            // Then by displayOrder
+            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+                return a.displayOrder - b.displayOrder;
+            }
+            
+            // Fallback to ID
+            return a.id - b.id;
+        });
+        
+        renderIcItemsTable();
+    }
+}
+
+// Show the form for adding a new I&C item
+function showAddNewIcForm() {
+    isAddingIc = true;
+    currentEditingIcId = null;
+    icFormTitle.textContent = 'Add New I&C Item';
+    
+    // Generate a new ID (max ID + 1)
+    const newId = icItems.length > 0 
+        ? Math.max(...icItems.map(item => item.id)) + 1 
+        : 1;
+    
+    // Clear and set default form values
+    icIdInput.value = newId;
+    icNameInput.value = '';
+    icCurrentInput.value = '0';
+    icTargetInput.value = '1';
+    icUnitInput.value = 'units';
+    icLocationInput.value = '';
+    icSublocationInput.value = '';
+    icDisplayOrderInput.value = newId; // Initially set display order to match ID
+    icProvidersInput.value = ''; // Empty providers list
+    
+    // Hide delete button for new items
+    deleteIcButton.classList.add('hidden');
+    
+    // Prevent scrolling on the body
+    document.body.style.overflow = 'hidden';
+    
+    // Show the form
+    icEditForm.classList.remove('hidden');
+}
+
+// Show the edit form for an existing I&C item
+function showEditIcForm(itemId) {
+    const item = icItems.find(item => item.id === itemId);
+    if (!item) {
+        console.error("I&C item not found:", itemId);
+        return;
+    }
+    
+    console.log("Showing edit form for I&C item:", item);
+    
+    isAddingIc = false;
+    currentEditingIcId = itemId;
+    icFormTitle.textContent = `Edit I&C Item: ${item.name}`;
+    
+    // Fill form with item data
+    icIdInput.value = item.id;
+    icNameInput.value = item.name;
+    icCurrentInput.value = item.currentLevel;
+    icTargetInput.value = item.targetLevel;
+    icUnitInput.value = item.unit;
+    icLocationInput.value = item.location || '';
+    icSublocationInput.value = item.sublocation || '';
+    icDisplayOrderInput.value = item.displayOrder || item.id;
+    
+    // Format providers for form input
+    if (item.providers && item.providers.length > 0) {
+        icProvidersInput.value = item.providers.join(', ');
+    } else {
+        icProvidersInput.value = '';
+    }
+    
+    // Show delete button for existing items
+    deleteIcButton.classList.remove('hidden');
+    
+    // Prevent scrolling on the body
+    document.body.style.overflow = 'hidden';
+    
+    // Show the form
+    icEditForm.classList.remove('hidden');
+}
+
+// Save the current I&C item (add or edit)
+function saveIcItem() {
+    // Validate form
+    if (!validateIcForm()) return;
+    
+    // Parse providers from comma-separated list
+    const providersText = icProvidersInput.value.trim();
+    const providers = providersText ? 
+        providersText.split(',').map(p => p.trim()).filter(p => p.length > 0) : 
+        [];
+    
+    // Create updated item object
+    const updatedItem = {
+        id: parseInt(icIdInput.value),
+        name: icNameInput.value.trim(),
+        currentLevel: parseFloat(icCurrentInput.value),
+        targetLevel: parseFloat(icTargetInput.value),
+        unit: icUnitInput.value.trim(),
+        location: icLocationInput.value.trim(),
+        sublocation: icSublocationInput.value.trim() || null,
+        displayOrder: parseInt(icDisplayOrderInput.value),
+        providers: providers,
+        lastCheckedTime: new Date().toISOString(),
+        lastCheckedBy: 'Admin (DB Editor)'
+    };
+    
+    let actionType = 'edit';
+    let oldItem = null;
+    
+    if (isAddingIc) {
+        // Make sure ID doesn't already exist
+        if (icItems.some(item => item.id === updatedItem.id)) {
+            showErrorMessage('An I&C item with this ID already exists. Please use a different ID.');
+            return;
+        }
+        
+        // Add new item
+        icItems.push(updatedItem);
+        actionType = 'add';
+    } else {
+        // Update existing item
+        const index = icItems.findIndex(item => item.id === currentEditingIcId);
+        if (index !== -1) {
+            // Store old item information for logging
+            oldItem = {...icItems[index]};
+            
+            // Preserve original last checked info if we're just editing configuration
+            if (icItems[index].lastCheckedTime) {
+                updatedItem.lastCheckedTime = icItems[index].lastCheckedTime;
+            }
+            if (icItems[index].lastCheckedBy) {
+                updatedItem.lastCheckedBy = icItems[index].lastCheckedBy;
+            }
+            
+            icItems[index] = updatedItem;
+        }
+    }
+    
+    // Save to Firebase
+    if (window.firebaseDb && window.firebaseDb.saveIcItem) {
+        window.firebaseDb.saveIcItem(updatedItem)
+            .then(() => {
+                // Log the activity if history system is available
+                if (window.firebaseDb.saveIcActivityLog) {
+                    const activity = {
+                        timestamp: new Date().toISOString(),
+                        user: 'Admin (DB Editor)',
+                        itemId: updatedItem.id,
+                        itemName: updatedItem.name,
+                        location: updatedItem.location,
+                        sublocation: updatedItem.sublocation,
+                        actionType: actionType,
+                        oldValue: oldItem ? oldItem.currentLevel : null,
+                        newValue: updatedItem.currentLevel,
+                        unit: updatedItem.unit
+                    };
+                    
+                    window.firebaseDb.saveIcActivityLog(activity)
+                        .catch(error => {
+                            console.error("Error logging I&C activity:", error);
+                        });
+                }
+                
+                showSuccessMessage(isAddingIc ? 'I&C item added successfully.' : 'I&C item updated successfully.');
+                renderIcItemsTable();
+                cancelIcEdit(); // Hide the form
+            })
+            .catch(error => {
+                console.error('Error saving I&C item:', error);
+                showErrorMessage('Failed to save I&C item to database.');
+            });
+    }
+}
+
+// Validate the I&C form before saving
+function validateIcForm() {
+    if (!icNameInput.value.trim()) {
+        showErrorMessage('Please enter an I&C item name.');
+        return false;
+    }
+    
+    if (isNaN(icCurrentInput.value) || parseFloat(icCurrentInput.value) < 0) {
+        showErrorMessage('Please enter a valid current level (must be 0 or greater).');
+        return false;
+    }
+    
+    if (isNaN(icTargetInput.value) || parseFloat(icTargetInput.value) <= 0) {
+        showErrorMessage('Please enter a valid target level (must be greater than 0).');
+        return false;
+    }
+    
+    if (!icUnitInput.value.trim()) {
+        showErrorMessage('Please enter a unit (e.g., units, kg, liters).');
+        return false;
+    }
+    
+    if (!icLocationInput.value.trim()) {
+        showErrorMessage('Please enter a location for the I&C item.');
+        return false;
+    }
+    
+    return true;
+}
+
+// Confirm before deleting an I&C item
+function confirmDeleteIcItem() {
+    const item = icItems.find(item => item.id === currentEditingIcId);
+    if (!item) return;
+    
+    const confirmDelete = confirm(`Are you sure you want to delete "${item.name}"? This cannot be undone.`);
+    
+    if (confirmDelete) {
+        deleteIcItem(currentEditingIcId);
+    }
+}
+
+// Delete an I&C item from the database
+function deleteIcItem(itemId) {
+    // Find the item before deleting it (for logging)
+    const item = icItems.find(item => item.id === itemId);
+    
+    if (window.firebaseDb && window.firebaseDb.deleteIcItem) {
+        window.firebaseDb.deleteIcItem(itemId)
+            .then(() => {
+                // Log the deletion if activity logging is available
+                if (window.firebaseDb.saveIcActivityLog && item) {
+                    const activity = {
+                        timestamp: new Date().toISOString(),
+                        user: 'Admin (DB Editor)',
+                        itemId: item.id,
+                        itemName: item.name,
+                        location: item.location,
+                        sublocation: item.sublocation,
+                        actionType: 'delete',
+                        oldValue: item.currentLevel,
+                        newValue: null,
+                        unit: item.unit
+                    };
+                    
+                    window.firebaseDb.saveIcActivityLog(activity)
+                        .catch(error => {
+                            console.error("Error logging I&C deletion:", error);
+                        });
+                }
+                
+                // Remove from local array
+                icItems = icItems.filter(item => item.id !== itemId);
+                showSuccessMessage('I&C item deleted successfully.');
+                renderIcItemsTable();
+                cancelIcEdit(); // Hide the form
+            })
+            .catch(error => {
+                console.error('Error deleting I&C item:', error);
+                showErrorMessage('Failed to delete I&C item from database.');
+            });
+    }
+}
+
+// Cancel editing and hide the form
+function cancelIcEdit() {
+    icEditForm.classList.add('hidden');
+    
+    // Enable scrolling on the body again
+    document.body.style.overflow = 'auto';
+    
+    isAddingIc = false;
+    currentEditingIcId = null;
+}
+
+// Add the initialization call to the existing initApp function
+document.addEventListener('DOMContentLoaded', function() {
+    // Make sure this is called after the main app is initialized
+    setTimeout(initIcItemsManagement, 100);
+});
+    </script>
+
+    <style>
+        /* Additional styles specific to DB editor */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .edit-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .edit-button, .delete-button {
+            padding: 8px 12px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .save-button {
+            background-color: #10b981;
+        }
+        
+        .cancel-button {
+            background-color: #6b7280;
+        }
+        
+        .delete-button {
+            background-color: #ef4444;
+        }
+        
+        .add-new-button {
+            margin-bottom: 20px;
+            padding: 10px 16px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Modal style edit form */
+        #edit-form, #staff-edit-form {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .form-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            width: 100%;
+            max-width: 550px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .form-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body class="db-editor-page">
+    <div id="app" class="app-container">
+        <!-- Left panel - Navigation -->
+        <div class="nav-panel">
+            <div class="logo-container">
+                <a href="index.html" style="cursor: pointer;">
+                    <img src="logo.png" alt="Company Logo" class="company-logo">
+                </a>
+            </div>
+            <div class="nav-title">DB EDITOR</div>
+            
+            <div class="nav-buttons">
+                <a href="index.html" class="nav-button">Back to App</a>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-label">Admin Mode</div>
+            </div>
+        </div>
+        
+<!-- Main content panel -->
+<div class="content-panel">
+    <h1 class="section-title">Database Editor</h1>
+    
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-button active" data-target="prep-items-section">Prep Items</button>
+        <button class="tab-button" data-target="staff-section">Staff</button>
+        <button class="tab-button" data-target="ic-items-section">I&C Items</button>
+    </div>
+    
+    <!-- Prep Items Section -->
+    <div id="prep-items-section" class="tab-section active">
+        <div class="card">
+            <h2 class="card-title">Prep Items Management</h2>
+            <p class="card-desc">
+                Here you can add, edit, or delete prep items in the database.
+            </p>
+            
+            <button id="add-new-item" class="action-button add-new-button">+ Add New Item</button>
+            
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Item</th>
+                        <th>Current</th>
+                        <th>Target</th>
+                        <th>Unit</th>
+                        <th>Last Checked</th>
+                        <th>By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="items-table-body">
+                    <!-- Items will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Staff Section -->
+    <div id="staff-section" class="tab-section">
+        <div class="card">
+            <h2 class="card-title">Staff Management</h2>
+            <p class="card-desc">
+                Here you can add, edit, or delete staff members who can access the app.
+            </p>
+            
+            <button id="add-new-staff" class="action-button add-new-button">+ Add New Staff Member</button>
+            
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="staff-table-body">
+                    <!-- Staff will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- I&C Items Section -->
+    <div id="ic-items-section" class="tab-section">
+        <div class="card">
+            <h2 class="card-title">I&C Items Management</h2>
+            <p class="card-desc">
+                Here you can add, edit, or delete ingredients and consumables items in the database.
+            </p>
+            
+            <button id="add-new-ic" class="action-button add-new-button">+ Add New I&C Item</button>
+            
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Item</th>
+                        <th>Current</th>
+                        <th>Target</th>
+                        <th>Location</th>
+                        <th>Sublocation</th>
+                        <th>Providers</th>
+                        <th>Last Checked</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ic-table-body">
+                    <!-- I&C Items will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- Modal Edit Form (hidden by default) -->
+<div id="edit-form" class="hidden">
+    <div class="form-container">
+        <div class="form-header">
+            <h3 id="form-title">Edit Item</h3>
+        </div>
+        
+        <div class="form-group">
+            <label for="item-id">ID:</label>
+            <input type="number" id="item-id" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+            <label for="item-display-order">Display Order:</label>
+            <input type="number" id="item-display-order" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="item-name">Name:</label>
+            <input type="text" id="item-name" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="item-current">Current Level:</label>
+            <input type="number" id="item-current" class="form-control" step="0.25" min="0" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="item-target">Target Level:</label>
+            <input type="number" id="item-target" class="form-control" step="0.25" min="0" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="item-unit">Unit:</label>
+            <input type="text" id="item-unit" class="form-control" required>
+        </div>
+        
+        <div class="button-group">
+            <button id="save-item" class="action-button save-button">Save</button>
+            <button id="cancel-edit" class="secondary-button cancel-button">Cancel</button>
+            <button id="delete-item" class="delete-button hidden">Delete Item</button>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Edit Form (hidden by default) -->
+<div id="staff-edit-form" class="hidden">
+    <div class="form-container">
+        <div class="form-header">
+            <h3 id="staff-form-title">Edit Staff Member</h3>
+        </div>
+        
+        <div class="form-group">
+            <label for="staff-id">ID:</label>
+            <input type="number" id="staff-id" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="staff-name">Name:</label>
+            <input type="text" id="staff-name" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="staff-active">Active:</label>
+            <select id="staff-active" class="form-control">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+            </select>
+        </div>
+        
+        <div class="button-group">
+            <button id="save-staff" class="action-button save-button">Save</button>
+            <button id="cancel-staff-edit" class="secondary-button cancel-button">Cancel</button>
+            <button id="delete-staff" class="delete-button hidden">Delete Staff</button>
+        </div>
+    </div>
+</div>
+
+<!-- I&C Edit Form (hidden by default) -->
+<div id="ic-edit-form" class="hidden">
+    <div class="form-container">
+        <div class="form-header">
+            <h3 id="ic-form-title">Edit I&C Item</h3>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-id">ID:</label>
+            <input type="number" id="ic-id" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+            <label for="ic-display-order">Display Order:</label>
+            <input type="number" id="ic-display-order" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-name">Name:</label>
+            <input type="text" id="ic-name" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-current">Current Level:</label>
+            <input type="number" id="ic-current" class="form-control" step="0.25" min="0" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-target">Target Level:</label>
+            <input type="number" id="ic-target" class="form-control" step="0.25" min="0" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-unit">Unit:</label>
+            <input type="text" id="ic-unit" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-location">Location:</label>
+            <input type="text" id="ic-location" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-sublocation">Sublocation:</label>
+            <input type="text" id="ic-sublocation" class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="ic-providers">Providers (comma-separated):</label>
+            <input type="text" id="ic-providers" class="form-control" placeholder="Provider 1, Provider 2, etc.">
+        </div>
+        
+        <div class="button-group">
+            <button id="save-ic" class="action-button save-button">Save</button>
+            <button id="cancel-ic-edit" class="secondary-button cancel-button">Cancel</button>
+            <button id="delete-ic" class="delete-button hidden">Delete Item</button>
+        </div>
+    </div>
+</div>
+
+<!-- DB Editor script -->
+<script src="db-editor.js"></script>
+<script src="history.js"></script>
+</body>
+</html>

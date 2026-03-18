@@ -1,0 +1,1092 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+:root {
+    /* Primary brand colors */
+    --primary-dark: #577c2b;    /* Dark green */
+    --primary-light: #8cc845;   /* Light green */
+    --primary-medium: #80b244;  /* Medium green */
+    --accent-yellow: #fff4bd;   /* Light yellow */
+    --accent-orange: #ff8c04;   /* Orange */
+    --accent-red: #f58181;      /* Light red */
+    --accent-green-light: #eef4e4; /* Very light green */
+    --accent-blue: #b5bee6;     /* Light blue */
+    --accent-orange-light: #ffb04b; /* Light orange */
+
+    /* Neutral colors */
+    --bg-light: #f7f9f5;
+    --bg-medium: #ecf5e3;
+    --text-dark: #333333;
+    --text-medium: #555555;
+    --text-light: #777777;
+    --border-light: #e0e7db;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+
+/* Staff Selection Screen */
+.staff-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 20px;
+    background-color: var(--bg-light);
+}
+
+.heading {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 32px;
+    color: var(--primary-dark);
+}
+
+.staff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-width: 500px;
+    width: 100%;
+}
+
+.staff-button {
+    background-color: var(--primary-medium);
+    color: white;
+    padding: 16px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+.staff-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.staff-button:active {
+    transform: translateY(1px);
+}
+
+/* Main App Interface */
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+/* Left Panel - Navigation */
+.nav-panel {
+    width: 20%;
+    background-color: var(--primary-dark);
+    color: white;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.logo-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.company-logo {
+    max-width: 80%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.nav-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 32px;
+    text-align: center;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.nav-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    color: white;
+    text-align: left;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-weight: 500;
+}
+
+.nav-button:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-button.active {
+    background-color: var(--primary-light);
+    color: var(--primary-dark);
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* DB Editor divider styling */
+.nav-panel a[href="db-editor.html"],
+.nav-panel a.nav-button[href="db-editor.html"],
+.nav-panel .nav-button[data-section="db-editor"] {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.user-info {
+    margin-top: auto;
+    padding-top: 0;
+    border-top: none;
+    margin-top: 32px;
+}
+
+.user-label {
+    color: white;
+    opacity: 0.8;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.user-name {
+    font-weight: bold;
+    margin-bottom: 12px;
+    color: white;
+}
+
+.switch-user-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px 10px;
+    text-align: center;
+    border-radius: 4px;
+    width: 100%;
+    transition: background-color 0.2s;
+}
+
+.switch-user-btn:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+/* Middle Panel - Content */
+.content-panel {
+    width: 60%;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.section-title {
+    font-size: 26px;
+    font-weight: bold;
+    margin-bottom: 24px;
+    color: var(--primary-dark);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.user-login-btn {
+    background-color: #a5afff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.user-login-btn:hover {
+    background-color: var(--accent-orange-light);
+    transform: translateY(-2px);
+}
+
+#header-user-name {
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+.card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-light);
+}
+
+.card-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--primary-dark);
+}
+
+.card-desc {
+    margin-bottom: 16px;
+    color: var(--text-medium);
+    line-height: 1.5;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background-color: var(--bg-medium);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-medium);
+}
+
+.stat-label {
+    color: var(--text-medium);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--primary-dark);
+}
+
+.placeholder-text {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* Inventory Table */
+.inventory-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    background-color: white;
+}
+
+.inventory-table th,
+.inventory-table td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.inventory-table th {
+    background-color: var(--primary-dark);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+}
+
+.inventory-table th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.inventory-table th:last-child {
+    border-top-right-radius: 8px;
+}
+
+.inventory-table tr:last-child td:first-child {
+    border-bottom-left-radius: 8px;
+}
+
+.inventory-table tr:last-child td:last-child {
+    border-bottom-right-radius: 8px;
+}
+
+.inventory-table th:nth-child(2),
+.inventory-table th:nth-child(3),
+.inventory-table td:nth-child(2),
+.inventory-table td:nth-child(3) {
+    text-align: center;
+}
+
+/* IMPORTANT: Color coding for update types */
+/* Style for items updated through full prep check (counting) */
+.count-updated {
+    background-color: var(--accent-yellow) !important; /* Brand light yellow */
+    transition: background-color 0.5s ease;
+}
+
+/* Style for items updated via prep to-do list (food added) */
+.prep-updated {
+    background-color: var(--accent-green-light) !important; /* Brand light green */
+    transition: background-color 0.5s ease;
+}
+
+/* Make rows clickable */
+.inventory-table tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* Hover effect for inventory rows */
+.inventory-table tr:hover {
+    filter: brightness(0.95);
+}
+
+/* Prep Check Interface */
+.check-progress {
+    color: var(--text-medium);
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.check-item-name {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: var(--primary-dark);
+}
+
+.check-item-target {
+    margin-bottom: 8px;
+    color: var(--text-medium);
+    font-weight: 500;
+    background-color: var(--bg-medium);
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-label {
+    display: block;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input-field {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 18px;
+    transition: border-color 0.2s;
+}
+
+.input-field:focus {
+    border-color: var(--primary-medium);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(128, 178, 68, 0.2);
+}
+
+.button-group {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.action-button {
+    background-color: var(--primary-medium);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.action-button:active {
+    transform: translateY(1px);
+}
+
+.secondary-button {
+    background-color: white;
+    border: 1px solid var(--border-light);
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+    background-color: var(--bg-medium);
+}
+
+/* Right Panel - Todo List */
+.todo-panel {
+    width: 20%;
+    background-color: var(--bg-medium);
+    padding: 16px;
+    overflow-y: auto;
+    border-left: 1px solid var(--border-light);
+    margin-left: 0; /* Ensure no margin is creating extra space */
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Ensure it takes full height */
+}
+
+.todo-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 16px;
+    color: var(--primary-dark);
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-light);
+}
+
+/* Selected items container to control vertical space */
+#selected-items-container {
+    max-height: calc(100vh - 140px); /* Adjust this value as needed */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* Take up remaining space */
+}
+
+.todo-empty {
+    color: var(--text-light);
+    font-style: italic;
+    text-align: center;
+    padding: 10px 0; /* Reduced padding */
+    margin-top: 0;
+}
+
+.todo-item {
+    background-color: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--primary-light);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.todo-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.todo-item-name {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--primary-dark);
+}
+
+.todo-item-detail {
+    font-size: 14px;
+    color: var(--text-medium);
+    margin-bottom: 4px;
+}
+
+.todo-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 9999px;
+    font-weight: 800;
+}
+
+.todo-tag.urgent {
+    background-color: var(--accent-red);
+    color: white;
+    font-weight: 800;
+}
+
+.todo-tag.low {
+    background-color: var(--accent-orange);
+    color: white;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+/* Touch-friendly numeric input styles */
+.touch-input-container {
+    width: 100%;
+    margin: 15px 0;
+    padding: 20px;
+    background-color: var(--bg-medium);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.value-display {
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    margin: 20px 0;
+    color: var(--primary-dark);
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 0 40px;
+}
+
+.control-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--primary-medium);
+    color: white;
+    font-size: 28px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.control-button:hover {
+    background-color: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.control-button:active {
+    transform: scale(0.95);
+}
+
+.slider-container {
+    position: relative;
+    width: 100%;
+    height: 60px;
+    margin: 30px 0;
+}
+
+.slider-track {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 8px;
+    background-color: #ddd;
+    border-radius: 4px;
+}
+
+.slider-progress {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 8px;
+    background-color: var(--primary-medium);
+    border-radius: 4px;
+}
+
+.slider-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    background-color: var(--primary-dark);
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tick-marks {
+    position: absolute;
+    width: 100%;
+    height: 30px;
+    bottom: -30px;
+}
+
+.tick {
+    position: absolute;
+    height: 10px;
+    width: 2px;
+    background-color: #999;
+    transform: translateX(-50%);
+}
+
+.tick.major {
+    height: 15px;
+    width: 2px;
+    background-color: #666;
+}
+
+.tick-label {
+    position: absolute;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-medium);
+    top: 15px;
+    font-weight: 500;
+}
+
+/* Animations for better feedback */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Staff selection modal animations */
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Staff selection modal styles */
+.modal-backdrop {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.staff-select-button {
+    animation: fadeIn 0.2s ease-out;
+    animation-fill-mode: both;
+}
+
+.staff-select-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.staff-select-button.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.todo-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Enhanced mobile styles */
+@media (max-width: 768px) {
+    .todo-item {
+        padding: 12px;
+    }
+}
+
+/* Submit button styles */
+.submit-button {
+    width: 100%;
+    background-color: var(--primary-medium);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+}
+
+.submit-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.submit-button:active {
+    transform: translateY(1px);
+}
+
+/* Tab Navigation Styles */
+.tab-navigation {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-light);
+    background-color: white;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tab-button {
+    padding: 14px 20px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+    background-color: var(--bg-medium);
+    color: var(--primary-dark);
+}
+
+.tab-button.active {
+    background-color: var(--primary-medium);
+    color: white;
+    border-bottom-color: var(--primary-dark);
+}
+
+.tab-section {
+    display: none;
+}
+
+.tab-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Place these styles outside any media query */
+.prep-check-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--primary-medium);
+    padding-bottom: 8px;
+  }
+  
+  .prep-check-header .section-title {
+    margin-bottom: 0;
+    font-size: 22px;
+}
+
+.prep-check-header .check-progress {
+    margin-bottom: 0;
+  }
+  
+  /* Keep your existing media query as is */
+  @media (max-width: 768px) {
+      .tab-navigation {
+          flex-direction: row;
+          width: 100%;
+          overflow-x: auto;
+      }
+      
+      .tab-button {
+          white-space: nowrap;
+          flex: 0 0 auto;
+          padding: 12px 16px;
+      }
+  }
+
+/* Mobile Responsive Design */
+@media screen and (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .nav-panel {
+        width: 100%;
+        height: auto;
+        padding: 10px;
+        position: relative;
+        z-index: 100;
+    }
+
+    .logo-container {
+        margin-bottom: 10px;
+    }
+
+    .company-logo {
+        max-width: 140px;
+        margin: 0 auto;
+    }
+
+    .nav-title {
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+
+    .nav-buttons {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 10px 0;
+        gap: 10px;
+    }
+
+    .nav-button {
+        white-space: nowrap;
+        padding: 8px 16px;
+    }
+
+    .content-panel {
+        width: 100%;
+        padding: 10px;
+        margin-left: 0;
+    }
+
+    .todo-panel {
+        width: 100%;
+        position: relative;
+        height: auto;
+        margin-top: 20px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .user-login-btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Table responsiveness */
+    .inventory-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* Card adjustments */
+    .card {
+        padding: 15px;
+        margin: 10px 0;
+    }
+
+    /* Button adjustments */
+    .action-button {
+        width: 100%;
+        margin: 5px 0;
+    }
+
+    /* Todo items */
+    .todo-item {
+        margin: 10px 0;
+    }
+
+    /* Staff selection screen */
+    .staff-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    /* Prep check interface */
+    #prep-check-interface .card {
+        padding: 15px;
+    }
+
+    .touch-input-container {
+        width: 100%;
+    }
+
+    .slider-container {
+        width: 100%;
+        margin: 20px 0;
+    }
+
+    /* Location filter */
+    .location-filter {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 10px;
+    }
+
+    /* History section */
+    .history-container {
+        flex-direction: column;
+    }
+
+    .history-logs {
+        width: 100%;
+    }
+}
+
+/* Additional adjustments for very small screens */
+@media screen and (max-width: 480px) {
+    .company-logo {
+        max-width: 100px;
+    }
+
+    .nav-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+
+    .section-title {
+        font-size: 20px;
+    }
+
+    .todo-tag {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+}
+
+/* Overrides for Prep Check Interface to reduce vertical space */
+#prep-check-interface .card {
+    padding: 12px;
+}
+
+#prep-check-interface .touch-input-container {
+    margin: 10px 0;
+    padding: 10px;
+}
+
+#prep-check-interface .value-display {
+    margin: 10px 0;
+    font-size: 28px;
+}
+
+#prep-check-interface .control-row {
+    margin-bottom: 10px;
+    padding: 0 20px;
+}
+
+#prep-check-interface .control-button {
+    width: 62.5px;
+    height: 62.5px;
+    font-size: 30px;
+}
+
+#prep-check-interface .slider-container {
+    margin: 15px 0;
+    height: 40px;
+}
+
+#prep-check-interface .slider-handle {
+    width: 30px;
+    height: 30px;
+}
+
+#prep-check-interface .tick-marks {
+    height: 28px;
+    bottom: -28px;
+}
+
+#prep-check-interface .tick-label {
+    top: 16px;
+    font-size: 10px;
+}
+
+/* General Log Item Styling (if any adjustments are needed globally) */
+.log-item .log-action .item-name {
+    margin-left: 8px; /* Add some space after the action label */
+}
+
+/* Styles for I&C Manager Navigation Panel */
+.body-ic-manager .nav-panel {
+    background-color: #4a5568; /* Dark Slate Blue */
+}
+
+.body-ic-manager .nav-panel .nav-button.active {
+    background-color: #2c3e50; /* Darker Slate Blue for active button */
+    color: white; /* White text for active button */
+}
+
+/* Ensure other nav buttons in I&C maintain good contrast if needed */
+.body-ic-manager .nav-panel .nav-button {
+    /* If general nav-button color doesn't work well on dark slate blue, adjust here */
+    /* For now, assuming default white text is fine */
+}
+
+/* Specific separator for Prep Manager link within I&C Manager view */
+.body-ic-manager .nav-panel a.nav-button[href="index.html"] {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.2); /* Using a slightly more visible white for the blue bg */
+}
+
+/* Ensure the DB Editor link in I&C view does NOT get the default top border */
+.body-ic-manager .nav-panel a.nav-button[href="db-editor.html"] {
+    margin-top: 0;
+    padding-top: 12px; /* Default padding without border */
+    border-top: none;
+}
+
+/* "Can't Prep" Badge for To-Do List Title */
+.todo-panel .todo-title {
+    position: relative; /* To position badge relative to title if needed, or use flex */
+    display: flex; /* Align title text and badge nicely */
+    align-items: center; /* Vertically align items in the flex container */
+}
+
+.cant-prep-badge {
+    background-color: var(--accent-red); /* Use the app's red */
+    color: white;
+    border-radius: 50%; /* Make it circular */
+    padding: 2px 6px; /* Adjust padding to make it look like a dot with a number */
+    font-size: 12px; /* Smaller font size for the number in the badge */
+    font-weight: bold;
+    margin-left: 8px; /* Space between title text and badge */
+    min-width: 20px; /* Ensure a minimum width to maintain circle shape for single digit */
+    height: 20px; /* Ensure a consistent height */
+    display: inline-flex; /* Use flex to center content if needed */
+    align-items: center;
+    justify-content: center;
+    line-height: 1; /* Adjust line-height for better vertical centering of text */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}

@@ -1,0 +1,290 @@
+/* Styles for Activity History */
+
+/* History container */
+.history-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Analytics section */
+.history-analytics {
+    background-color: var(--bg-medium);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Remove card styling from inventory table container */
+#inventory-section .card {
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+}
+
+.analytics-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.analytics-card {
+    background-color: white;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.analytics-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+}
+
+.analytics-label {
+    color: var(--text-medium);
+    font-size: 14px;
+}
+
+.analytics-top-items h3 {
+    margin-bottom: 12px;
+    font-size: 18px;
+    color: var(--primary-dark);
+}
+
+.top-items-list {
+    list-style: none;
+    padding: 0;
+}
+
+.top-items-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.top-items-list li:last-child {
+    border-bottom: none;
+}
+
+.item-count {
+    font-weight: 500;
+    color: var(--primary-medium);
+}
+
+/* Logs section */
+.history-logs {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.history-logs-header {
+    background-color: var(--primary-dark);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 600;
+}
+
+.history-content {
+    padding: 0;
+    background-color: transparent;
+    box-shadow: none;
+    border: none;
+}
+
+/* Date headers */
+.date-header {
+    background-color: var(--bg-medium);
+    padding: 12px 20px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    border-bottom: 1px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Log items */
+.log-item {
+    display: grid;
+    grid-template-columns: 60px 130px 1fr auto;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-light);
+    transition: background-color 0.2s;
+}
+
+.log-item:hover {
+    background-color: var(--bg-light);
+}
+
+.log-time {
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.log-user {
+    font-weight: 500;
+    color: var(--text-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-label {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.log-change {
+    text-align: right;
+    font-weight: 500;
+}
+
+/* Action type styling */
+.action-count .action-label {
+    background-color: var(--accent-yellow);
+    color: #8a6e00;
+}
+
+.action-prep .action-label {
+    background-color: var(--accent-green-light);
+    color: var(--primary-dark);
+}
+
+.action-add .action-label {
+    background-color: var(--accent-blue);
+    color: #3b5998;
+}
+
+.action-edit .action-label {
+    background-color: var(--accent-orange-light);
+    color: #984c0c;
+}
+
+.action-delete .action-label {
+    background-color: var(--accent-red);
+    color: #901818;
+}
+
+.item-name {
+    font-weight: 500;
+}
+
+/* Empty state */
+.empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    /* Log item styles for history view */
+    .log-item {
+        grid-template-columns: 60px 1fr;
+        grid-template-rows: auto auto;
+        gap: 8px;
+    }
+    
+    .log-action {
+        grid-column: span 2;
+    }
+    
+    .log-change {
+        text-align: left;
+        grid-column: span 2;
+    }
+    
+    .analytics-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    /* Mobile-specific table adjustments - ONLY FOR INVENTORY TABLE */
+    #inventory-section .inventory-table {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    #inventory-section .inventory-table th,
+    #inventory-section .inventory-table td {
+        padding: 8px 4px;
+        font-size: 13px;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+
+    /* Set specific column widths for mobile - ONLY FOR INVENTORY TABLE */
+    #inventory-section .inventory-table th:nth-child(1),
+    #inventory-section .inventory-table td:nth-child(1) {
+        width: 35%;  /* Item name */
+    }
+
+    #inventory-section .inventory-table th:nth-child(2),
+    #inventory-section .inventory-table td:nth-child(2) {
+        width: 25%;  /* Current value */
+    }
+
+    #inventory-section .inventory-table th:nth-child(3),
+    #inventory-section .inventory-table td:nth-child(3) {
+        width: 25%;  /* Target value */
+    }
+
+    /* Hide only the Last Checked column - ONLY FOR INVENTORY TABLE */
+    #inventory-section .inventory-table th:nth-child(4),
+    #inventory-section .inventory-table td:nth-child(4) {
+        display: none;
+    }
+
+    /* Keep the By column but make it narrower - ONLY FOR INVENTORY TABLE */
+    #inventory-section .inventory-table th:nth-child(5),
+    #inventory-section .inventory-table td:nth-child(5) {
+        width: 15%;
+    }
+}
+
+/* Styles for "Can't Prep" log items */
+.log-item.action-cantprep .log-action .action-label {
+    background-color: var(--accent-red);
+    color: white;
+    font-weight: 600;
+}
+
+.log-item.action-cantprep .log-change {
+    color: var(--accent-red);
+    font-style: italic;
+}
+
+/* Styles for "Can Prep Again" log items */
+.log-item.action-canprepagain .log-action .action-label {
+    background-color: var(--accent-blue);
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.log-item.action-canprepagain .log-change {
+    color: var(--primary-medium);
+}
+
+/* General Log Item Styling (if any adjustments are needed globally) */
+.log-item .log-action .item-name {
+    margin-left: 8px; /* Add some space after the action label */
+}
