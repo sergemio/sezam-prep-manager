@@ -1128,6 +1128,23 @@ body {
     align-items: center; /* Vertically align items in the flex container */
 }
 
+#task-description-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.todo-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
 .cant-prep-badge {
     background-color: var(--accent-red); /* Use the app's red */
     color: white;

@@ -69,7 +69,7 @@
         }
         
         /* Modal style edit form */
-        #edit-form, #staff-edit-form {
+        #edit-form, #staff-edit-form, #task-edit-form {
             position: fixed;
             top: 0;
             left: 0;
@@ -130,6 +130,7 @@
         <button class="tab-button active" data-target="prep-items-section">Prep Items</button>
         <button class="tab-button" data-target="staff-section">Staff</button>
         <button class="tab-button" data-target="ic-items-section">I&C Items</button>
+        <button class="tab-button" data-target="tasks-section">Tasks</button>
     </div>
     
     <!-- Prep Items Section -->
@@ -217,6 +218,28 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <!-- Tasks Section -->
+    <div id="tasks-section" class="tab-section">
+        <div class="section-header">
+            <h2>Tasks</h2>
+            <button id="add-task-button" class="action-button">+ Add New Task</button>
+        </div>
+        <table class="inventory-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Frequency / Date</th>
+                    <th>Active</th>
+                    <th>Last Done</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-table-body">
+            </tbody>
+        </table>
     </div>
 </div>
 <!-- Modal Edit Form (hidden by default) -->
@@ -353,6 +376,51 @@
             <button id="save-ic" class="action-button save-button">Save</button>
             <button id="cancel-ic-edit" class="secondary-button cancel-button">Cancel</button>
             <button id="delete-ic" class="delete-button hidden">Delete Item</button>
+        </div>
+    </div>
+</div>
+
+<!-- Task Edit Form (hidden by default) -->
+<div id="task-edit-form" class="hidden">
+    <div class="form-container">
+        <div class="form-header">
+            <h3 id="task-form-title">Add New Task</h3>
+        </div>
+        <div class="form-group">
+            <label for="task-title-input">Title *</label>
+            <input type="text" id="task-title-input" placeholder="e.g. Passer l'aspirateur">
+        </div>
+        <div class="form-group">
+            <label for="task-description-input">Description</label>
+            <textarea id="task-description-input" rows="3" placeholder="Detailed instructions..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="task-type-input">Type *</label>
+            <select id="task-type-input">
+                <option value="recurring">Recurring</option>
+                <option value="one-off">One-off</option>
+                <option value="scheduled">Scheduled</option>
+            </select>
+        </div>
+        <div class="form-group" id="task-frequency-group">
+            <label for="task-frequency-input">Every ___ days</label>
+            <input type="number" id="task-frequency-input" min="1" value="1">
+        </div>
+        <div class="form-group hidden" id="task-scheduled-group">
+            <label for="task-date-input">Date</label>
+            <input type="date" id="task-date-input">
+            <label for="task-time-input" style="margin-top: 8px;">Time (optional)</label>
+            <input type="time" id="task-time-input">
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="task-active-input" checked> Active
+            </label>
+        </div>
+        <div class="button-group">
+            <button id="save-task" class="action-button save-button">Save</button>
+            <button id="cancel-task-edit" class="secondary-button cancel-button">Cancel</button>
+            <button id="delete-task" class="delete-button hidden">Delete Task</button>
         </div>
     </div>
 </div>
