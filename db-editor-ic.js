@@ -23,6 +23,65 @@ let cancelIcEditButton;
 let deleteIcButton;
 let addNewIcButton;
 
+// Shared sort function for I&C items (by location, sublocation, then displayOrder)
+function sortIcItems() {
+    icItems.sort((a, b) => {
+        if (a.location !== b.location) return a.location.localeCompare(b.location);
+        if ((a.sublocation || '') !== (b.sublocation || '')) return (a.sublocation || '').localeCompare(b.sublocation || '');
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) return a.displayOrder - b.displayOrder;
+        if (a.displayOrder !== undefined) return -1;
+        if (b.displayOrder !== undefined) return 1;
+        return a.id - b.id;
+    });
+}
+
+// Move an I&C item up or down within its location/sublocation
+function moveIcItem(itemId, direction) {
+    const currentIndex = icItems.findIndex(item => item.id === itemId);
+    if (currentIndex < 0) return;
+
+    const currentItem = icItems[currentIndex];
+
+    // Find the neighbor in the same location/sublocation
+    let swapIndex = -1;
+    const step = direction; // -1 for up, +1 for down
+    for (let i = currentIndex + step; i >= 0 && i < icItems.length; i += step) {
+        if (icItems[i].location === currentItem.location &&
+            (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
+            swapIndex = i;
+            break;
+        }
+    }
+    if (swapIndex === -1) return;
+
+    const swapItem = icItems[swapIndex];
+
+    if (currentItem.displayOrder === undefined) currentItem.displayOrder = currentItem.id;
+    if (swapItem.displayOrder === undefined) swapItem.displayOrder = swapItem.id;
+
+    const temp = currentItem.displayOrder;
+    currentItem.displayOrder = swapItem.displayOrder;
+    swapItem.displayOrder = temp;
+
+    const dirLabel = direction === -1 ? 'up' : 'down';
+
+    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
+        window.firebaseDb.saveAllIcItems([currentItem, swapItem])
+            .then(() => {
+                sortIcItems();
+                renderIcItemsTable();
+                showSuccessMessage(`I&C item moved ${dirLabel} in order.`);
+            })
+            .catch(error => {
+                console.error('Error saving I&C items:', error);
+                showErrorMessage('Failed to change I&C item order.');
+            });
+    } else {
+        sortIcItems();
+        renderIcItemsTable();
+    }
+}
+
 // Initialize I&C items management
 function initIcItemsManagement() {
     
@@ -84,38 +143,7 @@ window.firebaseDb.loadIcItems()
     .then(items => {
         if (items && items.length > 0) {
             icItems = items;
-            // Sort by displayOrder/ID first, then location, then sublocation
-            icItems.sort((a, b) => {
-                // First by displayOrder if both items have it
-                if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                    return a.displayOrder - b.displayOrder;
-                }
-                
-                // Otherwise use ID as fallback for order
-                if (a.displayOrder !== undefined && b.displayOrder === undefined) {
-                    return -1; // Items with display order come first
-                }
-                if (a.displayOrder === undefined && b.displayOrder !== undefined) {
-                    return 1; // Items with display order come first
-                }
-                
-                // If neither has displayOrder, sort by ID
-                if (a.id !== b.id) {
-                    return a.id - b.id;
-                }
-                
-                // Then by location
-                if (a.location !== b.location) {
-                    return a.location.localeCompare(b.location);
-                }
-                
-                // Then by sublocation
-                if ((a.sublocation || '') !== (b.sublocation || '')) {
-                    return (a.sublocation || '').localeCompare(b.sublocation || '');
-                }
-                
-                return 0;
-            });
+            sortIcItems();
             renderIcItemsTable();
         } else {
             // Show empty state
@@ -203,209 +231,8 @@ if (moveDownButton) {
     });
 }
 
-// Function to move an I&C item up in the display order within its location/sublocation
-function moveIcItemUp(itemId) {
-    // Find the current item's index in the array
-    const currentIndex = icItems.findIndex(item => item.id === itemId);
-    if (currentIndex <= 0) {
-// Already at the top, can't move up
-return;
-    }
-    
-    // Get the current item
-    const currentItem = icItems[currentIndex];
-    
-    // Find the item above it that has the same location and sublocation
-    let aboveIndex = -1;
-    for (let i = currentIndex - 1; i >= 0; i--) {
-if (icItems[i].location === currentItem.location && 
-    (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
-    aboveIndex = i;
-    break;
-}
-    }
-    
-    if (aboveIndex === -1) {
-// No item above with same location/sublocation, can't move up
-return;
-    }
-    
-    const aboveItem = icItems[aboveIndex];
-    
-    // Make sure both items have displayOrder set
-    if (currentItem.displayOrder === undefined) {
-currentItem.displayOrder = currentItem.id;
-    }
-    if (aboveItem.displayOrder === undefined) {
-aboveItem.displayOrder = aboveItem.id;
-    }
-    
-    // Swap the displayOrder values
-    const tempOrder = currentItem.displayOrder;
-    currentItem.displayOrder = aboveItem.displayOrder;
-    aboveItem.displayOrder = tempOrder;
-    
-    // Save both items to Firebase
-    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-// Update Firebase
-window.firebaseDb.saveAllIcItems([currentItem, aboveItem])
-    .then(() => {
-        // Re-sort the array
-        icItems.sort((a, b) => {
-            // First by location
-            if (a.location !== b.location) {
-                return a.location.localeCompare(b.location);
-            }
-            
-            // Then by sublocation
-            if ((a.sublocation || '') !== (b.sublocation || '')) {
-                return (a.sublocation || '').localeCompare(b.sublocation || '');
-            }
-            
-            // Then by displayOrder
-            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                return a.displayOrder - b.displayOrder;
-            }
-            
-            // Fallback to ID
-            return a.id - b.id;
-        });
-        
-        // Re-render the table to show the new order
-        renderIcItemsTable();
-        showSuccessMessage('I&C item moved up in order.');
-    })
-    .catch(error => {
-        console.error('Error saving I&C items:', error);
-        showErrorMessage('Failed to change I&C item order.');
-    });
-    } else {
-// Re-sort and re-render locally if Firebase not available
-icItems.sort((a, b) => {
-    // First by location
-    if (a.location !== b.location) {
-        return a.location.localeCompare(b.location);
-    }
-    
-    // Then by sublocation
-    if ((a.sublocation || '') !== (b.sublocation || '')) {
-        return (a.sublocation || '').localeCompare(b.sublocation || '');
-    }
-    
-    // Then by displayOrder
-    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-        return a.displayOrder - b.displayOrder;
-    }
-    
-    // Fallback to ID
-    return a.id - b.id;
-});
-
-renderIcItemsTable();
-    }
-}
-
-// Function to move an I&C item down in the display order within its location/sublocation
-function moveIcItemDown(itemId) {
-    // Find the current item's index in the array
-    const currentIndex = icItems.findIndex(item => item.id === itemId);
-    if (currentIndex < 0 || currentIndex >= icItems.length - 1) {
-// Already at the bottom, can't move down
-return;
-    }
-    
-    // Get the current item
-    const currentItem = icItems[currentIndex];
-    
-    // Find the item below it that has the same location and sublocation
-    let belowIndex = -1;
-    for (let i = currentIndex + 1; i < icItems.length; i++) {
-if (icItems[i].location === currentItem.location && 
-    (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
-    belowIndex = i;
-    break;
-}
-    }
-    
-    if (belowIndex === -1) {
-// No item below with same location/sublocation, can't move down
-return;
-    }
-    
-    const belowItem = icItems[belowIndex];
-    
-    // Make sure both items have displayOrder set
-    if (currentItem.displayOrder === undefined) {
-currentItem.displayOrder = currentItem.id;
-    }
-    if (belowItem.displayOrder === undefined) {
-belowItem.displayOrder = belowItem.id;
-    }
-    
-    // Swap the displayOrder values
-    const tempOrder = currentItem.displayOrder;
-    currentItem.displayOrder = belowItem.displayOrder;
-    belowItem.displayOrder = tempOrder;
-    
-    // Save both items to Firebase
-    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-// Update Firebase
-window.firebaseDb.saveAllIcItems([currentItem, belowItem])
-    .then(() => {
-        // Re-sort the array
-        icItems.sort((a, b) => {
-            // First by location
-            if (a.location !== b.location) {
-                return a.location.localeCompare(b.location);
-            }
-            
-            // Then by sublocation
-            if ((a.sublocation || '') !== (b.sublocation || '')) {
-                return (a.sublocation || '').localeCompare(b.sublocation || '');
-            }
-            
-            // Then by displayOrder
-            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                return a.displayOrder - b.displayOrder;
-            }
-            
-            // Fallback to ID
-            return a.id - b.id;
-        });
-        
-        // Re-render the table to show the new order
-        renderIcItemsTable();
-        showSuccessMessage('I&C item moved down in order.');
-    })
-    .catch(error => {
-        console.error('Error saving I&C items:', error);
-        showErrorMessage('Failed to change I&C item order.');
-    });
-    } else {
-// Re-sort and re-render locally if Firebase not available
-icItems.sort((a, b) => {
-    // First by location
-    if (a.location !== b.location) {
-        return a.location.localeCompare(b.location);
-    }
-    
-    // Then by sublocation
-    if ((a.sublocation || '') !== (b.sublocation || '')) {
-        return (a.sublocation || '').localeCompare(b.sublocation || '');
-    }
-    
-    // Then by displayOrder
-    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-        return a.displayOrder - b.displayOrder;
-    }
-    
-    // Fallback to ID
-    return a.id - b.id;
-});
-
-renderIcItemsTable();
-    }
-}
+function moveIcItemUp(itemId) { moveIcItem(itemId, -1); }
+function moveIcItemDown(itemId) { moveIcItem(itemId, 1); }
 
 // Show the form for adding a new I&C item
 function showAddNewIcForm() {

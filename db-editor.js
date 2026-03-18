@@ -37,6 +37,53 @@ let cancelStaffEditButton;
 let deleteStaffButton;
 let addNewStaffButton;
 
+// Shared sort function for prep items
+function sortPrepItems() {
+    prepItems.sort((a, b) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+            return a.displayOrder - b.displayOrder;
+        }
+        return a.id - b.id;
+    });
+}
+
+// Move a prep item up or down in display order
+function moveItem(itemId, direction) {
+    const currentIndex = prepItems.findIndex(item => item.id === itemId);
+    const swapIndex = currentIndex + direction; // -1 for up, +1 for down
+
+    if (currentIndex < 0 || swapIndex < 0 || swapIndex >= prepItems.length) return;
+
+    const currentItem = prepItems[currentIndex];
+    const swapItem = prepItems[swapIndex];
+
+    if (currentItem.displayOrder === undefined) currentItem.displayOrder = currentItem.id;
+    if (swapItem.displayOrder === undefined) swapItem.displayOrder = swapItem.id;
+
+    // Swap displayOrder values
+    const temp = currentItem.displayOrder;
+    currentItem.displayOrder = swapItem.displayOrder;
+    swapItem.displayOrder = temp;
+
+    const dirLabel = direction === -1 ? 'up' : 'down';
+
+    if (window.firebaseDb) {
+        window.firebaseDb.saveAllItems([currentItem, swapItem])
+            .then(() => {
+                sortPrepItems();
+                renderItemsTable();
+                showSuccessMessage(`Item moved ${dirLabel} in order.`);
+            })
+            .catch(error => {
+                console.error('Error saving items:', error);
+                showErrorMessage('Failed to change item order.');
+            });
+    } else {
+        sortPrepItems();
+        renderItemsTable();
+    }
+}
+
 // Initialize the tab navigation system
 function initTabNavigation() {
     const tabButtons = document.querySelectorAll('.tab-button');
@@ -133,15 +180,7 @@ function loadItemsFromFirebase() {
             .then(items => {
                 if (items && items.length > 0) {
                     prepItems = items;
-                    // Sort by displayOrder if available, otherwise by ID
-                    prepItems.sort((a, b) => {
-                        // Use displayOrder if both items have it
-                        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                            return a.displayOrder - b.displayOrder;
-                        }
-                        // Use ID as fallback
-                        return a.id - b.id;
-                    });
+                    sortPrepItems();
                     renderItemsTable();
                 } else {
                     // Show empty state
@@ -217,145 +256,8 @@ function renderItemsTable() {
     });
 }
 
-// Function to move an item up in the display order
-function moveItemUp(itemId) {
-    // Find the current item's index in the array
-    const currentIndex = prepItems.findIndex(item => item.id === itemId);
-    if (currentIndex <= 0) {
-        // Already at the top, can't move up
-        return;
-    }
-    
-    // Get the current item and the item above it
-    const currentItem = prepItems[currentIndex];
-    const aboveItem = prepItems[currentIndex - 1];
-    
-    // Make sure both items have displayOrder set
-    if (currentItem.displayOrder === undefined) {
-        currentItem.displayOrder = currentItem.id;
-    }
-    if (aboveItem.displayOrder === undefined) {
-        aboveItem.displayOrder = aboveItem.id;
-    }
-    
-    // Swap the displayOrder values
-    const tempOrder = currentItem.displayOrder;
-    currentItem.displayOrder = aboveItem.displayOrder;
-    aboveItem.displayOrder = tempOrder;
-    
-    // Save both items to Firebase
-    if (window.firebaseDb) {
-        // Create a batch update
-        const updates = {};
-        updates['prepItems/' + currentItem.id] = currentItem;
-        updates['prepItems/' + aboveItem.id] = aboveItem;
-        
-        // Update Firebase
-        window.firebaseDb.saveAllItems([currentItem, aboveItem])
-            .then(() => {
-                // Re-sort the array by displayOrder
-                prepItems.sort((a, b) => {
-                    // Use displayOrder if both items have it
-                    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                        return a.displayOrder - b.displayOrder;
-                    }
-                    // Use ID as fallback
-                    return a.id - b.id;
-                });
-                
-                // Re-render the table to show the new order
-                renderItemsTable();
-                showSuccessMessage('Item moved up in order.');
-            })
-            .catch(error => {
-                console.error('Error saving items:', error);
-                showErrorMessage('Failed to change item order.');
-            });
-    } else {
-        // Re-sort the array by displayOrder
-        prepItems.sort((a, b) => {
-            // Use displayOrder if both items have it
-            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                return a.displayOrder - b.displayOrder;
-            }
-            // Use ID as fallback
-            return a.id - b.id;
-        });
-        
-        // Re-render locally if Firebase not available
-        renderItemsTable();
-    }
-}
-
-// Function to move an item down in the display order
-function moveItemDown(itemId) {
-    // Find the current item's index in the array
-    const currentIndex = prepItems.findIndex(item => item.id === itemId);
-    if (currentIndex < 0 || currentIndex >= prepItems.length - 1) {
-        // Already at the bottom, can't move down
-        return;
-    }
-    
-    // Get the current item and the item below it
-    const currentItem = prepItems[currentIndex];
-    const belowItem = prepItems[currentIndex + 1];
-    
-    // Make sure both items have displayOrder set
-    if (currentItem.displayOrder === undefined) {
-        currentItem.displayOrder = currentItem.id;
-    }
-    if (belowItem.displayOrder === undefined) {
-        belowItem.displayOrder = belowItem.id;
-    }
-    
-    // Swap the displayOrder values
-    const tempOrder = currentItem.displayOrder;
-    currentItem.displayOrder = belowItem.displayOrder;
-    belowItem.displayOrder = tempOrder;
-    
-    // Save both items to Firebase
-    if (window.firebaseDb) {
-        // Create a batch update
-        const updates = {};
-        updates['prepItems/' + currentItem.id] = currentItem;
-        updates['prepItems/' + belowItem.id] = belowItem;
-        
-        // Update Firebase
-        window.firebaseDb.saveAllItems([currentItem, belowItem])
-            .then(() => {
-                // Re-sort the array by displayOrder
-                prepItems.sort((a, b) => {
-                    // Use displayOrder if both items have it
-                    if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                        return a.displayOrder - b.displayOrder;
-                    }
-                    // Use ID as fallback
-                    return a.id - b.id;
-                });
-                
-                // Re-render the table to show the new order
-                renderItemsTable();
-                showSuccessMessage('Item moved down in order.');
-            })
-            .catch(error => {
-                console.error('Error saving items:', error);
-                showErrorMessage('Failed to change item order.');
-            });
-    } else {
-        // Re-sort the array by displayOrder
-        prepItems.sort((a, b) => {
-            // Use displayOrder if both items have it
-            if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                return a.displayOrder - b.displayOrder;
-            }
-            // Use ID as fallback
-            return a.id - b.id;
-        });
-        
-        // Re-render locally if Firebase not available
-        renderItemsTable();
-    }
-}
+function moveItemUp(itemId) { moveItem(itemId, -1); }
+function moveItemDown(itemId) { moveItem(itemId, 1); }
 
 // Show the form for adding a new item
 function showAddNewForm() {
