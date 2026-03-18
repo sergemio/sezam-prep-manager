@@ -135,6 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             actionText = 'test';
                             changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
                             break;
+                        case 'task-done':
+                            actionText = 'completed task';
+                            changeText = '';
+                            break;
                         default:
                             actionText = 'updated';
                             changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
