@@ -7,156 +7,16 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="history-styles.css">
     
-    
-    <!-- Firebase SDK Scripts -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, get, update , remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDhp7efZHDj2fw3qx9XOW41YcaR3pWu3Hs",
-            authDomain: "sezam-prep-manager.firebaseapp.com",
-            projectId: "sezam-prep-manager",
-            storageBucket: "sezam-prep-manager.appspot.com",
-            messagingSenderId: "79982392454",
-            appId: "1:79982392454:web:326e2e83a3dde894810d07",
-            databaseURL: "https://sezam-prep-manager-default-rtdb.europe-west1.firebasedatabase.app"
-        };
-        
-        // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 
-// Global Firebase helpers
-window.firebaseDb = {
-    ref: function(path) { // Expose the ref function for LastCheckTracker
-        return ref(database, path);
-    },
-    set: function(ref, data) { // Expose set for LastCheckTracker
-        return set(ref, data);
-    },
-    get: function(ref) { // Expose get for LastCheckTracker
-        return get(ref);
-    },
-    onValue: function(query, callback, errorCallback) { // Expose onValue for LastCheckTracker
-        return onValue(query, callback, errorCallback);
-    },
-    remove: function(ref) { // Expose remove if needed by other parts, or for future LCT use
-        return remove(ref);
-    },
-    saveItem: function(item) {
-        return set(ref(database, 'prepItems/' + item.id), item);
-    },
-    saveAllItems: function(items) {
-        // Create an object with all updates to perform
-        const updates = {};
-        items.forEach(item => {
-            updates['prepItems/' + item.id] = item;
-        });
-        // Update multiple locations at once
-        return update(ref(database), updates);
-    },
-    loadItems: function() {
-        return get(ref(database, 'prepItems')).then((snapshot) => {
-            if (snapshot.exists()) {
-                return Object.values(snapshot.val());
-            } else {
-                return [];
+    <!-- Firebase (shared config) -->
+    <script type="module" src="firebase-config.js"></script>
+    <script>
+        // Initialize LastCheckTracker when Firebase is ready
+        window.addEventListener('firebase-ready', function() {
+            if (window.LastCheckTracker && typeof window.LastCheckTracker.init === 'function') {
+                window.LastCheckTracker.init();
             }
         });
-    },
-    onItemsChange: function(callback) {
-        onValue(ref(database, 'prepItems'), (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                callback(Object.values(data));
-            } else {
-                callback([]);
-            }
-        });
-    },
-    // New functions for activity logging
-    saveActivityLog: function(activity) {
-        // Generate a unique ID for the log entry
-        const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        return set(ref(database, 'activityLogs/' + logId), activity);
-    },
-    
-    // Load all activity logs
-    loadActivityLogs: function() {
-        return get(ref(database, 'activityLogs')).then((snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                // Convert to array while preserving the Firebase keys
-                return Object.entries(data).map(([key, value]) => {
-                    return {...value, key: key}; // Add the key to each log entry
-                });
-            } else {
-                return [];
-            }
-        });
-    },
-    
-    // Set up a real-time listener for activity logs
-    onActivityLogsChange: function(callback) {
-        onValue(ref(database, 'activityLogs'), (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                callback(Object.values(data));
-            } else {
-                callback([]);
-            }
-        });
-    },
-    // Delete activity log function for removing old logs
-    deleteActivityLog: function(logId) {
-        return remove(ref(database, 'activityLogs/' + logId));
-    },
-    // Staff management functions
-    saveStaffMember: function(staff) {
-        return set(ref(database, 'staffMembers/' + staff.id), staff);
-    },
-    saveAllStaffMembers: function(staffList) {
-        // Create an object with all updates to perform
-        const updates = {};
-        staffList.forEach(staff => {
-            updates['staffMembers/' + staff.id] = staff;
-        });
-        // Update multiple locations at once
-        return update(ref(database), updates);
-    },
-    loadStaffMembers: function() {
-        return get(ref(database, 'staffMembers')).then((snapshot) => {
-            if (snapshot.exists()) {
-                return Object.values(snapshot.val());
-            } else {
-                return [];
-            }
-        });
-    },
-    deleteStaffMember: function(staffId) {
-        return remove(ref(database, 'staffMembers/' + staffId));
-    },
-    onStaffChange: function(callback) {
-        onValue(ref(database, 'staffMembers'), (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                callback(Object.values(data));
-            } else {
-                callback([]);
-            }
-        });
-    }
-};
-
-// Ensure LastCheckTracker initializes AFTER Firebase is ready
-if (window.LastCheckTracker && typeof window.LastCheckTracker.init === 'function') {
-    console.log("[index.html] Firebase initialized. Initializing LastCheckTracker...");
-    window.LastCheckTracker.init();
-} else {
-    console.error("[index.html] LastCheckTracker or LastCheckTracker.init is not available.");
-}
     </script>
 
 </head>
@@ -329,7 +189,6 @@ if (window.LastCheckTracker && typeof window.LastCheckTracker.init === 'function
     </div>
 </div>
 
-<!-- Removed all HTML elements related to the 'Used Up' feature. -->
                 
             </div>
             
