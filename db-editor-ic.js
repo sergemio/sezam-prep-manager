@@ -25,7 +25,6 @@ let addNewIcButton;
 
 // Initialize I&C items management
 function initIcItemsManagement() {
-    console.log('I&C Items Management initialized');
     
     // Get DOM elements
     icTableBody = document.getElementById('ic-table-body');
@@ -181,7 +180,6 @@ const editButton = row.querySelector('.edit-button');
 if (editButton) {
     editButton.addEventListener('click', function() {
         const itemId = parseInt(this.getAttribute('data-id'));
-        console.log('Edit button clicked for I&C item ID:', itemId);
         showEditIcForm(itemId);
     });
 }
@@ -449,7 +447,6 @@ console.error("I&C item not found:", itemId);
 return;
     }
     
-    console.log("Showing edit form for I&C item:", item);
     
     isAddingIc = false;
     currentEditingIcId = itemId;

@@ -74,7 +74,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initApp() {
-    console.log('DB Editor initialized');
     
     // Get DOM elements
     itemsTableBody = document.getElementById('items-table-body');
@@ -195,7 +194,6 @@ function renderItemsTable() {
         if (editButton) {
             editButton.addEventListener('click', function() {
                 const itemId = parseInt(this.getAttribute('data-id'));
-                console.log('Edit button clicked for item ID:', itemId);
                 showEditForm(itemId);
             });
         }
@@ -396,7 +394,6 @@ function showEditForm(itemId) {
         return;
     }
     
-    console.log("Showing edit form for item:", item);
     
     isAdding = false;
     currentEditingId = itemId;
@@ -625,7 +622,6 @@ function showErrorMessage(message) {
 // Staff Management Functions
 // Initialize staff management
 function initStaffManagement() {
-    console.log('Staff Management initialized');
     
     // Get DOM elements
     staffTableBody = document.getElementById('staff-table-body');
@@ -683,7 +679,6 @@ function loadStaffFromFirebase() {
                     staffMembers.sort((a, b) => a.id - b.id);
                     renderStaffTable();
                 } else {
-                    console.log("No staff found in database, initializing with hardcoded staff");
                     
                     // Create initial staff from the hardcoded list in index.html
                     const initialStaff = [
@@ -758,7 +753,6 @@ function renderStaffTable() {
         if (editButton) {
             editButton.addEventListener('click', function() {
                 const staffId = parseInt(this.getAttribute('data-id'));
-                console.log('Edit button clicked for staff ID:', staffId);
                 showEditStaffForm(staffId);
             });
         }
@@ -799,7 +793,6 @@ function showEditStaffForm(staffId) {
         return;
     }
     
-    console.log("Showing edit form for staff:", staff);
     
     isAddingStaff = false;
     currentEditingStaffId = staffId;

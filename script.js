@@ -64,7 +64,6 @@ function loadStaffMembers() {
         window.firebaseDb.loadStaffMembers()
             .then(staffMembers => {
                 if (staffMembers && staffMembers.length > 0) {
-                    console.log('Loaded staff members:', staffMembers);
                     
                     // Clear loading indicator
                     staffGrid.innerHTML = '';
@@ -94,7 +93,6 @@ function loadStaffMembers() {
                     }
                 } else {
                     // Fallback to hardcoded staff
-                    console.log('No staff found in database, using hardcoded staff');
                     createDefaultStaffButtons();
                 }
             })
@@ -105,7 +103,6 @@ function loadStaffMembers() {
             });
     } else {
         // Fallback to hardcoded staff
-        console.log('Firebase staff functions not available, using hardcoded staff');
         createDefaultStaffButtons();
     }
 }
@@ -181,8 +178,6 @@ const userLoginButton = document.getElementById('user-login-btn');
 
 //SaveData function to ensure Firebase saves are completed properly
 function saveData() {
-    console.log("Saving data to Firebase with display orders:", 
-        prepItems.map(item => `${item.name}: ${item.displayOrder || 'undefined'}`));
     
         // Always save to local storage as backup
     localStorage.setItem('prepItems', JSON.stringify(prepItems));
@@ -192,7 +187,6 @@ function saveData() {
         // Use batch update instead of individual items
         window.firebaseDb.saveAllItems(prepItems)
             .then(() => {
-                console.log("All items saved to Firebase successfully");
             })
             .catch(error => {
                 console.error("Error saving to Firebase:", error);
@@ -201,11 +195,10 @@ function saveData() {
             });
     } else if (window.firebaseDb && window.firebaseDb.saveItem) {
         // Fallback to individual updates if batch not available
-        console.log("Using individual saves instead of batch update");
         // Save each item individually with proper error handling
         const savePromises = prepItems.map(item => 
             window.firebaseDb.saveItem(item)
-                .then(() => console.log(`Item ${item.id} saved successfully`))
+                .then(() => {})
                 .catch(error => {
                     console.error(`Error saving item ${item.id}:`, error);
                     throw error; // Re-throw to be caught in Promise.all
@@ -215,7 +208,6 @@ function saveData() {
         // Handle all promises together
         Promise.all(savePromises)
             .then(() => {
-                console.log("All items saved to Firebase successfully");
             })
             .catch(error => {
                 console.error("Some items failed to save:", error);
@@ -251,7 +243,6 @@ function showErrorNotification(message) {
 
 // Modify the loadLocalData function to be more robust
 function loadLocalData() {
-    console.log("Loading data from local storage");
     try {
         const saved = localStorage.getItem('prepItems');
         if (saved) {
@@ -275,9 +266,7 @@ function loadLocalData() {
             updateTodoList();
             updateStats();
             
-            console.log("Data successfully loaded from local storage");
         } else {
-            console.log("No data in local storage, using initial data");
             // If no local data, use initial data
             prepItems = [...initialPrepItems];
             
@@ -297,7 +286,6 @@ function loadLocalData() {
 }
 
 function initApp() {
-    console.log("Initializing app...");
     
     // Set Serge Men as the default user
     currentStaff = 'Serge Men';
@@ -350,16 +338,13 @@ function initApp() {
     // Show loading indicator
     showLoadingIndicator();
     
-    console.log("Checking Firebase availability...");
     
     // First, check if Firebase is available
     if (window.firebaseDb && typeof window.firebaseDb.loadItems === 'function') {
-        console.log("Firebase is available, attempting to load data...");
         
         // 1. First load fresh data from Firebase
         window.firebaseDb.loadItems()
             .then(firebaseItems => {
-                console.log("Firebase loadItems response:", firebaseItems);
                 
                 if (firebaseItems && firebaseItems.length > 0) {
                     // Update prepItems with Firebase data
@@ -368,10 +353,6 @@ function initApp() {
                     // IMPORTANT: Sort by displayOrder using the helper function
                     prepItems = sortItemsByDisplayOrder(prepItems);
                     
-                    // Log the sorted order for debugging
-                    console.log("Items sorted by displayOrder:", prepItems.map(item => 
-                        `${item.name} (ID: ${item.id}, displayOrder: ${item.displayOrder || 'undefined'})`
-                    ));
                     
                     // Save to local storage as backup
                     localStorage.setItem('prepItems', JSON.stringify(prepItems));
@@ -381,10 +362,8 @@ function initApp() {
                     updateTodoList();
                     updateStats();
                     
-                    console.log("Data successfully loaded from Firebase");
                 } else {
                     // If Firebase returns empty, try loading from localStorage as fallback
-                    console.log("Firebase returned empty data, falling back to local storage");
                     loadLocalData();
                 }
                 
@@ -400,19 +379,14 @@ function initApp() {
         
         // 2. Set up real-time listeners for ongoing updates
         window.firebaseDb.onItemsChange((updatedItems) => {
-            console.log("Real-time update received:", updatedItems);
             
             if (updatedItems && updatedItems.length > 0) {
                 // Only update if we have valid data
-                console.log("Real-time update received from Firebase with " + updatedItems.length + " items");
                 prepItems = updatedItems;
                 
                 // IMPORTANT: Sort by displayOrder using the helper function
                 prepItems = sortItemsByDisplayOrder(prepItems);
                 
-                // Add debug logging
-                console.log("After sorting real-time update:", 
-                    prepItems.map(item => `${item.name}: ${item.displayOrder || 'undefined'}`));
                 
                 // Save to local storage
                 localStorage.setItem('prepItems', JSON.stringify(prepItems));
@@ -425,7 +399,6 @@ function initApp() {
         });
     } else {
         // If Firebase is not available, use local storage
-        console.log("Firebase not available, using local storage only");
         loadLocalData();
         hideLoadingIndicator();
     }
@@ -525,7 +498,6 @@ function markItemAsCanPrepAgain(item) {
 
 // Create loading indicator functions
 function showLoadingIndicator() {
-    console.log("Showing loading indicator");
     
     // Check if loading overlay already exists
     if (document.getElementById('loading-overlay')) {
@@ -581,7 +553,6 @@ function showLoadingIndicator() {
 }
 
 function hideLoadingIndicator() {
-    console.log("Hiding loading indicator");
     
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
@@ -593,7 +564,6 @@ function hideLoadingIndicator() {
 function saveAndNext() {
     // Get the value and explicitly check for undefined/null/empty
     const currentValue = currentLevelInput.value;
-    console.log("Current value:", currentValue);
 
     // Check if a value has been set (including zero)
     if (currentValue === '' || isNaN(parseFloat(currentValue))) {
@@ -652,16 +622,6 @@ function saveAndNext() {
 
 // Quick Update Modal (modified to use Firebase)
 function showQuickUpdateModal(item, context = 'default') {
-    console.log('MODAL DEBUG ---------------------');
-    console.log('Opening modal for:', item.name);
-    console.log('Item full data:', {
-        id: item.id,
-        name: item.name,
-        currentLevel: item.currentLevel,
-        targetLevel: item.targetLevel,
-        unit: item.unit,
-        displayOrder: item.displayOrder
-    });
     
     if (!item.currentLevel && item.currentLevel !== 0) {
         console.warn('Warning: currentLevel is undefined or null');
@@ -700,7 +660,6 @@ function showQuickUpdateModal(item, context = 'default') {
         <h3 style="margin: 0;">${item.name}</h3>
         <p style="margin: 5px 0;">Current: ${item.currentLevel} ${item.unit}</p>
     `;
-    console.log('3. Header created with current level:', item.currentLevel);
 
     // Create input group with hidden input
     const inputGroup = document.createElement('div');
@@ -934,7 +893,6 @@ function showQuickUpdateModal(item, context = 'default') {
 
         // Initialize with the current item's level
         const initialValue = parseFloat(item.currentLevel) || 0;
-        console.log('Initializing slider with value:', initialValue);
 
         modalSlider = createTouchSlider({
             containerId: sliderContainer,
@@ -1393,21 +1351,10 @@ function updateTodoList() {
     // First sort all items by displayOrder
     const sortedItems = sortItemsByDisplayOrder(prepItems);
     
-    // ---- DEBUGGING: Log items and their canPrep status ----
-    console.log("[updateTodoList] All items being processed (prepItems):");
-    sortedItems.forEach(item => {
-        console.log(`  ID: ${item.id}, Name: ${item.name}, canPrep: ${item.canPrep}, cantPrepReason: ${item.cantPrepReason}, Current: ${item.currentLevel}, Target: ${item.targetLevel}`);
-    });
     const itemsMarkedAsCantPrep = sortedItems.filter(item => item.canPrep === false);
-    console.log("[updateTodoList] Items filtered as 'Can\'t Prep' (count: " + itemsMarkedAsCantPrep.length + "):");
-    itemsMarkedAsCantPrep.forEach(item => {
-        console.log(`  ID: ${item.id}, Name: ${item.name}, canPrep: ${item.canPrep}`);
-    });
-    // ---- END DEBUGGING ----
 
     // Count items that can't be prepped
     const cantPrepCount = itemsMarkedAsCantPrep.length;
-    console.log("[updateTodoList] Calculated cantPrepCount:", cantPrepCount); // Log the count
 
     // Get the title element
     const todoTitleElement = document.querySelector('.todo-panel .todo-title');
@@ -1606,7 +1553,6 @@ function createTouchSlider(options) {
         maxValue = 20
     } = options;
 
-    console.log('Creating slider with initial value:', initialValue);
 
     // DOM elements
     const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
@@ -1634,7 +1580,6 @@ function createTouchSlider(options) {
 
     // Instance-specific state
     let currentValue = findClosestValue(parseFloat(initialValue) || 0, values);
-    console.log('Initial currentValue after finding closest:', currentValue);
     let isDragging = false;
 
     // Find closest value in values array
@@ -1805,7 +1750,6 @@ function createTouchSlider(options) {
 
 // Main initialization - this needs to be at the end of the file
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM content loaded, starting app initialization");
     initApp();
     
     // Initialize the last check tracker - THIS CALL IS NOW MOVED TO INDEX.HTML
@@ -2133,16 +2077,10 @@ function startPrepCheckProcess() {
     isChecking = true;
     currentItemIndex = 0;
     
-    console.log("Before sorting for prep check:", prepItems.map(item => 
-        `${item.name} (ID: ${item.id}, displayOrder: ${item.displayOrder || 'undefined'})`
-    ));
     
     // Sort items using our helper function
     prepItems = sortItemsByDisplayOrder(prepItems);
     
-    console.log("After sorting for prep check:", prepItems.map(item => 
-        `${item.name} (ID: ${item.id}, displayOrder: ${item.displayOrder || 'undefined'})`
-    ));
     
     dashboardSection.style.display = 'none';
     prepCheckInterface.style.display = 'block';
@@ -2353,7 +2291,6 @@ function updateInventoryTable() {
             isRecent = (diffDays < 1);
         } catch (e) {
             // If date parsing fails, don't highlight
-            console.log('Date parsing failed for', item.name, item.lastCheckedTime);
         }
         
         // Apply different background colors based on update type

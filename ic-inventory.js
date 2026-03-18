@@ -1,6 +1,5 @@
 // Add this debugging function at the top of your ic-inventory.js file
 function debugLog(message, data) {
-    console.log("DEBUG: " + message, data || '');
   }
 
 // Extract all unique locations and sublocations from items
@@ -24,8 +23,6 @@ function extractLocationsAndSublocations() {
         }
     });
     
-    console.log('Extracted locations:', [...allLocations]);
-    console.log('Extracted sublocations:', allSublocations);
 }
 
 // Update location filter buttons
@@ -777,7 +774,6 @@ function showAddNewItemModal() {
             // Use batch update for better consistency
             window.firebaseDb.saveAllIcItems(icItems)
                 .then(() => {
-                    console.log("All IC items saved to Firebase successfully");
                 })
                 .catch(error => {
                     console.error("Error saving to Firebase:", error);
@@ -786,14 +782,12 @@ function showAddNewItemModal() {
                 });
         } else if (window.firebaseDb && window.firebaseDb.saveIcItem) {
             // Fallback to individual updates if batch not available
-            console.log("Using individual saves instead of batch update");
             
             // Save the newest item (most recently added)
             const latestItem = icItems[icItems.length - 1];
             
             window.firebaseDb.saveIcItem(latestItem)
                 .then(() => {
-                    console.log(`Item ${latestItem.id} saved successfully`);
                 })
                 .catch(error => {
                     console.error(`Error saving item ${latestItem.id}:`, error);
@@ -820,7 +814,6 @@ function showAddNewItemModal() {
             
             window.firebaseDb.saveIcActivityLog(activity)
                 .then(() => {
-                    console.log("Activity logged successfully");
                 })
                 .catch(error => {
                     console.error("Error logging activity:", error);
@@ -1169,7 +1162,6 @@ function showQuickUpdateModal(item) {
             // Use batch update for better consistency
             window.firebaseDb.saveAllIcItems(icItems)
                 .then(() => {
-                    console.log("All IC items saved to Firebase successfully");
                 })
                 .catch(error => {
                     console.error("Error saving to Firebase:", error);
@@ -1183,7 +1175,6 @@ function showQuickUpdateModal(item) {
             if (updatedItem) {
                 window.firebaseDb.saveIcItem(updatedItem)
                     .then(() => {
-                        console.log(`Item ${updatedItem.id} saved successfully`);
                     })
                     .catch(error => {
                         console.error(`Error saving item ${updatedItem.id}:`, error);
@@ -1512,7 +1503,6 @@ let currentLevelInput;
 
 // Debugging function
 function debugLog(message, data) {
-    console.log("DEBUG: " + message, data || '');
   }
   
   function startFullCount() {
@@ -1809,7 +1799,6 @@ function saveData(specificItem = null) {
         // Use batch update for better consistency
         window.firebaseDb.saveAllIcItems(icItems)
             .then(() => {
-                console.log("All IC items saved to Firebase successfully");
             })
             .catch(error => {
                 console.error("Error saving to Firebase:", error);
@@ -1818,13 +1807,11 @@ function saveData(specificItem = null) {
             });
     } else if (window.firebaseDb && window.firebaseDb.saveIcItem) {
         // Fallback to individual updates if batch not available
-        console.log("Using individual saves instead of batch update");
         
         // If a specific item was provided, save it
         if (specificItem) {
             window.firebaseDb.saveIcItem(specificItem)
                 .then(() => {
-                    console.log(`Item ${specificItem.id} saved successfully`);
                 })
                 .catch(error => {
                     console.error(`Error saving item ${specificItem.id}:`, error);
@@ -1837,7 +1824,6 @@ function saveData(specificItem = null) {
             
             window.firebaseDb.saveIcItem(latestItem)
                 .then(() => {
-                    console.log(`Latest item ${latestItem.id} saved successfully`);
                 })
                 .catch(error => {
                     console.error(`Error saving latest item ${latestItem.id}:`, error);
@@ -2608,7 +2594,6 @@ cancelButton.textContent = 'Cancel';
             // Use batch update for better consistency
             window.firebaseDb.saveAllIcItems(icItems)
                 .then(() => {
-                    console.log("All IC items saved to Firebase successfully");
                 })
                 .catch(error => {
                     console.error("Error saving to Firebase:", error);
@@ -2729,7 +2714,6 @@ cancelButton.textContent = 'Cancel';
                 if (window.firebaseDb && window.firebaseDb.deleteIcItem) {
                     window.firebaseDb.deleteIcItem(item.id)
                         .then(() => {
-                            console.log(`I&C item ${item.id} deleted from Firebase`);
                         })
                         .catch(error => {
                             console.error(`Error deleting I&C item ${item.id}:`, error);
@@ -2768,7 +2752,6 @@ cancelButton.textContent = 'Cancel';
 
 // Load and display I&C history
 function loadAndDisplayIcHistory() {
-    console.log("Loading I&C activity history");
     
     // Get container elements
     const historyContent = document.getElementById('history-content');
@@ -2786,7 +2769,6 @@ function loadAndDisplayIcHistory() {
     if (window.firebaseDb && typeof window.firebaseDb.loadIcActivityLogs === 'function') {
         window.firebaseDb.loadIcActivityLogs()
             .then(logs => {
-                console.log("Loaded I&C activity logs:", logs);
                 
                 if (!logs || logs.length === 0) {
                     historyContent.innerHTML = `
@@ -2809,8 +2791,6 @@ function loadAndDisplayIcHistory() {
                     const logDate = new Date(log.timestamp);
                     return logDate >= fifteenDaysAgo;
                 });
-                
-                console.log(`Filtered to ${recentLogs.length} logs from last 15 days (out of ${logs.length} total)`);
                 
                 // If no recent logs, show empty state
                 if (recentLogs.length === 0) {

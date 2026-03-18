@@ -1,13 +1,10 @@
 // Simple direct history system
-console.log("History.js loaded - direct approach");
 
 // Wait for document to be ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM ready in history.js");
     
     // Function to directly load and display logs
     function loadAndDisplayLogs() {
-        console.log("Attempting to directly load logs");
         
         if (!window.firebaseDb || typeof window.firebaseDb.loadActivityLogs !== 'function') {
             console.error("Firebase loadActivityLogs not available");
@@ -29,7 +26,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load logs directly
         window.firebaseDb.loadActivityLogs()
             .then(logs => {
-                console.log("Directly loaded logs:", logs);
                 
                 if (!logs || logs.length === 0) {
                     historyContent.innerHTML = `
@@ -52,8 +48,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const logDate = new Date(log.timestamp);
                     return logDate >= fifteenDaysAgo;
                 });
-                
-                console.log(`Filtered to ${recentLogs.length} logs from last 15 days (out of ${logs.length} total)`);
                 
                 // Clean up older logs
                 cleanupOldLogs(logs, fifteenDaysAgo);
@@ -413,7 +407,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         window.firebaseDb.deleteActivityLog(logKey)
             .then(() => {
-                console.log(`Successfully deleted log with key: ${logKey}`);
                 // Remove the log item from the UI with animation
                 logElement.style.height = logElement.offsetHeight + 'px';
                 logElement.style.overflow = 'hidden';
@@ -499,7 +492,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function cleanupOldLogs(logs, cutoffDate) {
         // Only proceed if deleteActivityLog is available
         if (!window.firebaseDb || typeof window.firebaseDb.deleteActivityLog !== 'function') {
-            console.log("Skip cleanup - deleteActivityLog function not available");
             return Promise.resolve();
         }
         
@@ -510,11 +502,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         if (oldLogs.length === 0) {
-            console.log("No old logs to clean up");
             return Promise.resolve();
         }
         
-        console.log(`Found ${oldLogs.length} logs older than 15 days to delete`);
         
         // Extract log keys - this depends on how keys are stored
         // If the logs have an explicit 'key' property, use that
@@ -530,19 +520,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (logKey && logKey !== 'unknown_log') {
                     deletePromises.push(window.firebaseDb.deleteActivityLog(logKey));
                 } else {
-                    console.log("Cannot delete log - key unknown", log);
                 }
             }
         });
         
         if (deletePromises.length === 0) {
-            console.log("No logs could be deleted - keys unknown");
             return Promise.resolve();
         }
         
         return Promise.all(deletePromises)
             .then(() => {
-                console.log(`Successfully deleted ${deletePromises.length} old logs`);
             })
             .catch(error => {
                 console.error("Error deleting old logs:", error);
@@ -579,11 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Keep API compatible with existing code
 window.historySystem = {
-    init: function() { console.log("history.init called"); },
+    init: function() { },
     logQuantityChange: function(itemId, itemName, oldValue, newValue, unit, user, actionType) {
-        console.log("Logging quantity change:", {
-            itemId, itemName, oldValue, newValue, unit, user, actionType
-        });
         
         const activity = {
             timestamp: new Date().toISOString(),
@@ -603,9 +587,6 @@ window.historySystem = {
         return Promise.resolve();
     },
     logItemModification: function(item, user, actionType, oldItem) {
-        console.log("Logging item modification:", {
-            item, user, actionType, oldItem
-        });
         
         let activity = {
             timestamp: new Date().toISOString(),
@@ -639,9 +620,8 @@ window.historySystem = {
         
         return Promise.resolve();
     },
-    renderActivityLogs: function() { console.log("history.renderActivityLogs called"); },
+    renderActivityLogs: function() { },
     loadActivityLogs: function() { 
-        console.log("history.loadActivityLogs called");
         if (window.firebaseDb && typeof window.firebaseDb.loadActivityLogs === 'function') {
             return window.firebaseDb.loadActivityLogs();
         }

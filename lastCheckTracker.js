@@ -103,10 +103,8 @@ const LastCheckTracker = {
     async init() {
         try {
             this.createStatusElement();
-            console.log("[LCT] Initializing. Checking Firebase availability...");
             
             if (window.firebaseDb && typeof window.firebaseDb.ref === 'function') {
-                console.log("[LCT] Firebase is available. Attempting to load initial data.");
             const loadDataPromise = this.loadLastCheckData();
             const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error('[LCT] Firebase loading timeout after 10s')), 10000)
@@ -117,22 +115,18 @@ const LastCheckTracker = {
             this.startPeriodicUpdate();
             this.updateDisplay();
 
-                console.log("[LCT] Setting up Firebase listener for /lastCompleteCheck.");
                 const lastCheckRef = window.firebaseDb.ref('lastCompleteCheck');
                 window.firebaseDb.onValue(lastCheckRef, 
                     (snapshot) => {
                         try {
                             const data = snapshot.val();
-                            console.log("[LCT] Firebase listener: Data received:", data);
                             if (data) {
                                 this.state.lastCheckTimestamp = new Date(data.timestamp);
                                 this.state.staffName = data.staffName;
                                 this.state.isFullCheck = data.isFullCheck;
                                 this.updateDisplay();
                                 this.saveToLocalStorage(); // Keep localStorage in sync
-                                console.log("[LCT] Firebase listener: State updated and saved to localStorage.");
                             } else {
-                                console.log("[LCT] Firebase listener: No data received or data is null.");
                             }
                         } catch (error) {
                             this.handleError(error, 'Firebase listener value processing');
@@ -189,7 +183,6 @@ const LastCheckTracker = {
     // Load data with enhanced error handling
     async loadLastCheckData() {
         try {
-            console.log("[LCT] loadLastCheckData: Attempting to load from Firebase.");
             if (!window.firebaseDb || typeof window.firebaseDb.ref !== 'function' || typeof window.firebaseDb.get !== 'function') {
                 throw new Error('[LCT] Firebase (window.firebaseDb.ref or window.firebaseDb.get) not available for loading.');
             }
@@ -197,7 +190,6 @@ const LastCheckTracker = {
             const dbRef = window.firebaseDb.ref('lastCompleteCheck'); // Get the reference
             const snapshot = await window.firebaseDb.get(dbRef); // Pass reference to window.firebaseDb.get
             const data = snapshot.val();
-            console.log("[LCT] loadLastCheckData: Data from Firebase:", data);
             
             if (data) {
                 // Validate timestamp
@@ -231,7 +223,6 @@ const LastCheckTracker = {
             staffName: this.state.staffName,
             isFullCheck: this.state.isFullCheck
         };
-        console.log("[LCT] saveLastCheckData: Attempting to save to Firebase:", dataToSave);
 
         try {
             if (!window.firebaseDb || typeof window.firebaseDb.ref !== 'function' || typeof window.firebaseDb.set !== 'function') {
@@ -241,7 +232,6 @@ const LastCheckTracker = {
             // Use window.firebaseDb.set with the reference and data
             await window.firebaseDb.set(window.firebaseDb.ref('lastCompleteCheck'), dataToSave);
             this.saveToLocalStorage(); // Keep localStorage in sync
-            console.log("[LCT] saveLastCheckData: Successfully saved to Firebase and localStorage.");
             
             this.showNotification(
                 'Check Time Saved',
@@ -268,18 +258,15 @@ const LastCheckTracker = {
             staffName: this.state.staffName,
             isFullCheck: this.state.isFullCheck
         };
-        console.log("[LCT] saveToLocalStorage: Saving data:", dataToSave);
         localStorage.setItem('lastCompleteCheckData', JSON.stringify(dataToSave));
     },
 
     // Load from localStorage
     loadFromLocalStorage() {
-        console.log("[LCT] loadFromLocalStorage: Attempting to load.");
         const storedData = localStorage.getItem('lastCompleteCheckData');
         if (storedData) {
             try {
                 const data = JSON.parse(storedData);
-                console.log("[LCT] loadFromLocalStorage: Data found:", data);
                 if (data.timestamp) {
             this.state.lastCheckTimestamp = new Date(data.timestamp);
                 } else {
@@ -287,7 +274,6 @@ const LastCheckTracker = {
                 }
                 this.state.staffName = data.staffName || '';
                 this.state.isFullCheck = data.isFullCheck || false;
-                console.log("[LCT] loadFromLocalStorage: State updated.");
                 return true;
             } catch (error) {
                 console.error("[LCT] loadFromLocalStorage: Error parsing data:", error, storedData);
@@ -295,13 +281,11 @@ const LastCheckTracker = {
                 return false;
             }
         }
-        console.log("[LCT] loadFromLocalStorage: No data found.");
         return false;
     },
 
     // Record check with validation
     async recordCompleteCheck(staffName) {
-        console.log(`[LCT] recordCompleteCheck: Called for staff: ${staffName}`);
         try {
             if (!staffName) {
                 throw new Error('Staff name is required');
