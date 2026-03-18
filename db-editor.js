@@ -758,10 +758,187 @@ function deleteStaffMember(staffId) {
 // Cancel editing and hide the form
 function cancelStaffEdit() {
     staffEditForm.classList.add('hidden');
-    
+
     // Enable scrolling on the body again
     document.body.style.overflow = 'auto';
-    
+
     isAddingStaff = false;
     currentEditingStaffId = null;
 }
+
+// === TASKS MANAGEMENT ===
+let allTasks = [];
+let isAddingTask = false;
+let currentEditingTaskId = null;
+
+const tasksTableBody = document.getElementById('tasks-table-body');
+const addTaskButton = document.getElementById('add-task-button');
+const taskEditForm = document.getElementById('task-edit-form');
+const taskFormTitle = document.getElementById('task-form-title');
+const taskTitleInput = document.getElementById('task-title-input');
+const taskDescriptionInput = document.getElementById('task-description-input');
+const taskTypeInput = document.getElementById('task-type-input');
+const taskFrequencyInput = document.getElementById('task-frequency-input');
+const taskFrequencyGroup = document.getElementById('task-frequency-group');
+const taskScheduledGroup = document.getElementById('task-scheduled-group');
+const taskDateInput = document.getElementById('task-date-input');
+const taskTimeInput = document.getElementById('task-time-input');
+const taskActiveInput = document.getElementById('task-active-input');
+const saveTaskButton = document.getElementById('save-task');
+const cancelTaskEditButton = document.getElementById('cancel-task-edit');
+const deleteTaskButton = document.getElementById('delete-task');
+
+function updateTaskTypeFields() {
+    const type = taskTypeInput.value;
+    taskFrequencyGroup.classList.toggle('hidden', type !== 'recurring');
+    taskScheduledGroup.classList.toggle('hidden', type !== 'scheduled');
+}
+
+function renderTasksTable() {
+    tasksTableBody.innerHTML = '';
+    if (allTasks.length === 0) {
+        tasksTableBody.innerHTML = '<tr><td colspan="6" class="empty-state-cell">No tasks defined yet</td></tr>';
+        return;
+    }
+    allTasks.forEach(task => {
+        const row = document.createElement('tr');
+        let freqDisplay = '';
+        if (task.type === 'recurring') {
+            freqDisplay = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
+        } else if (task.type === 'scheduled') {
+            freqDisplay = task.scheduledDate + (task.scheduledTime ? ' ' + task.scheduledTime : '');
+        } else {
+            freqDisplay = '\u2014';
+        }
+        let lastDone = 'Never';
+        if (task.lastCompletedAt) {
+            const d = new Date(task.lastCompletedAt);
+            lastDone = d.toLocaleDateString('fr-FR') + ' by ' + (task.lastCompletedBy || '?');
+        }
+        row.innerHTML = `
+            <td>${task.title}</td>
+            <td>${task.type}</td>
+            <td>${freqDisplay}</td>
+            <td><span class="${task.active ? 'status-active' : 'status-inactive'}">${task.active ? 'Active' : 'Inactive'}</span></td>
+            <td>${lastDone}</td>
+            <td>
+                <div class="actions-cell">
+                    <button class="edit-button" data-task-id="${task.id}">Edit</button>
+                </div>
+            </td>
+        `;
+        tasksTableBody.appendChild(row);
+        row.querySelector('.edit-button').addEventListener('click', function() {
+            showEditTaskForm(this.getAttribute('data-task-id'));
+        });
+    });
+}
+
+function showAddTaskForm() {
+    isAddingTask = true;
+    currentEditingTaskId = null;
+    taskFormTitle.textContent = 'Add New Task';
+    taskTitleInput.value = '';
+    taskDescriptionInput.value = '';
+    taskTypeInput.value = 'recurring';
+    taskFrequencyInput.value = 1;
+    taskDateInput.value = '';
+    taskTimeInput.value = '';
+    taskActiveInput.checked = true;
+    updateTaskTypeFields();
+    deleteTaskButton.classList.add('hidden');
+    document.body.style.overflow = 'hidden';
+    taskEditForm.classList.remove('hidden');
+}
+
+function showEditTaskForm(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+    isAddingTask = false;
+    currentEditingTaskId = taskId;
+    taskFormTitle.textContent = 'Edit Task: ' + task.title;
+    taskTitleInput.value = task.title;
+    taskDescriptionInput.value = task.description || '';
+    taskTypeInput.value = task.type;
+    taskFrequencyInput.value = task.frequencyDays || 1;
+    taskDateInput.value = task.scheduledDate || '';
+    taskTimeInput.value = task.scheduledTime || '';
+    taskActiveInput.checked = task.active;
+    updateTaskTypeFields();
+    deleteTaskButton.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    taskEditForm.classList.remove('hidden');
+}
+
+function cancelTaskEdit() {
+    taskEditForm.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    isAddingTask = false;
+    currentEditingTaskId = null;
+}
+
+function saveTask() {
+    const title = taskTitleInput.value.trim();
+    if (!title) {
+        showErrorMessage('Title is required');
+        return;
+    }
+    const type = taskTypeInput.value;
+    const task = {
+        id: currentEditingTaskId || 'task_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        title: title,
+        description: taskDescriptionInput.value.trim(),
+        type: type,
+        active: taskActiveInput.checked,
+        createdAt: isAddingTask ? new Date().toISOString() : (allTasks.find(t => t.id === currentEditingTaskId)?.createdAt || new Date().toISOString()),
+        createdBy: isAddingTask ? 'admin' : (allTasks.find(t => t.id === currentEditingTaskId)?.createdBy || 'admin')
+    };
+    if (type === 'recurring') {
+        task.frequencyDays = parseInt(taskFrequencyInput.value) || 1;
+    }
+    if (type === 'scheduled') {
+        task.scheduledDate = taskDateInput.value;
+        task.scheduledTime = taskTimeInput.value || null;
+    }
+    // Preserve completion state on edit
+    if (!isAddingTask) {
+        const existing = allTasks.find(t => t.id === currentEditingTaskId);
+        if (existing) {
+            task.lastCompletedAt = existing.lastCompletedAt || null;
+            task.lastCompletedBy = existing.lastCompletedBy || null;
+        }
+    }
+    window.firebaseDb.saveTask(task).then(() => {
+        showSuccessMessage(isAddingTask ? 'Task created' : 'Task updated');
+        cancelTaskEdit();
+    });
+}
+
+function deleteTask() {
+    if (!currentEditingTaskId) return;
+    if (!confirm('Delete this task?')) return;
+    window.firebaseDb.deleteTasks(currentEditingTaskId).then(() => {
+        showSuccessMessage('Task deleted');
+        cancelTaskEdit();
+    });
+}
+
+// Tasks listeners
+if (addTaskButton) addTaskButton.addEventListener('click', showAddTaskForm);
+if (saveTaskButton) saveTaskButton.addEventListener('click', saveTask);
+if (cancelTaskEditButton) cancelTaskEditButton.addEventListener('click', cancelTaskEdit);
+if (deleteTaskButton) deleteTaskButton.addEventListener('click', deleteTask);
+if (taskTypeInput) taskTypeInput.addEventListener('change', updateTaskTypeFields);
+
+// Click outside modal to close
+if (taskEditForm) {
+    taskEditForm.addEventListener('click', function(e) {
+        if (e.target === taskEditForm) cancelTaskEdit();
+    });
+}
+
+// Firebase real-time listener
+window.firebaseDb.onTasksChange(function(tasks) {
+    allTasks = tasks || [];
+    renderTasksTable();
+});
