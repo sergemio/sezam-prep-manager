@@ -43,6 +43,7 @@ let prepItems = [...initialPrepItems];
 let currentStaff = '';
 let currentItemIndex = 0;
 let isChecking = false;
+let tasks = [];
 
 // Function to load staff members dynamically
 function loadStaffMembers() {
@@ -379,23 +380,28 @@ function initApp() {
         
         // 2. Set up real-time listeners for ongoing updates
         window.firebaseDb.onItemsChange((updatedItems) => {
-            
+
             if (updatedItems && updatedItems.length > 0) {
                 // Only update if we have valid data
                 prepItems = updatedItems;
-                
+
                 // IMPORTANT: Sort by displayOrder using the helper function
                 prepItems = sortItemsByDisplayOrder(prepItems);
-                
-                
+
+
                 // Save to local storage
                 localStorage.setItem('prepItems', JSON.stringify(prepItems));
-                
+
                 // Update UI
                 updateInventoryTable();
                 updateTodoList();
                 updateStats();
             }
+        });
+
+        window.firebaseDb.onTasksChange(function(loadedTasks) {
+            tasks = loadedTasks || [];
+            updateTodoList();
         });
     } else {
         // If Firebase is not available, use local storage
@@ -1347,146 +1353,292 @@ function markItemAsCanPrepAgain(item) {
     }
 }
 
-function updateTodoList() {
-    // First sort all items by displayOrder
-    const sortedItems = sortItemsByDisplayOrder(prepItems);
-    
-    const itemsMarkedAsCantPrep = sortedItems.filter(item => item.canPrep === false);
+function getTaskMissedCount(task) {
+    if (!task.lastCompletedAt || task.type !== 'recurring') return 0;
+    const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const missed = Math.floor(daysSince / task.frequencyDays) - 1;
+    return Math.max(0, missed);
+}
 
-    // Count items that can't be prepped
+function isTaskDue(task) {
+    if (!task.active) return false;
+    if (task.type === 'one-off') {
+        return !task.lastCompletedAt;
+    }
+    if (task.type === 'scheduled') {
+        if (!task.scheduledDate) return false;
+        const now = new Date();
+        const scheduled = new Date(task.scheduledDate + (task.scheduledTime ? 'T' + task.scheduledTime : 'T00:00'));
+        return now >= scheduled && !task.lastCompletedAt;
+    }
+    if (task.type === 'recurring') {
+        if (!task.lastCompletedAt) return true;
+        const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
+        return daysSince >= task.frequencyDays;
+    }
+    return false;
+}
+
+function getTaskDaysOverdue(task) {
+    if (task.type === 'recurring') {
+        if (!task.lastCompletedAt) return 0;
+        const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
+        const overdue = daysSince - task.frequencyDays;
+        return Math.max(0, Math.floor(overdue));
+    }
+    if (task.type === 'scheduled' && task.scheduledDate) {
+        const daysSince = (Date.now() - new Date(task.scheduledDate).getTime()) / (1000 * 60 * 60 * 24);
+        return Math.max(0, Math.floor(daysSince));
+    }
+    return 0;
+}
+
+function updateTodoList() {
+    const sortedItems = sortItemsByDisplayOrder(prepItems);
+
+    const itemsMarkedAsCantPrep = sortedItems.filter(item => item.canPrep === false);
     const cantPrepCount = itemsMarkedAsCantPrep.length;
 
-    // Get the title element
     const todoTitleElement = document.querySelector('.todo-panel .todo-title');
-
     if (todoTitleElement) {
-        // Get or create the badge element
         let cantPrepBadge = todoTitleElement.querySelector('.cant-prep-badge');
         if (!cantPrepBadge) {
             cantPrepBadge = document.createElement('span');
             cantPrepBadge.className = 'cant-prep-badge';
-            // Ensure the badge is part of the flex layout if the title uses it
-            // or set appropriate display and positioning if not.
-            // For now, simple append, CSS will handle positioning.
             todoTitleElement.appendChild(cantPrepBadge);
         }
-
-        // Update badge content and visibility
         if (cantPrepCount > 0) {
             cantPrepBadge.textContent = cantPrepCount;
-            cantPrepBadge.style.display = 'inline-block'; // Or 'flex', 'block' based on CSS
+            cantPrepBadge.style.display = 'inline-block';
         } else {
             cantPrepBadge.style.display = 'none';
         }
     }
-    
-    // Then filter and sort by other criteria for the list itself
-    const prepToDo = sortedItems
+
+    // Build unified todo array
+    const todoItems = [];
+
+    sortedItems
         .filter(item => (item.currentLevel < item.targetLevel * 0.5) || (item.canPrep === false))
-        .sort((a, b) => {
-            // Priority 1: Items that CANNOT be prepped (canPrep === false)
-            // If one item can't be prepped and the other can, the one that can't be prepped goes lower (return 1).
-            // If both are in the same canPrep state, proceed to percentage sorting.
-            if (a.canPrep === false && b.canPrep !== false) return 1; // a (can't prep) is lower priority
-            if (a.canPrep !== false && b.canPrep === false) return -1; // b (can't prep) is lower priority, so a is higher
-            
-            // If both items have the same canPrep status (either both true or both false),
-            // then sort by current level percentage (lower percentage = higher priority).
-            const aPercentage = a.currentLevel / a.targetLevel;
-            const bPercentage = b.currentLevel / b.targetLevel;
-            return aPercentage - bPercentage;
+        .forEach(item => {
+            const percentage = item.currentLevel / item.targetLevel;
+            let priority;
+            if (item.canPrep === false) {
+                priority = 5;
+            } else if (item.currentLevel === 0 || percentage <= 0.25) {
+                priority = 2;
+            } else {
+                priority = 4;
+            }
+            todoItems.push({ _type: 'prep', _sortPriority: priority, _subSort: percentage, data: item });
         });
-    
+
+    tasks.filter(isTaskDue).forEach(task => {
+        const missed = getTaskMissedCount(task);
+        const overdue = getTaskDaysOverdue(task);
+        const priority = (missed > 0 || overdue > 0) ? 1 : 3;
+        todoItems.push({ _type: 'task', _sortPriority: priority, _subSort: -missed, data: task, missed, overdue });
+    });
+
+    todoItems.sort((a, b) => {
+        if (a._sortPriority !== b._sortPriority) return a._sortPriority - b._sortPriority;
+        return a._subSort - b._subSort;
+    });
+
     todoListContainer.innerHTML = '';
-    
-    if (prepToDo.length === 0) {
+
+    if (todoItems.length === 0) {
         todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
         return;
     }
-    
-    prepToDo.forEach(item => {
-        // Calculate percentage for badge logic
-        const percentage = item.currentLevel / item.targetLevel;
-        
-        // Determine badge class and text
-        let badgeClass, badgeText;
-        if (item.canPrep === false) {
-            badgeClass = 'cant-prep';
-            badgeText = "Can't Prep";
-        } else if (item.currentLevel === 0) {
-            badgeClass = 'empty';
-            badgeText = 'EMPTY';
-        } else if (percentage <= 0.25) {
-            badgeClass = 'critical';
-            badgeText = 'CRITICAL';
-        } else if (percentage <= 0.4) {
-            badgeClass = 'low';
-            badgeText = 'LOW';
-        } else {
-            badgeClass = 'getting-low';
-            badgeText = 'GETTING LOW';
-        }
 
-        // Format time display
-        let timeDisplay = '';
-        if (item.lastCheckedTime) {
-            try {
-                const date = new Date(item.lastCheckedTime);
-                if (!isNaN(date.getTime())) {
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    timeDisplay = `${hours}:${minutes}`;
-                }
-            } catch (e) {
-                console.error("Error formatting date:", e);
-            }
-        }
-        
-        const todoItem = document.createElement('div');
-        todoItem.className = 'todo-item';
-        
-        // Set border color based on status
-        if (item.canPrep === false) {
-            todoItem.style.borderLeftColor = '#ef4444'; // Red for can't prep
-            todoItem.style.opacity = '0.7';
-        } else if (percentage === 0) {
-            todoItem.style.borderLeftColor = '#ef4444'; // Red for EMPTY
-        } else if (percentage <= 0.25) {
-            todoItem.style.borderLeftColor = '#f97316'; // Orange for CRITICAL
-        } else if (percentage <= 0.4) {
-            todoItem.style.borderLeftColor = '#ca8a04'; // Yellow for LOW
+    todoItems.forEach(entry => {
+        if (entry._type === 'prep') {
+            renderPrepTodoItem(entry.data);
         } else {
-            todoItem.style.borderLeftColor = '#64748b'; // Slate for GETTING LOW
+            renderTaskTodoItem(entry.data, entry.missed, entry.overdue);
         }
-        
-        todoItem.innerHTML = `
-            <div class="todo-item-name">${item.name}</div>
-            <div class="todo-item-detail">Current: ${item.currentLevel}</div>
-            <div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${item.targetLevel - item.currentLevel} more</div>
-            ${item.canPrep === false ? `
-                <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
-                    <div style="font-weight: 600; color: #ef4444;">Can't Prep: ${item.cantPrepReason}</div>
-                    ${item.cantPrepReasonText ? `<div style="margin-top: 4px;">Reason: ${item.cantPrepReasonText}</div>` : ''}
-                    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #666;">
-                        <span>By: ${item.cantPrepBy || 'Unknown'}</span>
-                        <span>${formatDate(item.cantPrepTime)}</span>
-                    </div>
+    });
+}
+
+function renderPrepTodoItem(item) {
+    const percentage = item.currentLevel / item.targetLevel;
+    let badgeClass, badgeText;
+    if (item.canPrep === false) {
+        badgeClass = 'cant-prep';
+        badgeText = "Can't Prep";
+    } else if (item.currentLevel === 0) {
+        badgeClass = 'empty';
+        badgeText = 'EMPTY';
+    } else if (percentage <= 0.25) {
+        badgeClass = 'critical';
+        badgeText = 'CRITICAL';
+    } else if (percentage <= 0.4) {
+        badgeClass = 'low';
+        badgeText = 'LOW';
+    } else {
+        badgeClass = 'getting-low';
+        badgeText = 'GETTING LOW';
+    }
+    let timeDisplay = '';
+    if (item.lastCheckedTime) {
+        try {
+            const date = new Date(item.lastCheckedTime);
+            if (!isNaN(date.getTime())) {
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                timeDisplay = `${hours}:${minutes}`;
+            }
+        } catch (e) {}
+    }
+    const todoItem = document.createElement('div');
+    todoItem.className = 'todo-item';
+    if (item.canPrep === false) {
+        todoItem.style.borderLeftColor = '#ef4444';
+        todoItem.style.opacity = '0.7';
+    } else if (percentage === 0) {
+        todoItem.style.borderLeftColor = '#ef4444';
+    } else if (percentage <= 0.25) {
+        todoItem.style.borderLeftColor = '#f97316';
+    } else if (percentage <= 0.4) {
+        todoItem.style.borderLeftColor = '#ca8a04';
+    } else {
+        todoItem.style.borderLeftColor = '#64748b';
+    }
+    todoItem.innerHTML = `
+        <div class="todo-item-name">${item.name}</div>
+        <div class="todo-item-detail">Current: ${item.currentLevel}</div>
+        <div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${item.targetLevel - item.currentLevel} more</div>
+        ${item.canPrep === false ? `
+            <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
+                <div style="font-weight: 600; color: #ef4444;">Can't Prep: ${item.cantPrepReason}</div>
+                ${item.cantPrepReasonText ? `<div style="margin-top: 4px;">Reason: ${item.cantPrepReasonText}</div>` : ''}
+                <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #666;">
+                    <span>By: ${item.cantPrepBy || 'Unknown'}</span>
+                    <span>${formatDate(item.cantPrepTime)}</span>
                 </div>
-            ` : ''}
-            <div class="todo-footer">
-                <span class="todo-tag ${badgeClass}">
-                    ${badgeText}
-                </span>
-                <span class="todo-item-detail todo-timestamp">${timeDisplay}</span>
             </div>
-        `;
-        
-        // Make the entire card clickable
-        todoItem.addEventListener('click', () => {
-            showQuickUpdateModal(item);
-        });
-        
-        todoListContainer.appendChild(todoItem);
+        ` : ''}
+        <div class="todo-footer">
+            <span class="todo-tag ${badgeClass}">${badgeText}</span>
+            <span class="todo-item-detail todo-timestamp">${timeDisplay}</span>
+        </div>
+    `;
+    todoItem.addEventListener('click', () => {
+        showQuickUpdateModal(item);
+    });
+    todoListContainer.appendChild(todoItem);
+}
+
+function renderTaskTodoItem(task, missed, overdue) {
+    const isOverdue = missed > 0 || overdue > 0;
+    let freqText = '';
+    if (task.type === 'recurring') {
+        freqText = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
+    } else if (task.type === 'scheduled') {
+        freqText = task.scheduledDate + (task.scheduledTime ? ' ' + task.scheduledTime : '');
+    } else {
+        freqText = 'One-off';
+    }
+    const todoItem = document.createElement('div');
+    todoItem.className = 'todo-item todo-item-task';
+    todoItem.style.borderLeftColor = isOverdue ? '#ef4444' : '#3b82f6';
+    todoItem.innerHTML = `
+        <div class="todo-item-name">${task.title}</div>
+        <div class="todo-item-detail">${freqText}${isOverdue ? ' \u2022 En retard (' + overdue + ' jour' + (overdue > 1 ? 's' : '') + ')' : ''}</div>
+        <div class="todo-footer">
+            <span class="todo-tag ${isOverdue ? 'overdue' : 'task'}">${isOverdue ? 'OVERDUE' : 'TASK'}</span>
+        </div>
+    `;
+    todoItem.addEventListener('click', () => {
+        showTaskModal(task);
+    });
+    todoListContainer.appendChild(todoItem);
+}
+
+function showTaskModal(task) {
+    const modalBackdrop = document.createElement('div');
+    modalBackdrop.className = 'modal-backdrop';
+    modalBackdrop.style.position = 'fixed';
+    modalBackdrop.style.top = '0';
+    modalBackdrop.style.left = '0';
+    modalBackdrop.style.width = '100%';
+    modalBackdrop.style.height = '100%';
+    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modalBackdrop.style.display = 'flex';
+    modalBackdrop.style.justifyContent = 'center';
+    modalBackdrop.style.alignItems = 'center';
+    modalBackdrop.style.zIndex = '9999';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.position = 'relative';
+    modalContent.style.backgroundColor = 'white';
+    modalContent.style.padding = '24px';
+    modalContent.style.borderRadius = '8px';
+    modalContent.style.maxWidth = '90%';
+    modalContent.style.width = '420px';
+    modalContent.style.maxHeight = '90vh';
+    modalContent.style.overflowY = 'auto';
+    modalContent.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+
+    let freqText = '';
+    if (task.type === 'recurring') {
+        freqText = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
+    } else if (task.type === 'scheduled') {
+        freqText = task.scheduledDate + (task.scheduledTime ? ' at ' + task.scheduledTime : '');
+    } else {
+        freqText = 'One-off task';
+    }
+
+    let lastDoneText = 'Never done';
+    if (task.lastCompletedAt) {
+        const d = new Date(task.lastCompletedAt);
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        lastDoneText = `By ${task.lastCompletedBy || '?'}, ${d.toLocaleDateString('fr-FR')} at ${hours}:${minutes}`;
+    }
+
+    modalContent.innerHTML = `
+        <h3 style="margin: 0 0 12px 0; color: #333;">${task.title}</h3>
+        ${task.description ? `<p style="margin: 0 0 16px 0; color: #555; font-size: 14px; line-height: 1.5;">${task.description}</p>` : ''}
+        <div style="margin-bottom: 16px; padding: 12px; background: #f7f9f5; border-radius: 6px; font-size: 14px;">
+            <div style="margin-bottom: 6px;"><strong>Type:</strong> ${freqText}</div>
+            <div><strong>Last done:</strong> ${lastDoneText}</div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="task-done-btn" style="flex: 1; padding: 14px; background-color: #80b244; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Marquer comme fait</button>
+            <button id="task-close-btn" style="padding: 14px 20px; background-color: #e5e7eb; color: #333; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Fermer</button>
+        </div>
+    `;
+
+    modalBackdrop.appendChild(modalContent);
+    document.body.appendChild(modalBackdrop);
+
+    modalBackdrop.addEventListener('click', function(e) {
+        if (e.target === modalBackdrop) {
+            document.body.removeChild(modalBackdrop);
+        }
+    });
+    modalContent.querySelector('#task-close-btn').addEventListener('click', function() {
+        document.body.removeChild(modalBackdrop);
+    });
+    modalContent.querySelector('#task-done-btn').addEventListener('click', function() {
+        completeTask(task);
+        document.body.removeChild(modalBackdrop);
+    });
+}
+
+function completeTask(task) {
+    const now = new Date().toISOString();
+    const staffName = currentStaff || 'Unknown';
+    task.lastCompletedAt = now;
+    task.lastCompletedBy = staffName;
+    window.firebaseDb.saveTask(task);
+    window.firebaseDb.saveActivityLog({
+        timestamp: now,
+        user: staffName,
+        itemName: task.title,
+        actionType: 'task-done'
     });
 }
 
