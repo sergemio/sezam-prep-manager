@@ -200,6 +200,12 @@ body {
     overflow-y: auto;
 }
 
+/* DB Editor page: no todo panel, content takes remaining space */
+.db-editor-page .content-panel {
+    width: auto;
+    flex: 1;
+}
+
 .section-title {
     font-size: 26px;
     font-weight: bold;
