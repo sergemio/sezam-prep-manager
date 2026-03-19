@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (log.actionType === 'count') {
                         dayGroups[dateKey].checked.push(log);
-                    } else if (['prep', 'cantprep', 'canprepagain', 'task-done'].includes(log.actionType)) {
+                    } else if (['prep', 'cantprep', 'canprepagain'].includes(log.actionType)) {
                         dayGroups[dateKey].prepped.push(log);
                     } else {
                         dayGroups[dateKey].other.push(log);
@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 Object.values(dayGroups).forEach(day => {
                     const formattedDate = day.date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    html += `<div class="day-card">`;
                     html += `<div class="date-header">${formattedDate}</div>`;
 
                     groupMeta.forEach(g => {
@@ -129,11 +130,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (logs.length === 0) return;
                         const openAttr = g.open ? ' open' : '';
                         html += `<details class="log-group ${g.cssClass}"${openAttr}>`;
-                        html += `<summary class="log-group-header">${g.label} <span class="log-group-count">(${logs.length})</span></summary>`;
+                        html += `<summary class="log-group-header"><span class="log-group-chevron"></span>${g.label} <span class="log-group-count">(${logs.length})</span></summary>`;
                         html += `<div class="log-group-content">`;
                         logs.forEach(log => { html += formatLogItem(log); });
                         html += `</div></details>`;
                     });
+
+                    html += `</div>`;
                 });
 
                 // Set HTML

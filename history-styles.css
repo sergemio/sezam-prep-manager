@@ -79,10 +79,10 @@
 
 /* Logs section */
 .history-logs {
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-    overflow: hidden;
+    background-color: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
 }
 
 .history-logs-header {
@@ -106,10 +106,6 @@
     font-weight: 600;
     color: var(--primary-dark);
     border-bottom: 1px solid var(--border-light);
-    border-top: 1px solid var(--border-light);
-    position: sticky;
-    top: 0;
-    z-index: 1;
 }
 
 /* Log items */
@@ -284,9 +280,30 @@
     color: var(--primary-medium);
 }
 
+/* Day cards */
+.day-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
 /* Collapsible log groups */
 .log-group {
     border-bottom: 1px solid var(--border-light);
+}
+
+.log-group:last-child {
+    border-bottom: none;
+}
+
+.log-group summary {
+    list-style: none;
+}
+
+.log-group summary::-webkit-details-marker {
+    display: none;
 }
 
 .log-group-header {
@@ -297,12 +314,28 @@
     user-select: none;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     transition: background-color 0.15s;
 }
 
 .log-group-header:hover {
     background-color: var(--bg-light);
+}
+
+/* Chevron icon */
+.log-group-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid currentColor;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.log-group[open] > .log-group-header .log-group-chevron {
+    transform: rotate(90deg);
 }
 
 .log-group-count {
@@ -320,10 +353,6 @@
 
 .group-other > .log-group-header {
     color: #3b5998;
-}
-
-.log-group-content {
-    /* no extra styling needed, items already styled */
 }
 
 /* General Log Item Styling (if any adjustments are needed globally) */
