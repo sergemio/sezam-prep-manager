@@ -284,6 +284,48 @@
     color: var(--primary-medium);
 }
 
+/* Collapsible log groups */
+.log-group {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.log-group-header {
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.15s;
+}
+
+.log-group-header:hover {
+    background-color: var(--bg-light);
+}
+
+.log-group-count {
+    font-weight: 400;
+    color: var(--text-light);
+}
+
+.group-prepped > .log-group-header {
+    color: var(--primary-dark);
+}
+
+.group-checked > .log-group-header {
+    color: #8a6e00;
+}
+
+.group-other > .log-group-header {
+    color: #3b5998;
+}
+
+.log-group-content {
+    /* no extra styling needed, items already styled */
+}
+
 /* General Log Item Styling (if any adjustments are needed globally) */
 .log-item .log-action .item-name {
     margin-left: 8px; /* Add some space after the action label */

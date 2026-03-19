@@ -65,100 +65,77 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Display logs directly
+                // Display logs grouped by date then by action type
                 const sortedLogs = [...recentLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                // Create HTML
-                let html = '';
-                let currentDate = '';
-                
+
+                // Group logs by date, then by category
+                const dayGroups = {};
                 sortedLogs.forEach(log => {
-                    // Extract the log key from the Firebase key format
-                    const logKey = log.key || extractLogKeyFromTimestamp(log.timestamp);
-                    
-                    // Format date
                     const date = new Date(log.timestamp);
-                    const dateString = date.toDateString();
-                    
-                    // Add date header if new date
-                    if (dateString !== currentDate) {
-                        currentDate = dateString;
-                        const formattedDate = date.toLocaleDateString(undefined, { 
-                            weekday: 'long',
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric'
-                        });
-                        
-                        html += `<div class="date-header">${formattedDate}</div>`;
+                    const dateKey = date.toDateString();
+                    if (!dayGroups[dateKey]) {
+                        dayGroups[dateKey] = { date, prepped: [], checked: [], other: [] };
                     }
-                    
-                    // Format time
-                    const hours = String(date.getHours()).padStart(2, '0');
-                    const minutes = String(date.getMinutes()).padStart(2, '0');
-                    const timeString = `${hours}:${minutes}`;
-                    
-                    // Format action
-                    let actionText = '';
-                    let changeText = '';
-                    
-                    switch(log.actionType) {
-                        case 'count':
-                            actionText = 'checked';
-                            changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                            break;
-                        case 'prep':
-                            actionText = 'prepped';
-                            changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                            break;
-                        case 'add':
-                            actionText = 'added';
-                            changeText = `Initial: ${log.newValue} ${log.unit}`;
-                            break;
-                        case 'edit':
-                            actionText = 'edited';
-                            changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                            break;
-                        case 'delete':
-                            actionText = 'deleted';
-                            changeText = `Was: ${log.oldValue} ${log.unit}`;
-                            break;
-                        case 'cantprep':
-                            actionText = 'Can\'t Prep';
-                            changeText = log.reasonText ? `${log.reason}: ${log.reasonText}` : log.reason || 'Reason not specified';
-                            break;
-                        case 'canprepagain':
-                            actionText = 'Available';
-                            changeText = 'Can now be prepped';
-                            break;
-                        case 'test':
-                            actionText = 'test';
-                            changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                            break;
-                        case 'task-done':
-                            actionText = 'completed task';
-                            changeText = '';
-                            break;
-                        default:
-                            actionText = 'updated';
-                            changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
+                    if (log.actionType === 'count') {
+                        dayGroups[dateKey].checked.push(log);
+                    } else if (['prep', 'cantprep', 'canprepagain', 'task-done'].includes(log.actionType)) {
+                        dayGroups[dateKey].prepped.push(log);
+                    } else {
+                        dayGroups[dateKey].other.push(log);
                     }
-                    
-                    // Add log item with data-log-key attribute for delete functionality
-                    html += `
-                        <div class="log-item action-${log.actionType}" data-log-key="${logKey}">
-                            <div class="log-time">${timeString}</div>
-                            <div class="log-user">${log.user}</div>
-                            <div class="log-action">
-                                <span class="action-label">${actionText}</span>
-                                <span class="item-name">${log.itemName}</span>
-                            </div>
-                            <div class="log-change">${changeText}</div>
-                            <div class="log-delete-icon">&#x2715;</div>
-                        </div>
-                    `;
                 });
-                
+
+                // Helper: format a single log item HTML
+                function formatLogItem(log) {
+                    const logKey = log.key || extractLogKeyFromTimestamp(log.timestamp);
+                    const date = new Date(log.timestamp);
+                    const timeString = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    let actionText = '', changeText = '';
+                    switch(log.actionType) {
+                        case 'count': actionText = 'checked'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
+                        case 'prep': actionText = 'prepped'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
+                        case 'add': actionText = 'added'; changeText = `Initial: ${log.newValue} ${log.unit}`; break;
+                        case 'edit': actionText = 'edited'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
+                        case 'delete': actionText = 'deleted'; changeText = `Was: ${log.oldValue} ${log.unit}`; break;
+                        case 'cantprep': actionText = 'Can\'t Prep'; changeText = log.reasonText ? `${log.reason}: ${log.reasonText}` : log.reason || 'Reason not specified'; break;
+                        case 'canprepagain': actionText = 'Available'; changeText = 'Can now be prepped'; break;
+                        case 'test': actionText = 'test'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
+                        case 'task-done': actionText = 'completed task'; changeText = ''; break;
+                        default: actionText = 'updated'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
+                    }
+                    return `<div class="log-item action-${log.actionType}" data-log-key="${logKey}">
+                        <div class="log-time">${timeString}</div>
+                        <div class="log-user">${log.user}</div>
+                        <div class="log-action"><span class="action-label">${actionText}</span><span class="item-name">${log.itemName}</span></div>
+                        <div class="log-change">${changeText}</div>
+                        <div class="log-delete-icon">&#x2715;</div>
+                    </div>`;
+                }
+
+                // Build HTML with collapsible groups
+                let html = '';
+                const groupMeta = [
+                    { key: 'prepped', label: 'Prepped', open: true, cssClass: 'group-prepped' },
+                    { key: 'checked', label: 'Checked', open: false, cssClass: 'group-checked' },
+                    { key: 'other', label: 'Other', open: true, cssClass: 'group-other' }
+                ];
+
+                Object.values(dayGroups).forEach(day => {
+                    const formattedDate = day.date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    html += `<div class="date-header">${formattedDate}</div>`;
+
+                    groupMeta.forEach(g => {
+                        const logs = day[g.key];
+                        if (logs.length === 0) return;
+                        const openAttr = g.open ? ' open' : '';
+                        html += `<details class="log-group ${g.cssClass}"${openAttr}>`;
+                        html += `<summary class="log-group-header">${g.label} <span class="log-group-count">(${logs.length})</span></summary>`;
+                        html += `<div class="log-group-content">`;
+                        logs.forEach(log => { html += formatLogItem(log); });
+                        html += `</div></details>`;
+                    });
+                });
+
                 // Set HTML
                 historyContent.innerHTML = html;
                 
