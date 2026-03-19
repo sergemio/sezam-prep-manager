@@ -115,9 +115,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Build HTML with collapsible groups
                 let html = '';
                 const groupMeta = [
-                    { key: 'prepped', label: 'Prepped', open: true, cssClass: 'group-prepped' },
+                    { key: 'prepped', label: 'Prepped', open: false, cssClass: 'group-prepped' },
                     { key: 'checked', label: 'Checked', open: false, cssClass: 'group-checked' },
-                    { key: 'other', label: 'Other', open: true, cssClass: 'group-other' }
+                    { key: 'other', label: 'Other', open: false, cssClass: 'group-other' }
                 ];
 
                 Object.values(dayGroups).forEach(day => {
