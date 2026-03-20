@@ -130,6 +130,7 @@ if (e.target === icEditForm) {
 window.firebaseDb.onIcItemsChange((updatedIcItems) => {
     if (updatedIcItems && updatedIcItems.length > 0) {
         icItems = updatedIcItems;
+        sortIcItems();
         renderIcItemsTable();
     }
 });

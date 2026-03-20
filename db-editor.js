@@ -164,6 +164,7 @@ function initApp() {
         window.firebaseDb.onItemsChange((updatedItems) => {
             if (updatedItems && updatedItems.length > 0) {
                 prepItems = updatedItems;
+                sortPrepItems();
                 renderItemsTable();
             }
         });
