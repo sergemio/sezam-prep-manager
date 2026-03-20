@@ -595,30 +595,23 @@ function renderStaffTable() {
     
     staffMembers.forEach(staff => {
         const row = document.createElement('tr');
-        
-        const activeStatus = staff.active ? 
-            '<span class="status-active">Yes</span>' :
-            '<span class="status-inactive">No</span>';
-        
+        row.setAttribute('data-id', staff.id);
+        row.style.cursor = 'pointer';
+
+        const activeStatus = staff.active ?
+            '<span class="status-active">Active</span>' :
+            '<span class="status-inactive">Inactive</span>';
+
         row.innerHTML = `
-            <td>${staff.id}</td>
-            <td>${staff.name}</td>
+            <td class="item-name-cell">${staff.name}</td>
             <td>${activeStatus}</td>
-            <td>
-                <button class="edit-button" data-id="${staff.id}">Edit</button>
-            </td>
         `;
-        
+
         staffTableBody.appendChild(row);
-        
-        // Add event listener for this row's edit button immediately
-        const editButton = row.querySelector('.edit-button');
-        if (editButton) {
-            editButton.addEventListener('click', function() {
-                const staffId = parseInt(this.getAttribute('data-id'));
-                showEditStaffForm(staffId);
-            });
-        }
+
+        row.addEventListener('click', function() {
+            showEditStaffForm(parseInt(this.getAttribute('data-id')));
+        });
     });
 }
 
@@ -802,11 +795,14 @@ function updateTaskTypeFields() {
 function renderTasksTable() {
     tasksTableBody.innerHTML = '';
     if (allTasks.length === 0) {
-        tasksTableBody.innerHTML = '<tr><td colspan="6" class="empty-state-cell">No tasks defined yet</td></tr>';
+        tasksTableBody.innerHTML = '<tr><td colspan="5" class="empty-state-cell">No tasks defined yet</td></tr>';
         return;
     }
     allTasks.forEach(task => {
         const row = document.createElement('tr');
+        row.setAttribute('data-task-id', task.id);
+        row.style.cursor = 'pointer';
+
         let freqDisplay = '';
         if (task.type === 'recurring') {
             freqDisplay = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
@@ -815,25 +811,21 @@ function renderTasksTable() {
         } else {
             freqDisplay = '\u2014';
         }
-        let lastDone = 'Never';
+
+        let lastDone = '<span class="text-muted">Never</span>';
         if (task.lastCompletedAt) {
-            const d = new Date(task.lastCompletedAt);
-            lastDone = d.toLocaleDateString('fr-FR') + ' by ' + (task.lastCompletedBy || '?');
+            lastDone = formatCheckDate(task.lastCompletedAt) + ' by ' + (task.lastCompletedBy || '?');
         }
+
         row.innerHTML = `
-            <td>${task.title}</td>
+            <td class="item-name-cell">${task.title || task.name || 'Untitled'}</td>
             <td>${task.type}</td>
             <td>${freqDisplay}</td>
             <td><span class="${task.active ? 'status-active' : 'status-inactive'}">${task.active ? 'Active' : 'Inactive'}</span></td>
             <td>${lastDone}</td>
-            <td>
-                <div class="actions-cell">
-                    <button class="edit-button" data-task-id="${task.id}">Edit</button>
-                </div>
-            </td>
         `;
         tasksTableBody.appendChild(row);
-        row.querySelector('.edit-button').addEventListener('click', function() {
+        row.addEventListener('click', function() {
             showEditTaskForm(this.getAttribute('data-task-id'));
         });
     });

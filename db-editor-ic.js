@@ -173,41 +173,25 @@ function renderIcItemsTable() {
     icItems.forEach((item, index) => {
         const row = document.createElement('tr');
         row.setAttribute('data-id', item.id);
+        row.style.cursor = 'pointer';
 
-        let providersDisplay = '';
-        if (item.providers && item.providers.length > 0) {
-            providersDisplay = item.providers.join(', ');
-        } else {
-            providersDisplay = '<span class="text-muted">None</span>';
-        }
-
-        let sublocationDisplay = item.sublocation || '<span class="text-muted">General</span>';
+        const sc = typeof stockClass === 'function' ? stockClass(item.currentLevel, item.targetLevel) : '';
 
         row.innerHTML = `
-            <td><span class="drag-handle" title="Drag to reorder">☰</span> ${index + 1}</td>
-            <td>${item.name}</td>
-            <td>${item.currentLevel} ${item.unit}</td>
+            <td class="drag-cell"><span class="drag-handle" title="Drag to reorder">☰</span></td>
+            <td class="item-name-cell">${item.name}</td>
+            <td class="${sc}">${item.currentLevel} ${item.unit}</td>
             <td>${item.targetLevel} ${item.unit}</td>
-            <td>${item.location}</td>
-            <td>${sublocationDisplay}</td>
-            <td>${providersDisplay}</td>
-            <td>${item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never'}</td>
-            <td>
-                <div class="actions-cell">
-                    <button class="edit-button" data-id="${item.id}">Edit</button>
-                </div>
-            </td>
+            <td>${item.location || '<span class="text-muted">—</span>'}</td>
+            <td>${typeof formatCheckDate === 'function' ? formatCheckDate(item.lastCheckedTime) : (item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never')}</td>
         `;
 
         icTableBody.appendChild(row);
 
-        const editButton = row.querySelector('.edit-button');
-        if (editButton) {
-            editButton.addEventListener('click', function() {
-                const itemId = parseInt(this.getAttribute('data-id'));
-                showEditIcForm(itemId);
-            });
-        }
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.drag-handle')) return;
+            showEditIcForm(parseInt(this.getAttribute('data-id')));
+        });
     });
 
     initDragAndDrop(icTableBody, icItems, 'ic');

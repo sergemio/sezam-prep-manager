@@ -381,20 +381,16 @@
     <!-- Staff Section -->
     <div id="staff-section" class="tab-section">
         <div class="card">
-            <h2 class="card-title">Staff Management</h2>
-            <p class="card-desc">
-                Here you can add, edit, or delete staff members who can access the app.
-            </p>
-            
-            <button id="add-new-staff" class="action-button add-new-button">+ Add New Staff Member</button>
-            
-            <table class="inventory-table">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">Staff</h2>
+                <button id="add-new-staff" class="action-button add-new-button">+ Add New</button>
+            </div>
+
+            <table class="inventory-table db-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
-                        <th>Active</th>
-                        <th>Actions</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="staff-table-body">
@@ -407,25 +403,20 @@
     <!-- I&C Items Section -->
     <div id="ic-items-section" class="tab-section">
         <div class="card">
-            <h2 class="card-title">I&C Items Management</h2>
-            <p class="card-desc">
-                Here you can add, edit, or delete ingredients and consumables items in the database.
-            </p>
-            
-            <button id="add-new-ic" class="action-button add-new-button">+ Add New I&C Item</button>
-            
-            <table class="inventory-table">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">I&C Items</h2>
+                <button id="add-new-ic" class="action-button add-new-button">+ Add New</button>
+            </div>
+
+            <table class="inventory-table db-table">
                 <thead>
                     <tr>
-                        <th>Order</th>
+                        <th style="width:50px;"></th>
                         <th>Item</th>
                         <th>Current</th>
                         <th>Target</th>
                         <th>Location</th>
-                        <th>Sublocation</th>
-                        <th>Providers</th>
                         <th>Last Checked</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="ic-table-body">
@@ -437,24 +428,25 @@
 
     <!-- Tasks Section -->
     <div id="tasks-section" class="tab-section">
-        <div class="section-header">
-            <h2>Tasks</h2>
-            <button id="add-task-button" class="action-button">+ Add New Task</button>
+        <div class="card">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">Tasks</h2>
+                <button id="add-task-button" class="action-button add-new-button">+ Add New</button>
+            </div>
+            <table class="inventory-table db-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Frequency</th>
+                        <th>Status</th>
+                        <th>Last Done</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-table-body">
+                </tbody>
+            </table>
         </div>
-        <table class="inventory-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Frequency / Date</th>
-                    <th>Active</th>
-                    <th>Last Done</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="tasks-table-body">
-            </tbody>
-        </table>
     </div>
 </div>
 </div><!-- end app-container -->
