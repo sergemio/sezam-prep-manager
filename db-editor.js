@@ -206,6 +206,32 @@ function loadItemsFromFirebase() {
     }
 }
 
+// Format date for display
+function formatCheckDate(isoString) {
+    if (!isoString) return '<span class="text-muted">Never</span>';
+    try {
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return isoString;
+        const now = new Date();
+        const diffH = Math.floor((now - d) / 3600000);
+        if (diffH < 1) return 'Just now';
+        if (diffH < 24) return diffH + 'h ago';
+        const day = d.getDate();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return day + ' ' + months[d.getMonth()] + ', ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    } catch(e) { return isoString; }
+}
+
+// Stock level color class
+function stockClass(current, target) {
+    if (target <= 0) return '';
+    const pct = current / target;
+    if (pct <= 0.25) return 'stock-critical';
+    if (pct <= 0.5) return 'stock-low';
+    if (pct < 1) return 'stock-ok';
+    return 'stock-full';
+}
+
 // Render the items table
 function renderItemsTable() {
     itemsTableBody.innerHTML = '';
@@ -213,31 +239,26 @@ function renderItemsTable() {
     prepItems.forEach((item, index) => {
         const row = document.createElement('tr');
         row.setAttribute('data-id', item.id);
+        row.style.cursor = 'pointer';
+
+        const sc = stockClass(item.currentLevel, item.targetLevel);
 
         row.innerHTML = `
-            <td><span class="drag-handle" title="Drag to reorder">☰</span> ${index + 1}</td>
-            <td>${item.name}</td>
-            <td>${item.currentLevel} ${item.unit}</td>
+            <td class="drag-cell"><span class="drag-handle" title="Drag to reorder">☰</span></td>
+            <td class="item-name-cell">${item.name}</td>
+            <td class="${sc}">${item.currentLevel} ${item.unit}</td>
             <td>${item.targetLevel} ${item.unit}</td>
-            <td>${item.unit}</td>
-            <td>${item.lastCheckedTime || 'Never'}</td>
-            <td>${item.lastCheckedBy || 'N/A'}</td>
-            <td>
-                <div class="actions-cell">
-                    <button class="edit-button" data-id="${item.id}">Edit</button>
-                </div>
-            </td>
+            <td>${formatCheckDate(item.lastCheckedTime)}</td>
+            <td>${item.lastCheckedBy || '<span class="text-muted">—</span>'}</td>
     `;
 
         itemsTableBody.appendChild(row);
 
-        const editButton = row.querySelector('.edit-button');
-        if (editButton) {
-            editButton.addEventListener('click', function() {
-                const itemId = parseInt(this.getAttribute('data-id'));
-                showEditForm(itemId);
-            });
-        }
+        // Click anywhere on row to edit (except drag handle)
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.drag-handle')) return;
+            showEditForm(parseInt(this.getAttribute('data-id')));
+        });
     });
 
     initDragAndDrop(itemsTableBody, prepItems, 'prep');

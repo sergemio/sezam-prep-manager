@@ -218,8 +218,102 @@
         }
 
         .add-new-button {
+            padding: 10px 20px;
+            background-color: var(--primary-medium);
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        .add-new-button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Section header row */
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
-            padding: 10px 18px;
+        }
+
+        /* Redesigned table */
+        .db-table {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: none;
+            border: 1px solid #e8e8e0;
+        }
+
+        .db-table thead tr {
+            background-color: #f8f8f4;
+        }
+
+        .db-table thead th {
+            background-color: transparent;
+            color: #888;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e8e8e0;
+        }
+
+        .db-table tbody tr {
+            transition: background-color 0.1s;
+        }
+
+        .db-table tbody tr:nth-child(even) {
+            background-color: #fafaf6;
+        }
+
+        .db-table tbody tr:hover {
+            background-color: #f0f4e8;
+            filter: none;
+        }
+
+        .db-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0ec;
+        }
+
+        .drag-cell {
+            width: 40px;
+            text-align: center;
+            padding-left: 12px !important;
+            padding-right: 4px !important;
+        }
+
+        .item-name-cell {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Stock level colors */
+        .stock-critical {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .stock-low {
+            color: #d97706;
+            font-weight: 600;
+        }
+
+        .stock-ok {
+            color: #555;
+        }
+
+        .stock-full {
+            color: #16a34a;
+        }
+
+        .text-muted {
+            color: #bbb;
         }
     </style>
 </head>
@@ -261,24 +355,20 @@
     <!-- Prep Items Section -->
     <div id="prep-items-section" class="tab-section active">
         <div class="card">
-            <h2 class="card-title">Prep Items Management</h2>
-            <p class="card-desc">
-                Here you can add, edit, or delete prep items in the database.
-            </p>
-            
-            <button id="add-new-item" class="action-button add-new-button">+ Add New Item</button>
-            
-            <table class="inventory-table">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">Prep Items</h2>
+                <button id="add-new-item" class="action-button add-new-button">+ Add New</button>
+            </div>
+
+            <table class="inventory-table db-table">
                 <thead>
                     <tr>
-                        <th>Order</th>
+                        <th style="width:50px;"></th>
                         <th>Item</th>
                         <th>Current</th>
                         <th>Target</th>
-                        <th>Unit</th>
                         <th>Last Checked</th>
                         <th>By</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="items-table-body">
