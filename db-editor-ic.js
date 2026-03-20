@@ -172,7 +172,6 @@ function renderIcItemsTable() {
     icItems.forEach((item, index) => {
         const row = document.createElement('tr');
         row.setAttribute('data-id', item.id);
-        row.setAttribute('draggable', 'true');
 
         let providersDisplay = '';
         if (item.providers && item.providers.length > 0) {

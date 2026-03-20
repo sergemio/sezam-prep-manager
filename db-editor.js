@@ -212,7 +212,6 @@ function renderItemsTable() {
     prepItems.forEach((item, index) => {
         const row = document.createElement('tr');
         row.setAttribute('data-id', item.id);
-        row.setAttribute('draggable', 'true');
 
         row.innerHTML = `
             <td><span class="drag-handle" title="Drag to reorder">☰</span> ${index + 1}</td>

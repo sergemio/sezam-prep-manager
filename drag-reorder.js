@@ -1,124 +1,75 @@
-// Drag & drop reorder for table rows (works on desktop + touch)
-// Usage: initDragAndDrop(tbodyElement, itemsArray, type)
-//   type = 'prep' or 'ic' — determines which Firebase save to use
+// Drag & drop reorder for table rows (mouse + touch)
+// No HTML5 drag API — pure mouse/touch events for reliability with <tr> elements
 
 function initDragAndDrop(tbody, items, type) {
-    let dragSrcIndex = null;
+    let dragRow = null;
+    let startY = 0;
+    let rowHeight = 0;
 
-    // --- Desktop: mousedown on handle starts tracking ---
-    tbody.addEventListener('mousedown', function(e) {
-        const handle = e.target.closest('.drag-handle');
-        if (!handle) return;
-        const row = handle.closest('tr');
-        if (!row) return;
-        dragSrcIndex = getRowIndex(tbody, row);
-    });
-
-    tbody.addEventListener('dragstart', function(e) {
-        const row = e.target.closest('tr');
-        if (!row) return;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', row.getAttribute('data-id'));
-    });
-
-    tbody.addEventListener('dragover', function(e) {
-        e.preventDefault();
-    });
-
-    tbody.addEventListener('drop', function(e) {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('text/plain');
-        const draggedRow = tbody.querySelector('tr[data-id="' + draggedId + '"]');
-        if (!draggedRow) return;
-
-        // Find which row we dropped on
-        const targetRow = getDropTarget(tbody, e.clientY, draggedRow);
-        if (targetRow && targetRow !== draggedRow) {
-            const targetRect = targetRow.getBoundingClientRect();
-            const midY = targetRect.top + targetRect.height / 2;
-            if (e.clientY < midY) {
-                tbody.insertBefore(draggedRow, targetRow);
-            } else {
-                tbody.insertBefore(draggedRow, targetRow.nextSibling);
-            }
-        }
-
-        draggedRow.classList.remove('dragging');
-        saveNewOrder(tbody, items, type);
-    });
-
-    tbody.addEventListener('dragend', function(e) {
-        const row = e.target.closest('tr');
-        if (row) row.classList.remove('dragging');
-    });
-
-    // --- Touch events (mobile/tablet) ---
-    let touchDragRow = null;
-    let touchStartY = 0;
-    let touchClone = null;
-
-    tbody.addEventListener('touchstart', function(e) {
+    function onPointerDown(e) {
         const handle = e.target.closest('.drag-handle');
         if (!handle) return;
         const row = handle.closest('tr');
         if (!row) return;
 
         e.preventDefault();
-        touchDragRow = row;
-        touchStartY = e.touches[0].clientY;
-        row.classList.add('dragging');
-    }, { passive: false });
+        dragRow = row;
+        rowHeight = row.getBoundingClientRect().height;
+        startY = (e.touches ? e.touches[0] : e).clientY;
 
-    tbody.addEventListener('touchmove', function(e) {
-        if (!touchDragRow) return;
+        dragRow.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+    }
+
+    function onPointerMove(e) {
+        if (!dragRow) return;
         e.preventDefault();
 
-        const touchY = e.touches[0].clientY;
+        const clientY = (e.touches ? e.touches[0] : e).clientY;
         const rows = Array.from(tbody.querySelectorAll('tr:not(.dragging)'));
 
+        // Find the row we're hovering over
         for (const row of rows) {
             const rect = row.getBoundingClientRect();
             const midY = rect.top + rect.height / 2;
-            if (touchY < midY) {
-                tbody.insertBefore(touchDragRow, row);
-                break;
-            }
-            if (row === rows[rows.length - 1] && touchY >= midY) {
-                tbody.appendChild(touchDragRow);
+
+            if (clientY < midY) {
+                tbody.insertBefore(dragRow, row);
+                return;
             }
         }
-    }, { passive: false });
-
-    tbody.addEventListener('touchend', function() {
-        if (!touchDragRow) return;
-        touchDragRow.classList.remove('dragging');
-        saveNewOrder(tbody, items, type);
-        touchDragRow = null;
-    });
-}
-
-function getRowIndex(tbody, row) {
-    return Array.from(tbody.children).indexOf(row);
-}
-
-function getDropTarget(tbody, clientY, draggedRow) {
-    const rows = Array.from(tbody.querySelectorAll('tr:not(.dragging)'));
-    for (const row of rows) {
-        const rect = row.getBoundingClientRect();
-        if (clientY >= rect.top && clientY <= rect.bottom) {
-            return row;
-        }
+        // If past all rows, move to end
+        tbody.appendChild(dragRow);
     }
-    return rows[rows.length - 1];
+
+    function onPointerUp() {
+        if (!dragRow) return;
+
+        dragRow.classList.remove('dragging');
+        document.body.style.userSelect = '';
+
+        saveNewOrder(tbody, items, type);
+        dragRow = null;
+    }
+
+    // Mouse events
+    tbody.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('mouseup', onPointerUp);
+
+    // Touch events
+    tbody.addEventListener('touchstart', onPointerDown, { passive: false });
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('touchend', onPointerUp);
+
+    // Disable native drag on rows (prevents browser interference)
+    tbody.addEventListener('dragstart', function(e) { e.preventDefault(); });
 }
 
 function saveNewOrder(tbody, items, type) {
-    // Read new order from DOM
-    const rows = Array.from(tbody.querySelectorAll('tr:not(.drag-placeholder)'));
+    const rows = Array.from(tbody.querySelectorAll('tr'));
     const newOrder = rows.map(r => r.getAttribute('data-id'));
 
-    // Reassign displayOrder based on new position (use == for type-flexible match)
     const updatedItems = [];
     newOrder.forEach((itemId, index) => {
         const item = items.find(i => String(i.id) === String(itemId));
