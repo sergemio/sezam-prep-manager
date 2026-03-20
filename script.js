@@ -1475,20 +1475,21 @@ function generateStatusSummary(todoItems) {
     const cantPrepPreps = [];
 
     todoItems.forEach(entry => {
+        const name = entry.data.name || entry.data.id || 'Unknown';
         if (entry._type === 'task') {
             if (entry.missed > 0 || entry.overdue > 0) {
-                overdueTasks.push({ name: entry.data.name, days: entry.overdue });
+                overdueTasks.push({ name: name, days: entry.overdue });
             } else {
-                pendingTasks.push(entry.data.name);
+                pendingTasks.push(name);
             }
         } else {
             const item = entry.data;
             if (item.canPrep === false) {
-                cantPrepPreps.push({ name: item.name, reason: item.cantPrepReason || 'Unknown' });
+                cantPrepPreps.push({ name: name, reason: item.cantPrepReason || 'Unknown' });
             } else if (item.currentLevel === 0) {
-                emptyPreps.push(item.name);
+                emptyPreps.push(name);
             } else if (item.currentLevel / item.targetLevel <= 0.25) {
-                criticalPreps.push(item.name);
+                criticalPreps.push(name);
             }
         }
     });
