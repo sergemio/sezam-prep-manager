@@ -987,6 +987,65 @@ body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Modern table style (shared across pages) */
+.db-table {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: none;
+    border: 1px solid #e8e8e0;
+}
+
+.db-table thead tr {
+    background-color: #f8f8f4;
+}
+
+.db-table thead th {
+    background-color: transparent;
+    color: #888;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e8e8e0;
+}
+
+.db-table tbody tr {
+    transition: background-color 0.1s;
+}
+
+.db-table tbody tr:nth-child(even) {
+    background-color: #fafaf6;
+}
+
+.db-table tbody tr:hover {
+    background-color: #f0f4e8;
+    filter: none;
+}
+
+.db-table td {
+    padding: 14px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0ec;
+}
+
+.item-name-cell {
+    font-weight: 600;
+    color: #333;
+}
+
+.stock-critical { color: #dc2626; font-weight: 700; }
+.stock-low { color: #d97706; font-weight: 600; }
+.stock-ok { color: #555; }
+.stock-full { color: #16a34a; }
+
+.drag-cell {
+    width: 40px;
+    text-align: center;
+    padding-left: 12px !important;
+    padding-right: 4px !important;
+}
+
 /* Drag & drop reorder */
 .drag-handle {
     cursor: grab;

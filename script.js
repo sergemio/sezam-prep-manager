@@ -2623,12 +2623,15 @@ function updateInventoryTable() {
         // Format the date using our formatDate function
         const formattedDate = formatDate(item.lastCheckedTime);
         
+        const pct = item.targetLevel > 0 ? item.currentLevel / item.targetLevel : 1;
+        const sc = pct <= 0.25 ? 'stock-critical' : pct <= 0.5 ? 'stock-low' : pct < 1 ? 'stock-ok' : 'stock-full';
+
         row.innerHTML = `
-            <td>${item.name}</td>
-            <td>${item.currentLevel} ${item.unit}</td>
+            <td class="item-name-cell">${item.name}</td>
+            <td class="${sc}">${item.currentLevel} ${item.unit}</td>
             <td>${item.targetLevel} ${item.unit}</td>
             <td>${formattedDate}</td>
-            <td>${item.lastCheckedBy}</td>
+            <td>${item.lastCheckedBy || '<span class="text-muted">—</span>'}</td>
         `;
         
         // Make the entire row clickable
