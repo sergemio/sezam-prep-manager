@@ -411,54 +411,12 @@ body {
     font-style: italic;
 }
 
-/* Inventory Table */
+/* Inventory Table (base) */
 .inventory-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     background-color: white;
-}
-
-.inventory-table th,
-.inventory-table td {
-    padding: 14px 16px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.inventory-table th {
-    background-color: var(--primary-dark);
-    color: white;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 14px;
-    letter-spacing: 0.5px;
-}
-
-.inventory-table th:first-child {
-    border-top-left-radius: 8px;
-}
-
-.inventory-table th:last-child {
-    border-top-right-radius: 8px;
-}
-
-.inventory-table tr:last-child td:first-child {
-    border-bottom-left-radius: 8px;
-}
-
-.inventory-table tr:last-child td:last-child {
-    border-bottom-right-radius: 8px;
-}
-
-.inventory-table th:nth-child(2),
-.inventory-table th:nth-child(3),
-.inventory-table td:nth-child(2),
-.inventory-table td:nth-child(3) {
-    text-align: center;
 }
 
 /* IMPORTANT: Color coding for update types */
