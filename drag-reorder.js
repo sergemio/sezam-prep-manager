@@ -110,18 +110,20 @@ function initDragAndDrop(tbody, items, type) {
 
 function saveNewOrder(tbody, items, type) {
     // Read new order from DOM
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const newOrder = rows.map(r => parseInt(r.getAttribute('data-id')));
+    const rows = Array.from(tbody.querySelectorAll('tr:not(.drag-placeholder)'));
+    const newOrder = rows.map(r => r.getAttribute('data-id'));
 
-    // Reassign displayOrder based on new position
+    // Reassign displayOrder based on new position (use == for type-flexible match)
     const updatedItems = [];
     newOrder.forEach((itemId, index) => {
-        const item = items.find(i => i.id === itemId);
+        const item = items.find(i => String(i.id) === String(itemId));
         if (item) {
             item.displayOrder = index + 1;
             updatedItems.push(item);
         }
     });
+
+    if (updatedItems.length === 0) return;
 
     // Update order numbers in the DOM
     rows.forEach((row, index) => {
