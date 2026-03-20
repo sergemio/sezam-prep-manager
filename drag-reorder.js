@@ -3,109 +3,114 @@
 //   type = 'prep' or 'ic' — determines which Firebase save to use
 
 function initDragAndDrop(tbody, items, type) {
-    let dragRow = null;
-    let placeholder = null;
-    let touchStartY = 0;
-    let touchCurrentRow = null;
+    let dragSrcIndex = null;
 
-    // --- Desktop drag events ---
+    // --- Desktop: mousedown on handle starts tracking ---
+    tbody.addEventListener('mousedown', function(e) {
+        const handle = e.target.closest('.drag-handle');
+        if (!handle) return;
+        const row = handle.closest('tr');
+        if (!row) return;
+        dragSrcIndex = getRowIndex(tbody, row);
+    });
+
     tbody.addEventListener('dragstart', function(e) {
         const row = e.target.closest('tr');
         if (!row) return;
-        dragRow = row;
         row.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', ''); // required for Firefox
+        e.dataTransfer.setData('text/plain', row.getAttribute('data-id'));
     });
 
     tbody.addEventListener('dragover', function(e) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const targetRow = e.target.closest('tr');
-        if (!targetRow || targetRow === dragRow) return;
-
-        const rect = targetRow.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-
-        if (e.clientY < midY) {
-            tbody.insertBefore(dragRow, targetRow);
-        } else {
-            tbody.insertBefore(dragRow, targetRow.nextSibling);
-        }
     });
 
-    tbody.addEventListener('dragend', function() {
-        if (dragRow) {
-            dragRow.classList.remove('dragging');
-            saveNewOrder(tbody, items, type);
-            dragRow = null;
+    tbody.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const draggedRow = tbody.querySelector('tr[data-id="' + draggedId + '"]');
+        if (!draggedRow) return;
+
+        // Find which row we dropped on
+        const targetRow = getDropTarget(tbody, e.clientY, draggedRow);
+        if (targetRow && targetRow !== draggedRow) {
+            const targetRect = targetRow.getBoundingClientRect();
+            const midY = targetRect.top + targetRect.height / 2;
+            if (e.clientY < midY) {
+                tbody.insertBefore(draggedRow, targetRow);
+            } else {
+                tbody.insertBefore(draggedRow, targetRow.nextSibling);
+            }
         }
+
+        draggedRow.classList.remove('dragging');
+        saveNewOrder(tbody, items, type);
+    });
+
+    tbody.addEventListener('dragend', function(e) {
+        const row = e.target.closest('tr');
+        if (row) row.classList.remove('dragging');
     });
 
     // --- Touch events (mobile/tablet) ---
+    let touchDragRow = null;
+    let touchStartY = 0;
+    let touchClone = null;
+
     tbody.addEventListener('touchstart', function(e) {
         const handle = e.target.closest('.drag-handle');
         if (!handle) return;
-
         const row = handle.closest('tr');
         if (!row) return;
 
         e.preventDefault();
-        dragRow = row;
+        touchDragRow = row;
         touchStartY = e.touches[0].clientY;
         row.classList.add('dragging');
-
-        // Create placeholder
-        placeholder = document.createElement('tr');
-        placeholder.className = 'drag-placeholder';
-        placeholder.innerHTML = '<td colspan="' + row.cells.length + '">&nbsp;</td>';
     }, { passive: false });
 
     tbody.addEventListener('touchmove', function(e) {
-        if (!dragRow) return;
+        if (!touchDragRow) return;
         e.preventDefault();
 
         const touchY = e.touches[0].clientY;
-        const rows = Array.from(tbody.querySelectorAll('tr:not(.dragging):not(.drag-placeholder)'));
+        const rows = Array.from(tbody.querySelectorAll('tr:not(.dragging)'));
 
-        // Float the dragged row
-        dragRow.style.position = 'relative';
-        dragRow.style.zIndex = '1000';
-        dragRow.style.transform = 'translateY(' + (touchY - touchStartY) + 'px)';
-        dragRow.style.opacity = '0.9';
-        dragRow.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-
-        // Find insert position
         for (const row of rows) {
             const rect = row.getBoundingClientRect();
             const midY = rect.top + rect.height / 2;
             if (touchY < midY) {
-                tbody.insertBefore(dragRow, row);
-                touchStartY = touchY;
-                dragRow.style.transform = '';
+                tbody.insertBefore(touchDragRow, row);
                 break;
+            }
+            if (row === rows[rows.length - 1] && touchY >= midY) {
+                tbody.appendChild(touchDragRow);
             }
         }
     }, { passive: false });
 
     tbody.addEventListener('touchend', function() {
-        if (!dragRow) return;
-
-        dragRow.classList.remove('dragging');
-        dragRow.style.position = '';
-        dragRow.style.zIndex = '';
-        dragRow.style.transform = '';
-        dragRow.style.opacity = '';
-        dragRow.style.boxShadow = '';
-
-        if (placeholder && placeholder.parentNode) {
-            placeholder.remove();
-        }
-
+        if (!touchDragRow) return;
+        touchDragRow.classList.remove('dragging');
         saveNewOrder(tbody, items, type);
-        dragRow = null;
-        placeholder = null;
+        touchDragRow = null;
     });
+}
+
+function getRowIndex(tbody, row) {
+    return Array.from(tbody.children).indexOf(row);
+}
+
+function getDropTarget(tbody, clientY, draggedRow) {
+    const rows = Array.from(tbody.querySelectorAll('tr:not(.dragging)'));
+    for (const row of rows) {
+        const rect = row.getBoundingClientRect();
+        if (clientY >= rect.top && clientY <= rect.bottom) {
+            return row;
+        }
+    }
+    return rows[rows.length - 1];
 }
 
 function saveNewOrder(tbody, items, type) {
