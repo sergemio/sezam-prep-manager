@@ -153,8 +153,8 @@ function updateInventoryTables() {
         
         // Create table
         const table = document.createElement('table');
-        table.className = 'inventory-table';
-        
+        table.className = 'inventory-table db-table';
+
         // Create table header
         const thead = document.createElement('thead');
         thead.innerHTML = `
@@ -163,8 +163,7 @@ function updateInventoryTables() {
                 <th>Current</th>
                 <th>Target</th>
                 <th>Last Checked</th>
-                <th>Providers</th>
-                <th>Actions</th>
+                <th>By</th>
             </tr>
         `;
         
@@ -211,31 +210,22 @@ function updateInventoryTables() {
                 percentageColor = 'var(--accent-orange)';
             }
             
+            const sc = percentage < 25 ? 'stock-critical' : percentage < 50 ? 'stock-low' : percentage < 100 ? 'stock-ok' : 'stock-full';
+
             row.innerHTML = `
-                <td>${item.name}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span>${item.currentLevel} ${item.unit}</span>
-                        <span style="font-size: 12px; font-weight: bold; color: ${percentageColor};">${percentage}%</span>
-                    </div>
-                </td>
+                <td class="item-name-cell">${item.name}</td>
+                <td class="${sc}">${item.currentLevel} ${item.unit}</td>
                 <td>${item.targetLevel} ${item.unit}</td>
-                <td>${formattedTime} by ${item.lastCheckedBy || 'Unknown'}</td>
-                <td>${providersHtml}</td>
-                <td>
-                    <button class="edit-button" data-id="${item.id}">Update</button>
-                </td>
+                <td>${formattedTime}</td>
+                <td>${item.lastCheckedBy || '<span class="text-muted">—</span>'}</td>
             `;
-            
+
+            row.style.cursor = 'pointer';
             tbody.appendChild(row);
-            
-            // Add event listener to edit button
-            const editButton = row.querySelector('.edit-button');
-            if (editButton) {
-                editButton.addEventListener('click', () => {
-                    showQuickUpdateModal(item);
-                });
-            }
+
+            row.addEventListener('click', () => {
+                showQuickUpdateModal(item);
+            });
         });
         
         // Assemble the table
