@@ -123,6 +123,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
 }
 
 .nav-button {
@@ -164,11 +165,11 @@ body {
     opacity: 1;
 }
 
-/* Admin nav items separator */
+/* Admin nav items — pushed to bottom of sidebar */
 .nav-admin {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: auto;
+    padding-top: 0;
+    border-top: none;
 }
 
 .nav-admin + .nav-admin {
@@ -177,11 +178,26 @@ body {
     border-top: none;
 }
 
-.user-info {
+.nav-admin:hover {
+    opacity: 1;
+}
+
+.nav-bottom {
     margin-top: auto;
+    background-color: rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.nav-bottom .nav-admin {
+    margin-top: 0;
+    padding: 10px 14px;
+}
+
+.user-info {
     padding-top: 0;
     border-top: none;
-    margin-top: 32px;
+    margin-top: 12px;
 }
 
 .user-label {
