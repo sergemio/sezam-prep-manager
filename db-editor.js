@@ -208,12 +208,14 @@ function loadItemsFromFirebase() {
 // Render the items table
 function renderItemsTable() {
     itemsTableBody.innerHTML = '';
-    
-    prepItems.forEach(item => {
+
+    prepItems.forEach((item, index) => {
         const row = document.createElement('tr');
-        
+        row.setAttribute('data-id', item.id);
+        row.setAttribute('draggable', 'true');
+
         row.innerHTML = `
-            <td>${item.displayOrder || item.id}</td>
+            <td><span class="drag-handle" title="Drag to reorder">☰</span> ${index + 1}</td>
             <td>${item.name}</td>
             <td>${item.currentLevel} ${item.unit}</td>
             <td>${item.targetLevel} ${item.unit}</td>
@@ -223,15 +225,12 @@ function renderItemsTable() {
             <td>
                 <div class="actions-cell">
                     <button class="edit-button" data-id="${item.id}">Edit</button>
-                    <button class="move-button move-up-button" data-id="${item.id}" title="Move Up">&uarr;</button>
-                    <button class="move-button move-down-button" data-id="${item.id}" title="Move Down">&darr;</button>
                 </div>
             </td>
     `;
-        
+
         itemsTableBody.appendChild(row);
-        
-        // Add event listener for this row's edit button immediately
+
         const editButton = row.querySelector('.edit-button');
         if (editButton) {
             editButton.addEventListener('click', function() {
@@ -239,28 +238,10 @@ function renderItemsTable() {
                 showEditForm(itemId);
             });
         }
-        
-        // Add event listeners for move up/down buttons
-        const moveUpButton = row.querySelector('.move-up-button');
-        if (moveUpButton) {
-            moveUpButton.addEventListener('click', function() {
-                const itemId = parseInt(this.getAttribute('data-id'));
-                moveItemUp(itemId);
-            });
-        }
-
-        const moveDownButton = row.querySelector('.move-down-button');
-        if (moveDownButton) {
-            moveDownButton.addEventListener('click', function() {
-                const itemId = parseInt(this.getAttribute('data-id'));
-                moveItemDown(itemId);
-            });
-        }
     });
-}
 
-function moveItemUp(itemId) { moveItem(itemId, -1); }
-function moveItemDown(itemId) { moveItem(itemId, 1); }
+    initDragAndDrop(itemsTableBody, prepItems, 'prep');
+}
 
 // Show the form for adding a new item
 function showAddNewForm() {

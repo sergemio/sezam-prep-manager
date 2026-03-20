@@ -987,6 +987,30 @@ body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Drag & drop reorder */
+.drag-handle {
+    cursor: grab;
+    font-size: 18px;
+    color: var(--text-light);
+    user-select: none;
+    padding: 2px 4px;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+tr.dragging {
+    opacity: 0.5;
+    background-color: var(--accent-yellow) !important;
+}
+
+tr.drag-placeholder td {
+    height: 40px;
+    background-color: var(--bg-medium);
+    border: 2px dashed var(--primary-light);
+}
+
 .actions-cell {
     display: flex;
     gap: 5px;

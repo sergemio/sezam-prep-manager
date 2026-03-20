@@ -169,70 +169,49 @@ showErrorMessage('Firebase database functions for I&C items not available.');
 function renderIcItemsTable() {
     icTableBody.innerHTML = '';
     
-    icItems.forEach(item => {
-const row = document.createElement('tr');
+    icItems.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-id', item.id);
+        row.setAttribute('draggable', 'true');
 
-// Format providers for display
-let providersDisplay = '';
-if (item.providers && item.providers.length > 0) {
-    providersDisplay = item.providers.join(', ');
-} else {
-    providersDisplay = '<span class="text-muted">None</span>';
-}
+        let providersDisplay = '';
+        if (item.providers && item.providers.length > 0) {
+            providersDisplay = item.providers.join(', ');
+        } else {
+            providersDisplay = '<span class="text-muted">None</span>';
+        }
 
-// Format sublocation for display
-let sublocationDisplay = item.sublocation || '<span class="text-muted">General</span>';
+        let sublocationDisplay = item.sublocation || '<span class="text-muted">General</span>';
 
-row.innerHTML = `
-    <td>${item.displayOrder || item.id}</td>
-    <td>${item.name}</td>
-    <td>${item.currentLevel} ${item.unit}</td>
-    <td>${item.targetLevel} ${item.unit}</td>
-    <td>${item.location}</td>
-    <td>${sublocationDisplay}</td>
-    <td>${providersDisplay}</td>
-    <td>${item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never'}</td>
-    <td>
-        <div class="actions-cell">
-            <button class="edit-button" data-id="${item.id}">Edit</button>
-            <button class="move-button move-up-button" data-id="${item.id}" title="Move Up">&uarr;</button>
-            <button class="move-button move-down-button" data-id="${item.id}" title="Move Down">&darr;</button>
-        </div>
-    </td>
-`;
+        row.innerHTML = `
+            <td><span class="drag-handle" title="Drag to reorder">☰</span> ${index + 1}</td>
+            <td>${item.name}</td>
+            <td>${item.currentLevel} ${item.unit}</td>
+            <td>${item.targetLevel} ${item.unit}</td>
+            <td>${item.location}</td>
+            <td>${sublocationDisplay}</td>
+            <td>${providersDisplay}</td>
+            <td>${item.lastCheckedTime ? new Date(item.lastCheckedTime).toLocaleString() : 'Never'}</td>
+            <td>
+                <div class="actions-cell">
+                    <button class="edit-button" data-id="${item.id}">Edit</button>
+                </div>
+            </td>
+        `;
 
-icTableBody.appendChild(row);
+        icTableBody.appendChild(row);
 
-// Add event listener for this row's edit button immediately
-const editButton = row.querySelector('.edit-button');
-if (editButton) {
-    editButton.addEventListener('click', function() {
-        const itemId = parseInt(this.getAttribute('data-id'));
-        showEditIcForm(itemId);
+        const editButton = row.querySelector('.edit-button');
+        if (editButton) {
+            editButton.addEventListener('click', function() {
+                const itemId = parseInt(this.getAttribute('data-id'));
+                showEditIcForm(itemId);
+            });
+        }
     });
-}
 
-// Add event listeners for move up/down buttons
-const moveUpButton = row.querySelector('.move-up-button');
-if (moveUpButton) {
-    moveUpButton.addEventListener('click', function() {
-        const itemId = parseInt(this.getAttribute('data-id'));
-        moveIcItemUp(itemId);
-    });
+    initDragAndDrop(icTableBody, icItems, 'ic');
 }
-
-const moveDownButton = row.querySelector('.move-down-button');
-if (moveDownButton) {
-    moveDownButton.addEventListener('click', function() {
-        const itemId = parseInt(this.getAttribute('data-id'));
-        moveIcItemDown(itemId);
-    });
-}
-    });
-}
-
-function moveIcItemUp(itemId) { moveIcItem(itemId, -1); }
-function moveIcItemDown(itemId) { moveIcItem(itemId, 1); }
 
 // Show the form for adding a new I&C item
 function showAddNewIcForm() {
