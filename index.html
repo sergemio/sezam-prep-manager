@@ -43,17 +43,32 @@
                 <div class="nav-title">PREP MANAGER</div>
                 
                 <div class="nav-buttons">
-                    <button class="nav-button active" data-section="dashboard">Prep Dashboard</button>
-                    <button class="nav-button" data-section="inventory">Preps</button>
-                    <button class="nav-button" data-section="history">Prep History</button>
-                    <a href="db-editor.html" class="nav-button">DB Editor</a>
-                    <a href="ic-inventory.html" class="nav-button">I&C Manager</a>
+                    <button class="nav-button active" data-section="dashboard">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h6v6H1V1zm8 0h6v6H9V1zM1 9h6v6H1V9zm8 0h6v6H9V9z"/></svg>
+                        Dashboard
+                    </button>
+                    <button class="nav-button" data-section="inventory">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L2 4v2h12V4L8 1zM2 7v7h12V7H2zm3 2h6v1H5V9z"/></svg>
+                        Preps
+                    </button>
+                    <button class="nav-button" data-section="history">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zM8.5 4H7v5l4 2.5.75-1.23-3.25-1.97V4z"/></svg>
+                        History
+                    </button>
+                    <a href="ic-inventory.html" class="nav-button">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v3H2V2zm0 4h12v8H2V6zm2 2v1h8V8H4zm0 2.5v1h5v-1H4z"/></svg>
+                        Inventory
+                    </a>
+                    <a href="db-editor.html" class="nav-button nav-admin">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a2.5 2.5 0 0 0-.5 4.95V7H5a2 2 0 0 0-2 2v1.05A2.5 2.5 0 1 0 5 12.95V11h6v1.95a2.5 2.5 0 1 0 2-2.9V9a2 2 0 0 0-2-2H8.5V4.95A2.5 2.5 0 0 0 8 0z"/></svg>
+                        DB Editor
+                    </a>
                 </div>
                 
                 <div class="user-info">
-                    <div class="user-label">Logged in as:</div>
+                    <div class="user-label">USER:</div>
                     <div class="user-name" id="current-user">Serge Men</div>
-                    <button class="switch-user-btn" id="switch-user">Switch User</button>
+                    <button class="switch-user-btn" id="switch-user">SWITCH</button>
                 </div>
             </div>
             
@@ -87,8 +102,14 @@
                             <button class="action-button" id="update-single-btn">Update single item</button>
                         </div>
                     </div>
+
+                    <div class="card" id="status-summary" style="display: none;">
+                        <div class="summary-dot"></div>
+                        <div class="summary-title">STATUS SUMMARY</div>
+                        <div class="summary-content" id="summary-content"></div>
+                    </div>
                 </div>
-                
+
                 <!-- Inventory section (renamed to Preps) -->
                 <div class="content-section" id="inventory-section" style="display: none;">
                     <h1 class="section-title">Preps</h1>

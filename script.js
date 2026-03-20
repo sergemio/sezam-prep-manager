@@ -1459,6 +1459,82 @@ function updateTodoList() {
             renderTaskTodoItem(entry.data, entry.missed, entry.overdue);
         }
     });
+
+    generateStatusSummary(todoItems);
+}
+
+function generateStatusSummary(todoItems) {
+    const container = document.getElementById('status-summary');
+    const content = document.getElementById('summary-content');
+    if (!container || !content) return;
+
+    const overdueTasks = [];
+    const pendingTasks = [];
+    const emptyPreps = [];
+    const criticalPreps = [];
+    const cantPrepPreps = [];
+
+    todoItems.forEach(entry => {
+        if (entry._type === 'task') {
+            if (entry.missed > 0 || entry.overdue > 0) {
+                overdueTasks.push({ name: entry.data.name, days: entry.overdue });
+            } else {
+                pendingTasks.push(entry.data.name);
+            }
+        } else {
+            const item = entry.data;
+            if (item.canPrep === false) {
+                cantPrepPreps.push({ name: item.name, reason: item.cantPrepReason || 'Unknown' });
+            } else if (item.currentLevel === 0) {
+                emptyPreps.push(item.name);
+            } else if (item.currentLevel / item.targetLevel <= 0.25) {
+                criticalPreps.push(item.name);
+            }
+        }
+    });
+
+    const lines = [];
+
+    if (overdueTasks.length > 0) {
+        const tags = overdueTasks.map(t =>
+            `<span class="summary-badge overdue">${t.name.toUpperCase()}</span> (${t.days} jour${t.days > 1 ? 's' : ''} late)`
+        );
+        lines.push(`<p class="summary-line urgent">⚠️ ${joinList(tags)} ${overdueTasks.length === 1 ? 'is' : 'are'} overdue.</p>`);
+    }
+
+    if (emptyPreps.length > 0) {
+        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n.toUpperCase()}</span>`);
+        lines.push(`<p class="summary-line urgent">${joinList(tags)} ${emptyPreps.length === 1 ? 'is' : 'are'} completely empty.</p>`);
+    }
+
+    if (criticalPreps.length > 0) {
+        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n.toUpperCase()}</span>`);
+        lines.push(`<p class="summary-line warning">${joinList(tags)} ${criticalPreps.length === 1 ? 'is' : 'are'} critically low.</p>`);
+    }
+
+    if (pendingTasks.length > 0) {
+        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n.toUpperCase()}</span>`);
+        lines.push(`<p class="summary-line info">The task${pendingTasks.length > 1 ? 's' : ''} ${joinList(tags)} ${pendingTasks.length === 1 ? 'is' : 'are'} still pending.</p>`);
+    }
+
+    if (cantPrepPreps.length > 0) {
+        const tags = cantPrepPreps.map(t => `<span class="summary-badge cant-prep">${t.name.toUpperCase()}</span> (${t.reason})`);
+        lines.push(`<p class="summary-line muted">Can't prep: ${joinList(tags)}.</p>`);
+    }
+
+    if (lines.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    content.innerHTML = lines.join('');
+    container.style.display = 'block';
+}
+
+function joinList(items) {
+    if (items.length === 1) return items[0];
+    if (items.length === 2) return items[0] + ' and ' + items[1];
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
 }
 
 function renderPrepTodoItem(item) {
