@@ -27,7 +27,7 @@
 }
 
 body {
-    background-color: var(--bg-light);
+    background-color: #e8e8e0;
     color: var(--text-dark);
 }
 
@@ -83,6 +83,7 @@ body {
     display: flex;
     height: 100vh;
     width: 100%;
+    overflow: hidden;
 }
 
 /* Left Panel - Navigation */
@@ -219,9 +220,10 @@ body {
 
 /* Middle Panel - Content */
 .content-panel {
-    width: 60%;
-    padding: 20px;
+    flex: 1;
+    padding: 28px 32px;
     overflow-y: auto;
+    background-color: #f5f5ef;
 }
 
 /* DB Editor page: no todo panel, content takes remaining space */
@@ -231,10 +233,10 @@ body {
 }
 
 .section-title {
-    font-size: 26px;
-    font-weight: bold;
-    margin-bottom: 24px;
-    color: var(--primary-dark);
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 0;
+    color: var(--text-dark);
 }
 
 .section-header {
@@ -244,28 +246,45 @@ body {
     margin-bottom: 24px;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .user-login-btn {
-    background-color: #a5afff;
+    background-color: #c2185b;
     color: white;
     border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    transition: background-color 0.2s, transform 0.1s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    gap: 4px;
+    transition: background-color 0.2s;
+    box-shadow: 0 2px 6px rgba(194, 24, 91, 0.25);
 }
 
 .user-login-btn:hover {
-    background-color: var(--accent-orange-light);
-    transform: translateY(-2px);
+    background-color: #ad1457;
+}
+
+.date-badge {
+    background-color: white;
+    border: 1px solid var(--border-light);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-dark);
 }
 
 #header-user-name {
-    font-weight: bold;
-    margin-left: 4px;
+    font-weight: 600;
 }
 
 .card {
@@ -296,23 +315,79 @@ body {
     gap: 16px;
 }
 
+.stats-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
 .stat-card {
     background-color: var(--bg-medium);
-    padding: 20px;
-    border-radius: 8px;
-    border-left: 4px solid var(--primary-medium);
+    padding: 20px 24px;
+    border-radius: 16px;
+    border-left: none;
+    flex: 1;
+}
+
+.stat-card--prep {
+    background: linear-gradient(135deg, #f0f7e6 0%, #e4f0d4 100%);
+}
+
+.stat-card--sync {
+    background: linear-gradient(135deg, #e6f7ee 0%, #d4f0e0 100%);
+}
+
+.stat-card--sync.stale {
+    background: linear-gradient(135deg, #fef2f2 0%, #fde8e8 100%);
 }
 
 .stat-label {
-    color: var(--text-medium);
+    color: var(--text-light);
     margin-bottom: 8px;
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
 }
 
 .stat-value {
     font-size: 28px;
     font-weight: bold;
     color: var(--primary-dark);
+}
+
+.stat-value-large {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--text-dark);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.stat-sub {
+    font-size: 13px;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.stat-sub-text {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.stat-progress {
+    margin-top: 12px;
+    height: 6px;
+    background-color: rgba(0,0,0,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stat-progress-bar {
+    height: 100%;
+    background-color: var(--primary-light);
+    border-radius: 3px;
+    transition: width 0.5s ease;
 }
 
 .placeholder-text {
@@ -450,21 +525,51 @@ body {
     margin-top: 12px;
 }
 
-.action-button {
-    background-color: var(--primary-medium);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.action-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
-.action-button:hover {
+.action-button {
+    border: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.action-button--primary {
+    background-color: var(--primary-medium);
+    color: white;
+    flex: 1;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(128, 178, 68, 0.3);
+}
+
+.action-button--primary:hover {
     background-color: var(--primary-dark);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(128, 178, 68, 0.4);
+}
+
+.action-button--secondary {
+    background-color: white;
+    color: var(--text-dark);
+    border: 1.5px solid var(--border-light);
+    flex: 1;
+    justify-content: center;
+}
+
+.action-button--secondary:hover {
+    background-color: var(--bg-light);
+    transform: translateY(-1px);
 }
 
 .action-button:active {
@@ -486,24 +591,50 @@ body {
 
 /* Right Panel - Todo List */
 .todo-panel {
-    width: 20%;
-    background-color: var(--bg-medium);
-    padding: 16px;
+    width: 22%;
+    background-color: #fafaf6;
+    padding: 20px 16px;
     overflow-y: auto;
     border-left: 1px solid var(--border-light);
-    margin-left: 0; /* Ensure no margin is creating extra space */
+    margin-left: 0;
     display: flex;
     flex-direction: column;
-    height: 100%; /* Ensure it takes full height */
+    height: 100%;
 }
 
 .todo-title {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 700;
     margin-bottom: 16px;
-    color: var(--primary-dark);
+    color: var(--text-light);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.todo-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-light);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
     padding-bottom: 8px;
-    border-bottom: 2px solid var(--primary-light);
+}
+
+.todo-count-badge {
+    background-color: var(--primary-light);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
 }
 
 /* Selected items container to control vertical space */

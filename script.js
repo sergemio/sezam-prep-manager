@@ -64,8 +64,9 @@ function loadStaffMembers() {
         // Load staff from Firebase
         window.firebaseDb.loadStaffMembers()
             .then(staffMembers => {
+                window.staffMembers = staffMembers;
                 if (staffMembers && staffMembers.length > 0) {
-                    
+
                     // Clear loading indicator
                     staffGrid.innerHTML = '';
                     
@@ -287,10 +288,19 @@ function loadLocalData() {
 }
 
 function initApp() {
-    
+
+    // Populate date badge
+    const dateBadge = document.getElementById('date-badge');
+    if (dateBadge) {
+        const now = new Date();
+        const days = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+        const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+        dateBadge.textContent = days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()];
+    }
+
     // Set Serge Men as the default user
     currentStaff = 'Serge Men';
-    
+
     // Show main interface directly
     showMainInterface();
     
@@ -303,9 +313,13 @@ function initApp() {
     });
 
     if (userLoginButton) {
-        userLoginButton.addEventListener('click', () => {
-            currentStaff = '';
-            showStaffSelection();
+        userLoginButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleUserDropdown();
+        });
+        document.addEventListener('click', () => {
+            const existing = document.getElementById('user-dropdown');
+            if (existing) existing.remove();
         });
     }
 
@@ -1446,18 +1460,41 @@ function updateTodoList() {
     });
 
     todoListContainer.innerHTML = '';
+    const tasksContainer = document.getElementById('todo-tasks-container');
+    if (tasksContainer) tasksContainer.innerHTML = '';
+
+    const taskItems = todoItems.filter(e => e._type === 'task');
+    const prepItemsList = todoItems.filter(e => e._type === 'prep');
+
+    // Update section labels
+    const tasksLabel = document.getElementById('todo-tasks-label');
+    const tasksCount = document.getElementById('todo-tasks-count');
+    const prepsLabel = document.getElementById('todo-preps-label');
+    const prepsCount = document.getElementById('todo-preps-count');
+
+    if (tasksLabel) {
+        tasksLabel.style.display = taskItems.length > 0 ? 'flex' : 'none';
+        if (tasksCount) tasksCount.textContent = taskItems.length;
+    }
+    if (prepsLabel) {
+        prepsLabel.style.display = prepItemsList.length > 0 ? 'flex' : 'none';
+        if (prepsCount) prepsCount.textContent = prepItemsList.length;
+    }
 
     if (todoItems.length === 0) {
         todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
+        generateStatusSummary(todoItems);
         return;
     }
 
-    todoItems.forEach(entry => {
-        if (entry._type === 'prep') {
-            renderPrepTodoItem(entry.data);
-        } else {
-            renderTaskTodoItem(entry.data, entry.missed, entry.overdue);
-        }
+    // Render tasks into tasks container
+    taskItems.forEach(entry => {
+        renderTaskTodoItem(entry.data, entry.missed, entry.overdue, tasksContainer);
+    });
+
+    // Render preps into preps container
+    prepItemsList.forEach(entry => {
+        renderPrepTodoItem(entry.data);
     });
 
     generateStatusSummary(todoItems);
@@ -1607,7 +1644,7 @@ function renderPrepTodoItem(item) {
     todoListContainer.appendChild(todoItem);
 }
 
-function renderTaskTodoItem(task, missed, overdue) {
+function renderTaskTodoItem(task, missed, overdue, container) {
     const isOverdue = missed > 0 || overdue > 0;
     let freqText = '';
     if (task.type === 'recurring') {
@@ -1630,7 +1667,7 @@ function renderTaskTodoItem(task, missed, overdue) {
     todoItem.addEventListener('click', () => {
         showTaskModal(task);
     });
-    todoListContainer.appendChild(todoItem);
+    (container || todoListContainer).appendChild(todoItem);
 }
 
 function showTaskModal(task) {
@@ -1988,10 +2025,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateStats() {
-    totalItemsElement.textContent = prepItems.length;
-    
+    const total = prepItems.length;
     const itemsNeeded = prepItems.filter(item => item.currentLevel < item.targetLevel * 0.5).length;
+
     itemsNeededElement.textContent = itemsNeeded;
+    const totalEl = document.getElementById('total-items');
+    if (totalEl) totalEl.textContent = total;
+
+    // Update progress bar
+    const progressBar = document.getElementById('prep-progress-bar');
+    if (progressBar && total > 0) {
+        const donePercent = ((total - itemsNeeded) / total) * 100;
+        progressBar.style.width = donePercent + '%';
+        if (donePercent > 80) progressBar.style.backgroundColor = 'var(--primary-light)';
+        else if (donePercent > 50) progressBar.style.backgroundColor = 'var(--accent-orange)';
+        else progressBar.style.backgroundColor = 'var(--accent-red)';
+    }
 }
 
 // Function to show staff selection modal before starting prep check
@@ -2431,6 +2480,46 @@ function showMainInterface() {
 function showStaffSelection() {
     mainInterface.style.display = 'none';
     staffSelectionScreen.style.display = 'flex';
+}
+
+function toggleUserDropdown() {
+    const existing = document.getElementById('user-dropdown');
+    if (existing) { existing.remove(); return; }
+
+    const btn = document.getElementById('user-login-btn');
+    const rect = btn.getBoundingClientRect();
+
+    const dropdown = document.createElement('div');
+    dropdown.id = 'user-dropdown';
+    dropdown.style.cssText = `
+        position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
+        background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        padding: 8px 0; z-index: 9999; min-width: 180px; border: 1px solid var(--border-light);
+    `;
+
+    const staffList = window.staffMembers || [];
+    staffList.forEach(member => {
+        if (!member.active) return;
+        const item = document.createElement('div');
+        item.textContent = member.name;
+        item.style.cssText = `
+            padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 500;
+            ${member.name === currentStaff ? 'background-color: var(--bg-medium); font-weight: 700;' : ''}
+        `;
+        item.addEventListener('mouseenter', () => { item.style.backgroundColor = '#f5f5f0'; });
+        item.addEventListener('mouseleave', () => {
+            item.style.backgroundColor = member.name === currentStaff ? 'var(--bg-medium)' : '';
+        });
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentStaff = member.name;
+            showMainInterface();
+            dropdown.remove();
+        });
+        dropdown.appendChild(item);
+    });
+
+    document.body.appendChild(dropdown);
 }
 
 function switchSection(sectionId, buttonElement) {

@@ -77,30 +77,37 @@
                 <!-- Dashboard section -->
                 <div class="content-section active" id="dashboard-section">
                     <div class="section-header">
-                        <h1 class="section-title">Dashboard</h1>
-                        <button class="user-login-btn" id="user-login-btn">
-                            Logged as: <span id="header-user-name">Serge Men</span>
+                        <h1 class="section-title">Overview</h1>
+                        <div class="header-right">
+                            <button class="user-login-btn" id="user-login-btn">
+                                <span id="header-user-name">Serge Men</span> ▾
+                            </button>
+                            <div class="date-badge" id="date-badge"></div>
+                        </div>
+                    </div>
+                    <div class="stats-row">
+                        <div class="stat-card stat-card--prep">
+                            <div class="stat-label">PREP STATUS</div>
+                            <div class="stat-value-large" id="items-needed">0</div>
+                            <div class="stat-sub">/ <span id="total-items">0</span> <span class="stat-sub-text">ITEMS TO PREP</span></div>
+                            <div class="stat-progress"><div class="stat-progress-bar" id="prep-progress-bar"></div></div>
+                        </div>
+                        <div class="stat-card stat-card--sync" id="last-check-card">
+                            <div class="stat-label">LAST SYNC</div>
+                            <div class="stat-value-large" id="last-check-value">--</div>
+                            <div class="stat-sub" id="last-check-by"></div>
+                        </div>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="action-button action-button--primary" id="start-check-btn">
+                            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 10.5l-3-3 1-1 2 2 4-4 1 1-5 5z"/></svg>
+                            RUN CHECK
                         </button>
-                    </div>
-                    <div class="card">
-                        <h2 class="card-title">Current Status</h2>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-label">Needing Prep</div>
-                                <div class="stat-value" id="items-needed">0</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Total Prep Items</div>
-                                <div class="stat-value" id="total-items">0</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <div style="display: flex; gap: 16px;">
-                            <button class="action-button" id="start-check-btn">Start Prep Check</button>
-                            <button class="action-button" id="update-single-btn">Update single item</button>
-                        </div>
+                        <button class="action-button action-button--secondary" id="update-single-btn">
+                            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.5 4v3h3v1h-3v3h-1V9h-3V8h3V5h1z"/></svg>
+                            QUICK EDIT
+                        </button>
                     </div>
 
                     <div class="card" id="status-summary" style="display: none;">
@@ -211,8 +218,10 @@
             
             <!-- Right panel - Prep to-do list -->
             <div class="todo-panel">
-                <div class="todo-title">Prep To-Do List</div>
-                
+                <div class="todo-title">TO DO</div>
+                <div class="todo-section-label" id="todo-tasks-label" style="display:none;">TASKS DUE <span class="todo-count-badge" id="todo-tasks-count"></span></div>
+                <div id="todo-tasks-container"></div>
+                <div class="todo-section-label" id="todo-preps-label" style="display:none;">LOW PREPS <span class="todo-count-badge" id="todo-preps-count"></span></div>
                 <div id="todo-list-container">
                     <!-- To-do items will be inserted here by JavaScript -->
                 </div>
