@@ -890,6 +890,7 @@ function saveTask() {
     const task = {
         id: currentEditingTaskId || 'task_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
         title: title,
+        name: title,
         description: taskDescriptionInput.value.trim(),
         type: type,
         active: taskActiveInput.checked,

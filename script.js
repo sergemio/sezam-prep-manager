@@ -1475,7 +1475,7 @@ function generateStatusSummary(todoItems) {
     const cantPrepPreps = [];
 
     todoItems.forEach(entry => {
-        const name = entry.data.name || entry.data.id || 'Unknown';
+        const name = entry.data.name || entry.data.title || entry.data.id || 'Unknown';
         if (entry._type === 'task') {
             if (entry.missed > 0 || entry.overdue > 0) {
                 overdueTasks.push({ name: name, days: entry.overdue });
