@@ -485,7 +485,8 @@ function markItemAsCanPrepAgain(item) {
         updateInventoryTable();
         updateTodoList();
         updateStats();
-        
+        SoundFX.complete();
+
         // Show success message
         const successMessage = document.createElement('div');
         successMessage.textContent = `${item.name} can now be prepped again`;
@@ -615,7 +616,8 @@ function saveAndNext() {
     
     // Update the to-do list in real-time
     updateTodoList();
-    
+    SoundFX.tap();
+
     // Move to next item or complete check
     if (currentItemIndex < prepItems.length - 1) {
         currentItemIndex++;
@@ -627,7 +629,7 @@ function saveAndNext() {
 
 // Quick Update Modal (modified to use Firebase)
 function showQuickUpdateModal(item, context = 'default') {
-    
+    SoundFX.pop();
     if (!item.currentLevel && item.currentLevel !== 0) {
         console.warn('Warning: currentLevel is undefined or null');
     }
@@ -948,6 +950,8 @@ function showQuickUpdateModal(item, context = 'default') {
             updateTodoList();
             updateStats();
             
+            SoundFX.complete();
+
             // Show success message
             const successMessage = document.createElement('div');
             successMessage.textContent = `${item.name} updated to ${newValue} ${item.unit}`;
@@ -975,6 +979,7 @@ function showQuickUpdateModal(item, context = 'default') {
 
     // Function to show the Can't Prep reason selection modal
 function showCantPrepReasonModal(item, afterSelectionCallback) {
+    SoundFX.pop();
     // Create modal backdrop (stacked on top of prep check modal)
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop modal-backdrop--stacked cant-prep-modal-backdrop';
@@ -1229,7 +1234,8 @@ function markItemAsCanPrepAgain(item) {
         updateInventoryTable();
         updateTodoList();
         updateStats();
-        
+        SoundFX.complete();
+
         // Show success message
         const successMessage = document.createElement('div');
         successMessage.textContent = `${item.name} can now be prepped again`;
@@ -1532,6 +1538,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
 }
 
 function showTaskModal(task) {
+    SoundFX.pop();
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
 
@@ -1581,6 +1588,7 @@ function showTaskModal(task) {
     });
     modalContent.querySelector('#task-done-btn').addEventListener('click', function() {
         completeTask(task);
+        SoundFX.complete();
         document.body.removeChild(modalBackdrop);
     });
 }
@@ -2366,6 +2374,7 @@ function toggleModalUserDropdown(btn) {
 }
 
 function switchSection(sectionId, buttonElement) {
+    SoundFX.tap();
     // Update active nav button
     navButtons.forEach(btn => btn.classList.remove('active'));
     buttonElement.classList.add('active');
@@ -2515,6 +2524,7 @@ document.head.appendChild(statsGridStyle);
 
 // Add the function to show the single item update modal
 function showSingleItemUpdateModal() {
+    SoundFX.pop();
     // Create modal backdrop
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
