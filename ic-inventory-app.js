@@ -507,31 +507,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayPercentage = 5; // Show 5% minimum for 0-5% items
             }
             
-            // Determine level bar color based on 10% increments for maximum visibility
-            let levelBarColor;
-            if (percentage === 0) {
-                levelBarColor = 'var(--progress-0)'; // Dark Red (0%)
-            } else if (percentage <= 10) {
-                levelBarColor = 'var(--progress-10)'; // Red (1-10%)
-            } else if (percentage <= 20) {
-                levelBarColor = 'var(--progress-30)'; // Deep Orange (11-20%)
-            } else if (percentage <= 30) {
-                levelBarColor = 'var(--progress-30)'; // Orange (21-30%)
-            } else if (percentage <= 40) {
-                levelBarColor = 'var(--progress-40)'; // Amber (31-40%)
-            } else if (percentage <= 50) {
-                levelBarColor = 'var(--progress-50)'; // Yellow (41-50%)
-            } else if (percentage <= 60) {
-                levelBarColor = 'var(--progress-60)'; // Lime (51-60%)
-            } else if (percentage <= 70) {
-                levelBarColor = 'var(--progress-70)'; // Light Green (61-70%)
-            } else if (percentage <= 80) {
-                levelBarColor = 'var(--progress-80)'; // Green (71-80%)
-            } else if (percentage <= 90) {
-                levelBarColor = 'var(--progress-90)'; // Dark Green (81-90%)
-            } else {
-                levelBarColor = 'var(--progress-100)'; // Very Dark Green (91-100%)
-            }
+            // Smooth color: red(0%) → orange(25%) → yellow(50%) → green(100%)
+            const hue = Math.min(percentage, 100) * 1.2; // 0=red, 60=yellow, 120=green
+            const sat = percentage < 50 ? 80 : 55;
+            const light = percentage < 50 ? 48 : 40;
+            const levelBarColor = `hsl(${hue}, ${sat}%, ${light}%)`;
+            const levelBarTextColor = percentage > 55 ? 'white' : '#333';
             
             row.innerHTML = `
                 <td class="item-name" style="cursor: pointer;" title="Double-click to edit item details">${item.name}</td>
@@ -539,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="level-bar-container">
                     <div class="level-bar">
                         <div class="level-bar-fill" style="width: ${displayPercentage}%; background-color: ${levelBarColor};"></div>
-                        <div class="level-bar-text">${Math.round(percentage)}%</div>
+                        <div class="level-bar-text" style="color: ${levelBarTextColor};">${Math.round(percentage)}%</div>
                     </div>
                 </td>
                 <td class="target-value">${item.targetLevel}</td>
@@ -547,23 +528,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="last-modified">${formatDate(item.lastCheckedTime)}</td>
             `;
             
-            // Create progress bar using displayPercentage for visual width, but keep original percentage for text
             const levelBarFill = row.querySelector('.level-bar-fill');
             if (levelBarFill) {
-                // Nuclear approach: Set styles and force them to stick
-                levelBarFill.style.setProperty('width', `${displayPercentage}%`, 'important');
-                levelBarFill.style.setProperty('max-width', `${displayPercentage}%`, 'important');
-                levelBarFill.style.setProperty('min-width', `${displayPercentage}%`, 'important');
-                levelBarFill.style.setProperty('background-color', levelBarColor, 'important');
-                
-                // Force the browser to apply the styles
-                levelBarFill.offsetHeight;
-                
-                // Additional nuclear approach: Set inline styles directly
-                levelBarFill.setAttribute('style', `width: ${displayPercentage}% !important; max-width: ${displayPercentage}% !important; min-width: ${displayPercentage}% !important; background-color: ${levelBarColor} !important; height: 100%; border-radius: 14px;`);
-                
-                // Force another reflow
-                levelBarFill.offsetHeight;
+                levelBarFill.setAttribute('style', `width: ${displayPercentage}%; background-color: ${levelBarColor}; height: 100%; border-radius: 14px;`);
                 
                 // Debug: Check if styles were applied
                 if (item.name === 'Viande Meat [Ground beef] Frozen 1KG') {
