@@ -2597,8 +2597,9 @@ function showSingleItemUpdateModal() {
         itemButton.innerHTML = `
             <div>
                 <div style="font-weight: 500; color: var(--text-dark); font-size: 16px;">${item.name}</div>
-                <div style="color: var(--text-medium); font-size: 14px; margin-top: 4px;">
-                    ${item.currentLevel} / ${item.targetLevel} ${item.unit}
+                <div style="margin-top: 4px;">
+                    <span style="font-weight: 700; font-size: 15px; color: var(--text-dark);">${item.currentLevel} / ${item.targetLevel}</span>
+                    <span style="font-size: 12px; color: #999; margin-left: 4px;">${item.unit}</span>
                 </div>
             </div>
             <div style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
