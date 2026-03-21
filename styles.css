@@ -1554,6 +1554,53 @@ tr.drag-placeholder td {
 }
 
 /* ========================================
+   Staff Selection Modal
+   ======================================== */
+
+.staff-container {
+    margin-bottom: 24px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.staff-select-button {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border: 2px solid var(--border-light);
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: white;
+    transition: all 0.2s;
+}
+
+.staff-select-button:hover {
+    background-color: var(--bg-light);
+}
+
+.staff-select-button.selected {
+    border-color: var(--primary-medium);
+    background-color: var(--bg-medium);
+}
+
+.staff-select-button .staff-name {
+    font-weight: 500;
+    color: var(--text-dark);
+    font-size: 16px;
+}
+
+.staff-select-button .staff-current-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    background-color: var(--accent-yellow);
+    padding: 4px 10px;
+    border-radius: 9999px;
+}
+
+/* ========================================
    Shared Modal Styles
    ======================================== */
 

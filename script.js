@@ -1902,22 +1902,13 @@ function showPrepCheckStaffModal() {
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
     modalHeader.innerHTML = `
-        <h3 style="margin: 0 0 12px 0; color: var(--primary-dark); font-size: 22px;">Who will perform this check?</h3>
-        <p style="margin: 0; color: var(--text-medium);">Select staff member performing Prep-Check</p>
+        <h3 style="margin: 0 0 8px 0; color: var(--primary-dark); font-size: 22px; text-align: center;">Who will perform this check?</h3>
+        <p style="margin: 0; color: var(--text-medium); text-align: center; font-size: 14px;">Select staff member performing Prep-Check</p>
     `;
-    
-    // Create staff selection container
+
     const staffContainer = document.createElement('div');
-    staffContainer.style.marginBottom = '24px';
-    staffContainer.style.maxHeight = '300px';
-    staffContainer.style.overflowY = 'auto';
-    
-    // Create a loading indicator initially
-    staffContainer.innerHTML = `
-        <div style="text-align: center; padding: 20px; color: var(--text-medium);">
-            <div>Loading staff members...</div>
-        </div>
-    `;
+    staffContainer.className = 'staff-container';
+    staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">Loading staff members...</div>';
     
     // Create buttons
     const buttonGroup = document.createElement('div');
@@ -1955,15 +1946,7 @@ function showPrepCheckStaffModal() {
         // Update UI to show selection
         const staffButtons = staffContainer.querySelectorAll('.staff-select-button');
         staffButtons.forEach(button => {
-            if (button.getAttribute('data-staff') === staffName) {
-                button.classList.add('selected');
-                button.style.borderColor = 'var(--primary-medium)';
-                button.style.backgroundColor = 'var(--bg-medium)';
-            } else {
-                button.classList.remove('selected');
-                button.style.borderColor = '#ddd';
-                button.style.backgroundColor = 'white';
-            }
+            button.classList.toggle('selected', button.getAttribute('data-staff') === staffName);
         });
         
         // Enable the confirm button
@@ -1993,27 +1976,12 @@ function showPrepCheckStaffModal() {
                             // Create buttons for each active staff member
                             activeStaff.forEach(staff => {
                                 const staffButton = document.createElement('div');
-                                staffButton.className = 'staff-select-button';
-                                staffButton.setAttribute('data-staff', staff.name);
-                                
-                                // Highlight the current user
                                 const isCurrentUser = staff.name === currentStaff;
-                                
-                                // Style the button
-                                staffButton.style.padding = '14px';
-                                staffButton.style.marginBottom = '10px';
-                                staffButton.style.border = `2px solid ${isCurrentUser ? 'var(--primary-medium)' : '#ddd'}`;
-                                staffButton.style.borderRadius = '8px';
-                                staffButton.style.cursor = 'pointer';
-                                staffButton.style.display = 'flex';
-                                staffButton.style.alignItems = 'center';
-                                staffButton.style.justifyContent = 'space-between';
-                                staffButton.style.backgroundColor = isCurrentUser ? 'var(--bg-medium)' : 'white';
-                                staffButton.style.transition = 'all 0.2s';
-                                
+                                staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
+                                staffButton.setAttribute('data-staff', staff.name);
                                 staffButton.innerHTML = `
-                                    <div style="font-weight: 500; color: var(--text-dark);">${staff.name}</div>
-                                    ${isCurrentUser ? '<div style="color: var(--primary-dark); font-size: 14px; background-color: var(--accent-yellow); padding: 4px 8px; border-radius: 4px;">Current user</div>' : ''}
+                                    <span class="staff-name">${staff.name}</span>
+                                    ${isCurrentUser ? '<span class="staff-current-badge">Current</span>' : ''}
                                 `;
                                 
                                 // Add click event
@@ -2029,11 +1997,7 @@ function showPrepCheckStaffModal() {
                                 }
                             });
                         } else {
-                            staffContainer.innerHTML = `
-                                <div style="text-align: center; padding: 20px; color: var(--text-medium);">
-                                    <div>No active staff members found.</div>
-                                </div>
-                            `;
+                            staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">No active staff members found.</div>';
                         }
                     } else {
                         // Fallback to hardcoded staff
@@ -2064,26 +2028,12 @@ function showPrepCheckStaffModal() {
         // Create button for each staff member
         defaultStaff.forEach(staffName => {
             const staffButton = document.createElement('div');
-            staffButton.className = 'staff-select-button';
-            staffButton.setAttribute('data-staff', staffName);
-            
-            // Highlight the current user
             const isCurrentUser = staffName === currentStaff;
-            
-            // Style the button
-            staffButton.style.padding = '14px';
-            staffButton.style.marginBottom = '10px';
-            staffButton.style.border = `2px solid ${isCurrentUser ? 'var(--primary-medium)' : '#ddd'}`;
-            staffButton.style.borderRadius = '8px';
-            staffButton.style.cursor = 'pointer';
-            staffButton.style.display = 'flex';
-            staffButton.style.alignItems = 'center';
-            staffButton.style.justifyContent = 'space-between';
-            staffButton.style.backgroundColor = isCurrentUser ? 'var(--bg-medium)' : 'white';
-            
+            staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
+            staffButton.setAttribute('data-staff', staffName);
             staffButton.innerHTML = `
-                <div style="font-weight: 500; color: var(--text-dark);">${staffName}</div>
-                ${isCurrentUser ? '<div style="color: var(--primary-dark); font-size: 14px; background-color: var(--accent-yellow); padding: 4px 8px; border-radius: 4px;">Current user</div>' : ''}
+                <span class="staff-name">${staffName}</span>
+                ${isCurrentUser ? '<span class="staff-current-badge">Current</span>' : ''}
             `;
             
             // Add click event
