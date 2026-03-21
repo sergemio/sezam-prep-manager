@@ -293,8 +293,8 @@ body {
     left: -100%;
     width: 60%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-    animation: btn-shine 4s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    animation: btn-shine 5s ease-in-out infinite;
 }
 
 @keyframes btn-shine {
