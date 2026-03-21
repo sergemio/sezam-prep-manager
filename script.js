@@ -1496,7 +1496,7 @@ function renderPrepTodoItem(item) {
         ` : ''}
         <div class="todo-footer">
             <span class="todo-tag ${badgeClass}">${badgeText}</span>
-            <span class="todo-item-detail todo-timestamp">${timeDisplay}</span>
+            <span class="todo-tag todo-tag--outline">Last update ${timeDisplay}</span>
         </div>
     `;
     todoItem.addEventListener('click', () => {

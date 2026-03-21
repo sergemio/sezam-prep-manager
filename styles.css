@@ -746,6 +746,14 @@ body {
     font-weight: 800;
 }
 
+.todo-tag--outline {
+    background-color: transparent;
+    border: 1.5px solid #999;
+    color: #777;
+    font-weight: 600;
+    font-size: 12px;
+}
+
 /* Status Summary */
 #status-summary {
     position: relative;
