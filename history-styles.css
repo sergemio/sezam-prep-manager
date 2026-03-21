@@ -300,9 +300,10 @@
 .day-card {
     background-color: white;
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
     overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-light);
 }
 
 /* Collapsible log groups */
