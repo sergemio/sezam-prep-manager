@@ -2530,10 +2530,8 @@ function showSingleItemUpdateModal() {
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
     const headerDiv = document.createElement('div');
-    headerDiv.style.display = 'flex';
-    headerDiv.style.alignItems = 'center';
-    headerDiv.style.justifyContent = 'space-between';
-    headerDiv.innerHTML = `<h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem;">Select item to update</h2>`;
+    headerDiv.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 12px;';
+    headerDiv.innerHTML = `<h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem; text-align: center;">Select item to update</h2>`;
 
     const userBtn = document.createElement('button');
     userBtn.className = 'user-login-btn';
