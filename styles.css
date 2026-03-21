@@ -498,27 +498,69 @@ body {
 }
 
 /* Prep Check Interface */
-.check-progress {
-    color: var(--text-medium);
-    margin-bottom: 16px;
-    font-size: 14px;
+.prep-check-card {
+    max-width: 600px;
+    margin: 0 auto;
 }
 
-.check-item-name {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 4px;
-    color: var(--primary-dark);
+.prep-check-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
-.check-item-target {
-    margin-bottom: 8px;
-    color: var(--text-medium);
-    font-weight: 500;
+.prep-check-badge {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-light);
     background-color: var(--bg-medium);
-    padding: 8px 12px;
-    border-radius: 6px;
-    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+}
+
+.prep-check-user {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    background-color: #c2185b;
+    padding: 4px 12px;
+    border-radius: 9999px;
+}
+
+.prep-check-item-name {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.prep-check-target {
+    text-align: center;
+    margin-bottom: 16px;
+    color: var(--text-medium);
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.prep-check-target strong {
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+.prep-check-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.prep-check-save {
+    flex: 2;
+}
+
+.prep-check-actions .btn--secondary {
+    flex: 1;
 }
 
 .input-group {
@@ -852,17 +894,17 @@ body {
     width: 100%;
     margin: 15px 0;
     padding: 20px;
-    background-color: var(--bg-medium);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    background-color: #fafaf6;
+    border-radius: 16px;
+    border: 1px solid var(--border-light);
 }
 
 .value-display {
     text-align: center;
-    font-size: 32px;
-    font-weight: bold;
-    margin: 20px 0;
-    color: var(--primary-dark);
+    font-size: 48px;
+    font-weight: 800;
+    margin: 12px 0;
+    color: var(--text-dark);
 }
 
 .control-row {
@@ -874,29 +916,29 @@ body {
 }
 
 .control-button {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: var(--primary-medium);
-    color: white;
-    font-size: 28px;
-    border: none;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background-color: white;
+    color: var(--primary-dark);
+    font-size: 26px;
+    border: 2px solid var(--border-light);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
     transition: background-color 0.2s, transform 0.1s;
 }
 
 .control-button:hover {
-    background-color: var(--primary-dark);
-    transform: scale(1.05);
+    background-color: var(--bg-medium);
 }
 
 .control-button:active {
     transform: scale(0.95);
+    background-color: var(--primary-light);
+    color: white;
 }
 
 .slider-container {
@@ -1226,26 +1268,7 @@ tr.drag-placeholder td {
     animation: fadeIn 0.3s ease-out;
 }
 
-/* Place these styles outside any media query */
-.prep-check-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--primary-medium);
-    padding-bottom: 8px;
-  }
-  
-  .prep-check-header .section-title {
-    margin-bottom: 0;
-    font-size: 22px;
-}
-
-.prep-check-header .check-progress {
-    margin-bottom: 0;
-  }
-  
-  /* Keep your existing media query as is */
+/* Keep your existing media query as is */
   @media (max-width: 768px) {
       .tab-navigation {
           flex-direction: row;
@@ -1425,18 +1448,14 @@ tr.drag-placeholder td {
 }
 
 /* Overrides for Prep Check Interface to reduce vertical space */
-#prep-check-interface .card {
-    padding: 12px;
-}
-
 #prep-check-interface .touch-input-container {
     margin: 10px 0;
-    padding: 10px;
+    padding: 16px;
 }
 
 #prep-check-interface .value-display {
-    margin: 10px 0;
-    font-size: 28px;
+    margin: 8px 0;
+    font-size: 44px;
 }
 
 #prep-check-interface .control-row {
@@ -1445,9 +1464,9 @@ tr.drag-placeholder td {
 }
 
 #prep-check-interface .control-button {
-    width: 62.5px;
-    height: 62.5px;
-    font-size: 30px;
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
 }
 
 #prep-check-interface .slider-container {
@@ -1456,8 +1475,8 @@ tr.drag-placeholder td {
 }
 
 #prep-check-interface .slider-handle {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
 }
 
 #prep-check-interface .tick-marks {

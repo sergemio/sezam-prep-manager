@@ -1602,16 +1602,12 @@ function completeTask(task) {
 function showCurrentPrepItem() {
     const item = prepItems[currentItemIndex];
     checkProgressElement.textContent = `Item ${currentItemIndex + 1} of ${prepItems.length}`;
-    
-    // Update the item name element to include the user indicator
-    checkItemNameElement.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span>${item.name}</span>
-            <span class="user-indicator">${currentStaff}</span>
-        </div>
-    `;
-    
-    checkItemTargetElement.textContent = `Target: ${item.targetLevel} ${item.unit}`;
+
+    const userBadge = document.getElementById('check-user-badge');
+    if (userBadge) userBadge.textContent = currentStaff;
+
+    checkItemNameElement.textContent = item.name;
+    checkItemTargetElement.innerHTML = `Target: <strong>${item.targetLevel}</strong> ${item.unit}`;
     
     // Reset the slider to 0 using the slider API
     if (prepCheckSlider) {

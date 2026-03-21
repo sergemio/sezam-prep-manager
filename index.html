@@ -178,49 +178,38 @@
                 
 <!-- Prep check interface (hidden initially) -->
 <div id="prep-check-interface" style="display: none;">
-    <div class="card">
-        <div class="prep-check-header">
-            <h1 class="section-title">Prep Check</h1>
-            <div class="check-progress" id="check-progress">Item 1 of 5</div>
+    <div class="card prep-check-card">
+        <div class="prep-check-top">
+            <span class="prep-check-badge" id="check-progress">Item 1 of 5</span>
+            <span class="prep-check-user" id="check-user-badge"></span>
         </div>
-        
-        <div class="check-item-name" id="check-item-name">
-            Item Name
-        </div>
-        
-        <div class="check-item-target" id="check-item-target">
-            Target: 5 containers
-        </div>
-        
-        <!-- Replace standard input with touch-friendly input -->
-        <div class="input-group">
-            <label class="input-label">Current level:</label>
-            <!-- Hidden input to store the value (for form submission compatibility) -->
-            <input type="hidden" id="current-level-input">
-            
-            <!-- Touch-friendly numeric input -->
-            <div class="touch-input-container">
-                <div class="value-display">
-                    <span id="current-value">0</span>
-                </div>
-                
-                <div class="control-row">
-                    <button class="control-button" id="decrease">-</button>
-                    <button class="control-button" id="increase">+</button>
-                </div>
-                
-                <div class="slider-container">
-                    <div class="slider-track"></div>
-                    <div class="slider-progress" id="progress"></div>
-                    <div class="slider-handle" id="handle"></div>
-                    <div class="tick-marks" id="ticks"></div>
-                </div>
+
+        <div class="prep-check-item-name" id="check-item-name">Item Name</div>
+        <div class="prep-check-target" id="check-item-target">Target: 5 containers</div>
+
+        <input type="hidden" id="current-level-input">
+
+        <div class="touch-input-container">
+            <div class="value-display">
+                <span id="current-value">0</span>
+            </div>
+
+            <div class="control-row">
+                <button class="control-button" id="decrease">-</button>
+                <button class="control-button" id="increase">+</button>
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-track"></div>
+                <div class="slider-progress" id="progress"></div>
+                <div class="slider-handle" id="handle"></div>
+                <div class="tick-marks" id="ticks"></div>
             </div>
         </div>
-        
-        <div class="button-group">
-            <button class="action-button" id="save-next-btn">Save & Next</button>
-            <button class="secondary-button" id="cancel-check-btn">Cancel</button>
+
+        <div class="prep-check-actions">
+            <button class="btn btn--primary prep-check-save" id="save-next-btn">Save & Next</button>
+            <button class="btn btn--secondary" id="cancel-check-btn">Cancel</button>
         </div>
     </div>
 </div>
