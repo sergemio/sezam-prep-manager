@@ -14,10 +14,11 @@
 }
 
 .ic-stat-card {
-    background: linear-gradient(135deg, #f7f9f5 0%, #eef4e4 100%);
+    background: linear-gradient(135deg, #eef4e4 0%, #dce8cc 100%);
     padding: 24px;
     border-radius: 16px;
     text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .ic-stat-value {
@@ -45,15 +46,16 @@
     margin-bottom: 12px;
 }
 
-.ic-action-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.ic-card {
     background-color: white;
     padding: 20px 24px;
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-top: 24px;
+    margin-bottom: 16px;
+}
+
+.ic-action-card {
+    margin-top: 8px;
 }
 
 /* Location filter styles */
