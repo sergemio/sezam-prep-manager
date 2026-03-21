@@ -1915,10 +1915,10 @@ function showPrepCheckStaffModal() {
     buttonGroup.className = 'btn-group';
 
     const confirmButton = document.createElement('button');
-    confirmButton.textContent = 'Continue';
+    confirmButton.textContent = 'Continue →';
     confirmButton.disabled = true;
-    confirmButton.className = 'btn btn--brand';
-    confirmButton.style.opacity = '0.7';
+    confirmButton.className = 'btn btn--primary';
+    confirmButton.style.opacity = '0.5';
 
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
@@ -1979,9 +1979,11 @@ function showPrepCheckStaffModal() {
                                 const isCurrentUser = staff.name === currentStaff;
                                 staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
                                 staffButton.setAttribute('data-staff', staff.name);
+                                const initials = staff.name.split(' ').map(w => w[0]).join('').toUpperCase();
                                 staffButton.innerHTML = `
+                                    <span class="staff-initial">${initials}</span>
                                     <span class="staff-name">${staff.name}</span>
-                                    ${isCurrentUser ? '<span class="staff-current-badge">Current</span>' : ''}
+                                    <span class="staff-check">✓</span>
                                 `;
                                 
                                 // Add click event
@@ -2031,9 +2033,11 @@ function showPrepCheckStaffModal() {
             const isCurrentUser = staffName === currentStaff;
             staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
             staffButton.setAttribute('data-staff', staffName);
+            const initials = staffName.split(' ').map(w => w[0]).join('').toUpperCase();
             staffButton.innerHTML = `
+                <span class="staff-initial">${initials}</span>
                 <span class="staff-name">${staffName}</span>
-                ${isCurrentUser ? '<span class="staff-current-badge">Current</span>' : ''}
+                <span class="staff-check">✓</span>
             `;
             
             // Add click event
