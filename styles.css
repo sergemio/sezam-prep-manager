@@ -139,7 +139,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 15px;
+    font-size: 16px;
     text-decoration: none;
 }
 
@@ -275,7 +275,7 @@ body {
     padding: 8px 18px;
     border-radius: 20px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -293,7 +293,7 @@ body {
     border: 1px solid var(--border-light);
     padding: 8px 16px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.5px;
     color: var(--text-dark);
@@ -361,7 +361,7 @@ body {
     color: var(--text-light);
     margin-bottom: 8px;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 13px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
 }
@@ -381,13 +381,13 @@ body {
 }
 
 .stat-sub {
-    font-size: 13px;
+    font-size: 15px;
     color: var(--text-light);
     font-weight: 500;
 }
 
 .stat-sub-text {
-    font-size: 11px;
+    font-size: 13px;
     letter-spacing: 0.5px;
 }
 
@@ -588,7 +588,7 @@ body {
 }
 
 .todo-section-label {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-light);
     letter-spacing: 1px;
@@ -605,7 +605,7 @@ body {
 .todo-count-badge {
     background-color: var(--primary-light);
     color: white;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 10px;
@@ -644,13 +644,14 @@ body {
 }
 
 .todo-item-name {
+    font-size: 17px;
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--primary-dark);
 }
 
 .todo-item-detail {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text-medium);
     margin-bottom: 4px;
 }
@@ -659,7 +660,7 @@ body {
     display: inline-block;
     margin-top: 8px;
     padding: 4px 12px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 9999px;
     font-weight: 800;
 }
@@ -696,7 +697,7 @@ body {
     position: relative;
     padding: 20px 24px;
     line-height: 1.8;
-    font-size: 15px;
+    font-size: 16px;
 }
 
 .summary-dot {
@@ -741,7 +742,7 @@ body {
 
 .summary-line.muted {
     color: #94a3b8;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .summary-badge {

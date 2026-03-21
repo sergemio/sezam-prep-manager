@@ -1522,7 +1522,7 @@ function generateStatusSummary(todoItems) {
         const tags = overdueTasks.map(t =>
             `<span class="summary-badge overdue">${t.name.toUpperCase()}</span> (${t.days} jour${t.days > 1 ? 's' : ''} late)`
         );
-        lines.push(`<p class="summary-line urgent">⚠️ ${joinList(tags)} ${overdueTasks.length === 1 ? 'is' : 'are'} overdue.</p>`);
+        lines.push(`<p class="summary-line urgent">${joinList(tags)} ${overdueTasks.length === 1 ? 'is' : 'are'} overdue. ⚠️</p>`);
     }
 
     if (emptyPreps.length > 0) {
