@@ -222,15 +222,7 @@ function saveData() {
 // Add a function to show error notifications
 function showErrorNotification(message) {
     const notification = document.createElement('div');
-    notification.style.position = 'fixed';
-    notification.style.bottom = '20px';
-    notification.style.right = '20px';
-    notification.style.padding = '15px';
-    notification.style.backgroundColor = '#f44336';
-    notification.style.color = 'white';
-    notification.style.borderRadius = '5px';
-    notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    notification.style.zIndex = '1000';
+    notification.className = 'toast toast--error';
     notification.textContent = message;
     
     document.body.appendChild(notification);
@@ -497,14 +489,7 @@ function markItemAsCanPrepAgain(item) {
         // Show success message
         const successMessage = document.createElement('div');
         successMessage.textContent = `${item.name} can now be prepped again`;
-        successMessage.style.position = 'fixed';
-        successMessage.style.bottom = '20px';
-        successMessage.style.right = '20px';
-        successMessage.style.padding = '10px';
-        successMessage.style.backgroundColor = '#4CAF50';
-        successMessage.style.color = 'white';
-        successMessage.style.borderRadius = '5px';
-        successMessage.style.zIndex = '1000';
+        successMessage.className = 'toast toast--success';
         document.body.appendChild(successMessage);
         
         setTimeout(() => {
@@ -647,35 +632,15 @@ function showQuickUpdateModal(item, context = 'default') {
         console.warn('Warning: currentLevel is undefined or null');
     }
 
-    // Create modal elements with fixed positioning
+    // Create modal elements
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
-    modalBackdrop.style.position = 'fixed';
-    modalBackdrop.style.top = '0';
-    modalBackdrop.style.left = '0';
-    modalBackdrop.style.width = '100%';
-    modalBackdrop.style.height = '100%';
-    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modalBackdrop.style.display = 'flex';
-    modalBackdrop.style.justifyContent = 'center';
-    modalBackdrop.style.alignItems = 'center';
-    modalBackdrop.style.zIndex = '9999';
-    
+
     const modalContent = document.createElement('div');
-    modalContent.className = 'modal-content';
-    modalContent.style.position = 'relative';
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '20px';
-    modalContent.style.borderRadius = '8px';
-    modalContent.style.maxWidth = '90%';
-    modalContent.style.width = '400px';
-    modalContent.style.maxHeight = '90vh';
-    modalContent.style.overflowY = 'auto';
-    modalContent.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-    
-    // Create header
+    modalContent.className = 'modal-box';
+
     const modalHeader = document.createElement('div');
-    modalHeader.style.marginBottom = '15px';
+    modalHeader.className = 'modal-header';
     modalHeader.innerHTML = `
         <h3 style="margin: 0;">${item.name}</h3>
         <p style="margin: 5px 0;">Current: ${item.currentLevel} ${item.unit}</p>
@@ -828,60 +793,26 @@ function showQuickUpdateModal(item, context = 'default') {
     
     // Create buttons
     const buttonGroup = document.createElement('div');
-    buttonGroup.style.display = 'flex';
-    buttonGroup.style.justifyContent = 'space-between';
-    buttonGroup.style.marginTop = '20px';
-    buttonGroup.style.gap = '10px'; // Add gap for better spacing
-    
+    buttonGroup.className = 'btn-group';
+
     const saveButton = document.createElement('button');
     saveButton.textContent = 'Save';
-    saveButton.style.padding = '10px 20px';
-    saveButton.style.backgroundColor = '#4CAF50';
-    saveButton.style.color = 'white';
-    saveButton.style.border = 'none';
-    saveButton.style.borderRadius = '4px';
-    saveButton.style.cursor = 'pointer';
-    saveButton.style.fontWeight = 'bold';
-    saveButton.style.flex = '1'; // Make buttons take equal space
-    
-    // Create Can't Prep/Can Prep Again button based on current status
-    let cantPrepButton;
+    saveButton.className = 'btn btn--primary';
 
+    let cantPrepButton;
     if (item.canPrep === false) {
-        // If the item is already marked as "can't prep", show "Can Prep Again" button
         cantPrepButton = document.createElement('button');
         cantPrepButton.textContent = 'Can Prep Again';
-        cantPrepButton.style.padding = '10px 20px';
-        cantPrepButton.style.backgroundColor = '#4CAF50'; // Green color
-        cantPrepButton.style.color = 'white';
-        cantPrepButton.style.border = 'none';
-        cantPrepButton.style.borderRadius = '4px';
-        cantPrepButton.style.cursor = 'pointer';
-        cantPrepButton.style.fontWeight = 'bold';
-        cantPrepButton.style.flex = '1'; // Make buttons take equal space
+        cantPrepButton.className = 'btn btn--primary';
     } else {
-        // Otherwise, show the regular "Can't Prep" button
         cantPrepButton = document.createElement('button');
         cantPrepButton.textContent = 'Can\'t Prep';
-        cantPrepButton.style.padding = '10px 20px';
-        cantPrepButton.style.backgroundColor = '#ef4444'; // Red color
-        cantPrepButton.style.color = 'white';
-        cantPrepButton.style.border = 'none';
-        cantPrepButton.style.borderRadius = '4px';
-        cantPrepButton.style.cursor = 'pointer';
-        cantPrepButton.style.fontWeight = 'bold';
-        cantPrepButton.style.flex = '1'; // Make buttons take equal space
+        cantPrepButton.className = 'btn btn--danger';
     }
-    
+
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
-    cancelButton.style.padding = '10px 20px';
-    cancelButton.style.backgroundColor = '#f1f1f1';
-    cancelButton.style.color = '#333';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '4px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.flex = '1'; // Make buttons take equal space
+    cancelButton.className = 'btn btn--secondary';
     
     // Add buttons in the order you want them to appear
     buttonGroup.appendChild(cancelButton);
@@ -1020,14 +951,7 @@ function showQuickUpdateModal(item, context = 'default') {
             // Show success message
             const successMessage = document.createElement('div');
             successMessage.textContent = `${item.name} updated to ${newValue} ${item.unit}`;
-            successMessage.style.position = 'fixed';
-            successMessage.style.bottom = '20px';
-            successMessage.style.right = '20px';
-            successMessage.style.padding = '10px';
-            successMessage.style.backgroundColor = '#4CAF50';
-            successMessage.style.color = 'white';
-            successMessage.style.borderRadius = '5px';
-            successMessage.style.zIndex = '1000';
+            successMessage.className = 'toast toast--success';
             document.body.appendChild(successMessage);
             
             setTimeout(() => {
@@ -1051,32 +975,15 @@ function showQuickUpdateModal(item, context = 'default') {
 
     // Function to show the Can't Prep reason selection modal
 function showCantPrepReasonModal(item, afterSelectionCallback) {
-    // Create modal backdrop
+    // Create modal backdrop (stacked on top of prep check modal)
     const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'cant-prep-modal-backdrop';
-    modalBackdrop.style.position = 'fixed';
-    modalBackdrop.style.top = '0';
-    modalBackdrop.style.left = '0';
-    modalBackdrop.style.width = '100%';
-    modalBackdrop.style.height = '100%';
-    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modalBackdrop.style.display = 'flex';
-    modalBackdrop.style.justifyContent = 'center';
-    modalBackdrop.style.alignItems = 'center';
-    modalBackdrop.style.zIndex = '1002'; // Higher than the previous modal
+    modalBackdrop.className = 'modal-backdrop modal-backdrop--stacked cant-prep-modal-backdrop';
 
-    // Create modal content
     const modalContent = document.createElement('div');
-    modalContent.className = 'cant-prep-modal-content';
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '20px';
-    modalContent.style.borderRadius = '5px';
-    modalContent.style.width = '90%';
-    modalContent.style.maxWidth = '450px';
+    modalContent.className = 'modal-box cant-prep-modal-content';
 
-    // Create modal header
     const modalHeader = document.createElement('div');
-    modalHeader.style.marginBottom = '15px';
+    modalHeader.className = 'modal-header';
     modalHeader.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <h3 style="margin: 0; color: #333;">Can't Prep: ${item.name}</h3>
@@ -1145,31 +1052,15 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
 
     // Create buttons
     const buttonGroup = document.createElement('div');
-    buttonGroup.style.display = 'flex';
-    buttonGroup.style.justifyContent = 'space-between';
-    buttonGroup.style.marginTop = '20px';
-    buttonGroup.style.gap = '10px';
+    buttonGroup.className = 'btn-group';
 
     const confirmButton = document.createElement('button');
     confirmButton.textContent = 'Confirm';
-    confirmButton.style.padding = '10px 20px';
-    confirmButton.style.backgroundColor = '#ef4444';
-    confirmButton.style.color = 'white';
-    confirmButton.style.border = 'none';
-    confirmButton.style.borderRadius = '4px';
-    confirmButton.style.cursor = 'pointer';
-    confirmButton.style.fontWeight = 'bold';
-    confirmButton.style.flex = '1';
+    confirmButton.className = 'btn btn--danger';
 
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
-    cancelButton.style.padding = '10px 20px';
-    cancelButton.style.backgroundColor = '#f1f1f1';
-    cancelButton.style.color = '#333';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '4px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.flex = '1';
+    cancelButton.className = 'btn btn--secondary';
 
     buttonGroup.appendChild(cancelButton);
     buttonGroup.appendChild(confirmButton);
@@ -1294,14 +1185,7 @@ function markItemAsCantPrep(item, reason, reasonText = null) {
         // Show success message
         const successMessage = document.createElement('div');
         successMessage.textContent = `${item.name} marked as "Can't Prep" - ${reason}`;
-        successMessage.style.position = 'fixed';
-        successMessage.style.bottom = '20px';
-        successMessage.style.right = '20px';
-        successMessage.style.padding = '10px';
-        successMessage.style.backgroundColor = '#ef4444';
-        successMessage.style.color = 'white';
-        successMessage.style.borderRadius = '5px';
-        successMessage.style.zIndex = '1000';
+        successMessage.className = 'toast toast--error';
         document.body.appendChild(successMessage);
         
         setTimeout(() => {
@@ -1349,14 +1233,7 @@ function markItemAsCanPrepAgain(item) {
         // Show success message
         const successMessage = document.createElement('div');
         successMessage.textContent = `${item.name} can now be prepped again`;
-        successMessage.style.position = 'fixed';
-        successMessage.style.bottom = '20px';
-        successMessage.style.right = '20px';
-        successMessage.style.padding = '10px';
-        successMessage.style.backgroundColor = '#4CAF50';
-        successMessage.style.color = 'white';
-        successMessage.style.borderRadius = '5px';
-        successMessage.style.zIndex = '1000';
+        successMessage.className = 'toast toast--success';
         document.body.appendChild(successMessage);
         
         setTimeout(() => {
@@ -1658,27 +1535,9 @@ function renderTaskTodoItem(task, missed, overdue, container) {
 function showTaskModal(task) {
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
-    modalBackdrop.style.position = 'fixed';
-    modalBackdrop.style.top = '0';
-    modalBackdrop.style.left = '0';
-    modalBackdrop.style.width = '100%';
-    modalBackdrop.style.height = '100%';
-    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modalBackdrop.style.display = 'flex';
-    modalBackdrop.style.justifyContent = 'center';
-    modalBackdrop.style.alignItems = 'center';
-    modalBackdrop.style.zIndex = '9999';
 
     const modalContent = document.createElement('div');
-    modalContent.style.position = 'relative';
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '24px';
-    modalContent.style.borderRadius = '8px';
-    modalContent.style.maxWidth = '90%';
-    modalContent.style.width = '420px';
-    modalContent.style.maxHeight = '90vh';
-    modalContent.style.overflowY = 'auto';
-    modalContent.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+    modalContent.className = 'modal-box';
 
     let freqText = '';
     if (task.type === 'recurring') {
@@ -2033,30 +1892,12 @@ function showPrepCheckStaffModal() {
     // Create modal backdrop
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
-    modalBackdrop.style.position = 'fixed';
-    modalBackdrop.style.top = '0';
-    modalBackdrop.style.left = '0';
-    modalBackdrop.style.width = '100%';
-    modalBackdrop.style.height = '100%';
-    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modalBackdrop.style.display = 'flex';
-    modalBackdrop.style.justifyContent = 'center';
-    modalBackdrop.style.alignItems = 'center';
-    modalBackdrop.style.zIndex = '1001';
-    
-    // Create modal content
+
     const modalContent = document.createElement('div');
-    modalContent.className = 'modal-content';
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '24px';
-    modalContent.style.borderRadius = '12px';
-    modalContent.style.width = '90%';
-    modalContent.style.maxWidth = '450px';
-    modalContent.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
-    
-    // Create modal header
+    modalContent.className = 'modal-box';
+
     const modalHeader = document.createElement('div');
-    modalHeader.style.marginBottom = '20px';
+    modalHeader.className = 'modal-header';
     modalHeader.innerHTML = `
         <h3 style="margin: 0 0 12px 0; color: var(--primary-dark); font-size: 22px;">Who will perform this check?</h3>
         <p style="margin: 0; color: var(--text-medium);">Select staff member performing Prep-Check</p>
@@ -2077,32 +1918,17 @@ function showPrepCheckStaffModal() {
     
     // Create buttons
     const buttonGroup = document.createElement('div');
-    buttonGroup.style.display = 'flex';
-    buttonGroup.style.justifyContent = 'space-between';
-    buttonGroup.style.gap = '12px';
-    
+    buttonGroup.className = 'btn-group';
+
     const confirmButton = document.createElement('button');
     confirmButton.textContent = 'Continue';
-    confirmButton.disabled = true; // Disabled until a staff member is selected
-    confirmButton.style.padding = '12px 24px';
-    confirmButton.style.backgroundColor = 'var(--primary-medium)';
-    confirmButton.style.color = 'white';
-    confirmButton.style.border = 'none';
-    confirmButton.style.borderRadius = '8px';
-    confirmButton.style.fontWeight = '600';
-    confirmButton.style.cursor = 'pointer';
-    confirmButton.style.flex = '1';
-    confirmButton.style.opacity = '0.7'; // Looks disabled initially
-    
+    confirmButton.disabled = true;
+    confirmButton.className = 'btn btn--brand';
+    confirmButton.style.opacity = '0.7';
+
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
-    cancelButton.style.padding = '12px 24px';
-    cancelButton.style.backgroundColor = '#f1f1f1';
-    cancelButton.style.color = '#333';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '8px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.flex = '1';
+    cancelButton.className = 'btn btn--secondary';
     
     buttonGroup.appendChild(cancelButton);
     buttonGroup.appendChild(confirmButton);
@@ -2476,30 +2302,15 @@ function toggleUserDropdown() {
 
     const dropdown = document.createElement('div');
     dropdown.id = 'user-dropdown';
-    dropdown.style.cssText = `
-        position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
-        background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        padding: 8px 0; z-index: 9999; min-width: 180px; border: 1px solid var(--border-light);
-        opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
-    `;
-    requestAnimationFrame(() => {
-        dropdown.style.opacity = '1';
-        dropdown.style.transform = 'translateY(0)';
-    });
+    dropdown.style.top = (rect.bottom + 6) + 'px';
+    dropdown.style.left = rect.left + 'px';
 
     const staffList = window.staffMembers || [];
     staffList.forEach(member => {
         if (!member.active) return;
         const item = document.createElement('div');
         item.textContent = member.name;
-        item.style.cssText = `
-            padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 500;
-            ${member.name === currentStaff ? 'background-color: var(--bg-medium); font-weight: 700;' : ''}
-        `;
-        item.addEventListener('mouseenter', () => { item.style.backgroundColor = '#f5f5f0'; });
-        item.addEventListener('mouseleave', () => {
-            item.style.backgroundColor = member.name === currentStaff ? 'var(--bg-medium)' : '';
-        });
+        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             currentStaff = member.name;
@@ -2510,6 +2321,7 @@ function toggleUserDropdown() {
     });
 
     document.body.appendChild(dropdown);
+    requestAnimationFrame(() => dropdown.classList.add('show'));
 }
 
 function switchSection(sectionId, buttonElement) {
@@ -2665,31 +2477,13 @@ function showSingleItemUpdateModal() {
     // Create modal backdrop
     const modalBackdrop = document.createElement('div');
     modalBackdrop.className = 'modal-backdrop';
-    modalBackdrop.style.position = 'fixed';
-    modalBackdrop.style.top = '0';
-    modalBackdrop.style.left = '0';
-    modalBackdrop.style.width = '100%';
-    modalBackdrop.style.height = '100%';
-    modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modalBackdrop.style.display = 'flex';
-    modalBackdrop.style.justifyContent = 'center';
-    modalBackdrop.style.alignItems = 'center';
-    modalBackdrop.style.zIndex = '1001';
-    
-    // Create modal content
+
     const modalContent = document.createElement('div');
-    modalContent.className = 'modal-content';
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '20px';
-    modalContent.style.borderRadius = '8px';
-    modalContent.style.width = '90%';
+    modalContent.className = 'modal-box';
     modalContent.style.maxWidth = '500px';
-    modalContent.style.maxHeight = '80vh';
-    modalContent.style.overflowY = 'auto';
-    
-    // Create modal header
+
     const modalHeader = document.createElement('div');
-    modalHeader.style.marginBottom = '20px';
+    modalHeader.className = 'modal-header';
     modalHeader.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between;">
             <h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem;">Select item to update</h2>
@@ -2778,20 +2572,13 @@ function showSingleItemUpdateModal() {
     
     // Create button container
     const buttonContainer = document.createElement('div');
-    buttonContainer.style.marginTop = '20px';
-    buttonContainer.style.display = 'flex';
+    buttonContainer.className = 'btn-group';
     buttonContainer.style.justifyContent = 'flex-end';
-    
-    // Create cancel button
+
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
-    cancelButton.style.padding = '10px 20px';
-    cancelButton.style.backgroundColor = '#f1f1f1';
-    cancelButton.style.color = '#333';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '4px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.fontWeight = '500';
+    cancelButton.className = 'btn btn--secondary';
+    cancelButton.style.flex = 'none';
     
     // Add cancel button event
     cancelButton.addEventListener('click', () => {
