@@ -680,6 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show edit item modal for double-clicked item names
     function showEditItemModal(item) {
+        SoundFX.pop();
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
 
@@ -933,6 +934,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update the Overview table
                 updateOverviewTable();
                 
+                SoundFX.complete();
                 // Show success message (only if function exists)
                 if (typeof showSuccessMessage === 'function') {
                     showSuccessMessage(`Item "${newName}" updated successfully`);
@@ -1267,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Switch between content sections
     function switchSection(sectionId, buttonElement) {
+        SoundFX.tap();
         // Update active nav button
         navButtons.forEach(btn => btn.classList.remove('active'));
         buttonElement.classList.add('active');
@@ -1641,8 +1644,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.firebaseDb && window.firebaseDb.saveIcItem) {
             window.firebaseDb.saveIcItem(item)
                 .then(() => {
-                    console.log("Item saved successfully");
-                    
+                    SoundFX.tap();
+
                     // Log activity
                     if (window.firebaseDb.saveIcActivityLog) {
                         const activity = {
@@ -1888,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
+        SoundFX.pop();
         const modal = document.createElement('div');
         modal.className = 'modal-backdrop';
 
@@ -1993,8 +1997,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.firebaseDb && window.firebaseDb.saveIcItem) {
                 window.firebaseDb.saveIcItem(item)
                     .then(() => {
-                        console.log("Item saved successfully");
-                        
+                        SoundFX.complete();
+
                         // Log activity
                         if (window.firebaseDb.saveIcActivityLog) {
                             const activity = {
