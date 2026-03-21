@@ -1413,21 +1413,6 @@ function updateTodoList() {
     const itemsMarkedAsCantPrep = sortedItems.filter(item => item.canPrep === false);
     const cantPrepCount = itemsMarkedAsCantPrep.length;
 
-    const todoTitleElement = document.querySelector('.todo-panel .todo-title');
-    if (todoTitleElement) {
-        let cantPrepBadge = todoTitleElement.querySelector('.cant-prep-badge');
-        if (!cantPrepBadge) {
-            cantPrepBadge = document.createElement('span');
-            cantPrepBadge.className = 'cant-prep-badge';
-            todoTitleElement.appendChild(cantPrepBadge);
-        }
-        if (cantPrepCount > 0) {
-            cantPrepBadge.textContent = cantPrepCount;
-            cantPrepBadge.style.display = 'inline-block';
-        } else {
-            cantPrepBadge.style.display = 'none';
-        }
-    }
 
     // Build unified todo array
     const todoItems = [];
