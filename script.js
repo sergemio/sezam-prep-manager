@@ -2480,7 +2480,12 @@ function toggleUserDropdown() {
         position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
         background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         padding: 8px 0; z-index: 9999; min-width: 180px; border: 1px solid var(--border-light);
+        opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
     `;
+    requestAnimationFrame(() => {
+        dropdown.style.opacity = '1';
+        dropdown.style.transform = 'translateY(0)';
+    });
 
     const staffList = window.staffMembers || [];
     staffList.forEach(member => {
