@@ -1397,29 +1397,29 @@ function generateStatusSummary(todoItems) {
 
     if (overdueTasks.length > 0) {
         const tags = overdueTasks.map(t =>
-            `<span class="summary-badge overdue">${t.name.toUpperCase()}</span> (${t.days} jour${t.days > 1 ? 's' : ''} late)`
+            `<span class="summary-badge overdue">${t.name}</span> ${t.days} jour${t.days > 1 ? 's' : ''} late`
         );
-        lines.push(`<p class="summary-line urgent">${joinList(tags)} ${overdueTasks.length === 1 ? 'is' : 'are'} overdue. ⚠️</p>`);
+        lines.push(`<p class="summary-line urgent">${joinList(tags)} — overdue ⚠️</p>`);
     }
 
     if (emptyPreps.length > 0) {
-        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n.toUpperCase()}</span>`);
-        lines.push(`<p class="summary-line urgent">${joinList(tags)} ${emptyPreps.length === 1 ? 'is' : 'are'} completely empty.</p>`);
+        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n}</span>`);
+        lines.push(`<p class="summary-line urgent">${joinList(tags)} completely empty</p>`);
     }
 
     if (criticalPreps.length > 0) {
-        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n.toUpperCase()}</span>`);
-        lines.push(`<p class="summary-line warning">${joinList(tags)} ${criticalPreps.length === 1 ? 'is' : 'are'} critically low.</p>`);
+        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n}</span>`);
+        lines.push(`<p class="summary-line warning">${joinList(tags)} critically low</p>`);
     }
 
     if (pendingTasks.length > 0) {
-        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n.toUpperCase()}</span>`);
-        lines.push(`<p class="summary-line info">The task${pendingTasks.length > 1 ? 's' : ''} ${joinList(tags)} ${pendingTasks.length === 1 ? 'is' : 'are'} still pending.</p>`);
+        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n}</span>`);
+        lines.push(`<p class="summary-line info">${joinList(tags)} still pending</p>`);
     }
 
     if (cantPrepPreps.length > 0) {
-        const tags = cantPrepPreps.map(t => `<span class="summary-badge cant-prep">${t.name.toUpperCase()}</span> (${t.reason})`);
-        lines.push(`<p class="summary-line muted">Can't prep: ${joinList(tags)}.</p>`);
+        const tags = cantPrepPreps.map(t => `<span class="summary-badge cant-prep">${t.name}</span> ${t.reason}`);
+        lines.push(`<p class="summary-line muted">Can't prep: ${joinList(tags)}</p>`);
     }
 
     if (lines.length === 0) {

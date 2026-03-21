@@ -800,8 +800,8 @@ body {
 #status-summary {
     position: relative;
     padding: 20px 24px;
-    line-height: 1.8;
-    font-size: 16px;
+    line-height: 2.2;
+    font-size: 15px;
 }
 
 .summary-dot {
@@ -851,11 +851,11 @@ body {
 
 .summary-badge {
     display: inline-block;
-    padding: 2px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
     vertical-align: middle;
 }
 
