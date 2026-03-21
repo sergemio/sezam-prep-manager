@@ -1483,7 +1483,6 @@ function renderPrepTodoItem(item) {
     }
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
-        <div class="todo-item-detail">Current: ${item.currentLevel}</div>
         <div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${item.targetLevel - item.currentLevel} more</div>
         ${item.canPrep === false ? `
             <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
