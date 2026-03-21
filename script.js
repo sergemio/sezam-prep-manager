@@ -2323,6 +2323,52 @@ function toggleUserDropdown() {
     requestAnimationFrame(() => dropdown.classList.add('show'));
 }
 
+function toggleModalUserDropdown(btn) {
+    const existing = document.getElementById('modal-user-dropdown');
+    if (existing) { existing.remove(); return; }
+
+    const rect = btn.getBoundingClientRect();
+    const dropdown = document.createElement('div');
+    dropdown.id = 'modal-user-dropdown';
+    dropdown.className = 'user-dropdown-menu';
+    dropdown.style.cssText = `
+        position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
+        background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        padding: 8px 0; z-index: 10001; min-width: 180px; border: 1px solid var(--border-light);
+        opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
+    `;
+
+    const staffList = window.staffMembers || [];
+    staffList.forEach(member => {
+        if (!member.active) return;
+        const item = document.createElement('div');
+        item.textContent = member.name;
+        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentStaff = member.name;
+            btn.innerHTML = `${member.name} <span style="font-size: 12px;">▼</span>`;
+            dropdown.remove();
+        });
+        dropdown.appendChild(item);
+    });
+
+    document.body.appendChild(dropdown);
+    requestAnimationFrame(() => {
+        dropdown.style.opacity = '1';
+        dropdown.style.transform = 'translateY(0)';
+    });
+
+    // Close on click outside
+    const closeHandler = (e) => {
+        if (!dropdown.contains(e.target) && e.target !== btn) {
+            dropdown.remove();
+            document.removeEventListener('click', closeHandler);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 0);
+}
+
 function switchSection(sectionId, buttonElement) {
     // Update active nav button
     navButtons.forEach(btn => btn.classList.remove('active'));
@@ -2483,12 +2529,21 @@ function showSingleItemUpdateModal() {
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
-    modalHeader.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem;">Select item to update</h2>
-            <span style="background-color: #2196F3; color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${currentStaff}</span>
-        </div>
-    `;
+    const headerDiv = document.createElement('div');
+    headerDiv.style.display = 'flex';
+    headerDiv.style.alignItems = 'center';
+    headerDiv.style.justifyContent = 'space-between';
+    headerDiv.innerHTML = `<h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem;">Select item to update</h2>`;
+
+    const userBtn = document.createElement('button');
+    userBtn.className = 'user-login-btn';
+    userBtn.innerHTML = `${currentStaff} <span style="font-size: 12px;">▼</span>`;
+    userBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleModalUserDropdown(userBtn);
+    });
+    headerDiv.appendChild(userBtn);
+    modalHeader.appendChild(headerDiv);
     
     // Create items container
     const itemsContainer = document.createElement('div');
