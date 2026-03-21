@@ -680,35 +680,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show edit item modal for double-clicked item names
     function showEditItemModal(item) {
-        // Create modal backdrop
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
-        modalBackdrop.style.position = 'fixed';
-        modalBackdrop.style.top = '0';
-        modalBackdrop.style.left = '0';
-        modalBackdrop.style.width = '100%';
-        modalBackdrop.style.height = '100%';
-        modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modalBackdrop.style.display = 'flex';
-        modalBackdrop.style.justifyContent = 'center';
-        modalBackdrop.style.alignItems = 'center';
-        modalBackdrop.style.zIndex = '1001';
-        
-        // Create modal content
+
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.style.backgroundColor = 'white';
-        modalContent.style.padding = '24px';
-        modalContent.style.borderRadius = '8px';
-        modalContent.style.width = '90%';
+        modalContent.className = 'modal-box';
         modalContent.style.maxWidth = '500px';
-        modalContent.style.maxHeight = '90vh';
-        modalContent.style.overflowY = 'auto';
-        modalContent.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
-        
-        // Create modal header
+
         const modalHeader = document.createElement('div');
-        modalHeader.style.marginBottom = '20px';
+        modalHeader.className = 'modal-header';
         modalHeader.innerHTML = `
             <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Edit Item Details</h3>
         `;
@@ -1378,31 +1358,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show staff selection modal
     function showStaffSelectionModal() {
         return new Promise((resolve) => {
-            // Create modal
             const modal = document.createElement('div');
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            modal.style.zIndex = '1000';
-            
-            // Create modal content
+            modal.className = 'modal-backdrop';
+
             const content = document.createElement('div');
-            content.style.backgroundColor = 'white';
-            content.style.padding = '20px';
-            content.style.borderRadius = '8px';
-            content.style.maxWidth = '400px';
-            content.style.width = '90%';
-            
-            // Title
+            content.className = 'modal-box';
+
             const title = document.createElement('h3');
             title.textContent = 'Select Staff for Count';
             title.style.marginBottom = '20px';
+            title.style.textAlign = 'center';
             
             // Staff container
             const staffContainer = document.createElement('div');
@@ -1883,26 +1848,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
-        // Create modal
         const modal = document.createElement('div');
-        modal.style.position = 'fixed';
-        modal.style.top = '0';
-        modal.style.left = '0';
-        modal.style.width = '100%';
-        modal.style.height = '100%';
-        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modal.style.display = 'flex';
-        modal.style.justifyContent = 'center';
-        modal.style.alignItems = 'center';
-        modal.style.zIndex = '1000';
-        
-        // Create modal content
+        modal.className = 'modal-backdrop';
+
         const content = document.createElement('div');
-        content.style.backgroundColor = 'white';
-        content.style.padding = '20px';
-        content.style.borderRadius = '8px';
-        content.style.maxWidth = '450px';
-        content.style.width = '90%';
+        content.className = 'modal-box';
         
         // Item details
         content.innerHTML = `
@@ -2107,32 +2057,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show purge confirmation modal
     function showPurgeModal(oldLogs) {
-        // Create modal backdrop
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
-        modalBackdrop.style.position = 'fixed';
-        modalBackdrop.style.top = '0';
-        modalBackdrop.style.left = '0';
-        modalBackdrop.style.width = '100%';
-        modalBackdrop.style.height = '100%';
-        modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modalBackdrop.style.display = 'flex';
-        modalBackdrop.style.justifyContent = 'center';
-        modalBackdrop.style.alignItems = 'center';
-        modalBackdrop.style.zIndex = '1001';
-        
-        // Create modal content
+
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.style.backgroundColor = 'white';
-        modalContent.style.padding = '24px';
-        modalContent.style.borderRadius = '8px';
-        modalContent.style.width = '90%';
+        modalContent.className = 'modal-box';
         modalContent.style.maxWidth = '500px';
-        modalContent.style.maxHeight = '90vh';
-        modalContent.style.overflowY = 'auto';
-        modalContent.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
-        
+
         // Calculate date range for display
         const twoMonthsAgo = new Date();
         twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -2170,49 +2101,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create buttons
         const buttonGroup = document.createElement('div');
-        buttonGroup.style.display = 'flex';
-        buttonGroup.style.justifyContent = 'space-between';
-        buttonGroup.style.gap = '12px';
-        buttonGroup.style.marginTop = '24px';
-        
+        buttonGroup.className = 'btn-group';
+
         const skipButton = document.createElement('button');
         skipButton.textContent = 'Skip for Now';
-        skipButton.style.padding = '12px 24px';
-        skipButton.style.backgroundColor = 'var(--bg-medium)';
-        skipButton.style.color = 'var(--text-dark)';
-        skipButton.style.border = 'none';
-        skipButton.style.borderRadius = '6px';
-        skipButton.style.cursor = 'pointer';
-        skipButton.style.fontWeight = '500';
-        skipButton.style.transition = 'background-color 0.2s ease';
-        
-        skipButton.addEventListener('mouseenter', () => {
-            skipButton.style.backgroundColor = 'var(--border-light)';
-        });
-        
-        skipButton.addEventListener('mouseleave', () => {
-            skipButton.style.backgroundColor = 'var(--bg-medium)';
-        });
-        
+        skipButton.className = 'btn btn--secondary';
+
         const purgeButton = document.createElement('button');
         purgeButton.textContent = `Clean Up ${oldLogs.length} Records`;
-        purgeButton.style.padding = '12px 24px';
-        purgeButton.style.backgroundColor = 'var(--accent-orange)';
-        purgeButton.style.color = 'white';
-        purgeButton.style.border = 'none';
-        purgeButton.style.borderRadius = '6px';
-        purgeButton.style.cursor = 'pointer';
-        purgeButton.style.fontWeight = '600';
-        purgeButton.style.transition = 'background-color 0.2s ease';
-        
-        purgeButton.addEventListener('mouseenter', () => {
-            purgeButton.style.backgroundColor = 'var(--accent-orange-dark)';
-        });
-        
-        purgeButton.addEventListener('mouseleave', () => {
-            purgeButton.style.backgroundColor = 'var(--accent-orange)';
-        });
-        
+        purgeButton.className = 'btn btn--danger';
+
         buttonGroup.appendChild(skipButton);
         buttonGroup.appendChild(purgeButton);
         
