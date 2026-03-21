@@ -1201,12 +1201,52 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // User login button (header)
+        // User login button (header) — dropdown
         if (userLoginBtn) {
-            userLoginBtn.addEventListener('click', () => {
-                currentStaff = '';
-                if (staffSelection) staffSelection.style.display = 'flex';
-                if (mainInterface) mainInterface.style.display = 'none';
+            userLoginBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const existing = document.getElementById('ic-user-dropdown');
+                if (existing) { existing.remove(); return; }
+
+                const rect = userLoginBtn.getBoundingClientRect();
+                const dropdown = document.createElement('div');
+                dropdown.id = 'ic-user-dropdown';
+                dropdown.style.cssText = `
+                    position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
+                    background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                    padding: 8px 0; z-index: 9999; min-width: 180px; border: 1px solid var(--border-light);
+                    opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
+                `;
+
+                const staffList = window.staffMembers || [];
+                staffList.forEach(member => {
+                    if (!member.active) return;
+                    const item = document.createElement('div');
+                    item.textContent = member.name;
+                    item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
+                    item.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        currentStaff = member.name;
+                        headerUserName.textContent = member.name;
+                        document.getElementById('current-user').textContent = member.name;
+                        dropdown.remove();
+                    });
+                    dropdown.appendChild(item);
+                });
+
+                document.body.appendChild(dropdown);
+                requestAnimationFrame(() => {
+                    dropdown.style.opacity = '1';
+                    dropdown.style.transform = 'translateY(0)';
+                });
+
+                const closeHandler = (ev) => {
+                    if (!dropdown.contains(ev.target) && ev.target !== userLoginBtn) {
+                        dropdown.remove();
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeHandler), 0);
             });
         }
         
