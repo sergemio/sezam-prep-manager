@@ -65,20 +65,24 @@
 }
 
 .location-button {
-    background-color: var(--bg-medium);
+    background-color: #f5f5f0;
     color: var(--text-dark);
-    border: 1px solid var(--border-light);
-    padding: 8px 16px;
-    border-radius: 6px;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 9999px;
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 14px;
     transition: all 0.2s;
+}
+
+.location-button:hover:not(.active) {
+    background-color: #eceee6;
 }
 
 .location-button.active {
     background-color: var(--primary-medium);
     color: white;
-    border-color: var(--primary-dark);
 }
 
 /* Badge styles */
