@@ -80,52 +80,45 @@
             <div class="content-panel">
                 <!-- Dashboard section -->
                 <div class="content-section active" id="dashboard-section">
-                    <div class="section-header">
+                    <div class="ic-header">
                         <h1 class="section-title">I&C Dashboard</h1>
                         <button class="user-login-btn" id="user-login-btn">
-                            Logged as: <span id="header-user-name">User</span>
+                            <span id="header-user-name">User</span> <span style="font-size: 12px;">▼</span>
                         </button>
                     </div>
-                    
-                    <div class="card">
-                        <h2 class="card-title">Current Status</h2>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-label">Items Below 50%</div>
-                                <div class="stat-value" id="items-below-fifty">0</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-label">Total I&C Items</div>
-                                <div class="stat-value" id="total-items">0</div>
-                            </div>
+
+                    <div class="ic-stats-row">
+                        <div class="ic-stat-card">
+                            <div class="ic-stat-label">Items Below 50%</div>
+                            <div class="ic-stat-value" id="items-below-fifty">0</div>
+                        </div>
+                        <div class="ic-stat-card">
+                            <div class="ic-stat-label">Total I&C Items</div>
+                            <div class="ic-stat-value" id="total-items">0</div>
                         </div>
                     </div>
-                    
-                    <div class="card">
-                        <h2 class="card-title">Location Filter</h2>
-                        <div class="location-filter" id="dashboard-location-filter">
-                            <!-- Location buttons will be generated dynamically -->
-                        </div>
+
+                    <div class="ic-section-label">Location Filter</div>
+                    <div class="location-filter" id="dashboard-location-filter">
+                        <!-- Location buttons will be generated dynamically -->
                     </div>
-                    
-                    <div class="card">
-                        <h2 class="card-title">Start Full Count</h2>
-                        <p class="card-desc">
-                            You will be prompted to check and update the level of all I&C items, organized by location.
-                        </p>
-                        <button class="action-button" id="start-count-btn">Start Full Count</button>
+
+                    <div class="ic-action-card">
+                        <div>
+                            <div class="ic-section-label" style="margin-bottom: 8px;">Start Full Count</div>
+                            <p style="color: var(--text-medium); font-size: 14px; margin: 0;">Check and update all I&C items, organized by location.</p>
+                        </div>
+                        <button class="btn btn--primary" id="start-count-btn">Start Full Count</button>
                     </div>
                 </div>
                 
                 <!-- Inventory section -->
                 <div class="content-section" id="inventory-section" style="display: none;">
                     <h1 class="section-title">I&C Inventory</h1>
-                    
-                    <div class="card">
-                        <h2 class="card-title">Location Filter</h2>
-                        <div class="location-filter" id="inventory-location-filter">
-                            <!-- Location buttons will be generated dynamically -->
-                        </div>
+
+                    <div class="ic-section-label" style="margin-top: 16px;">Location Filter</div>
+                    <div class="location-filter" id="inventory-location-filter">
+                        <!-- Location buttons will be generated dynamically -->
                     </div>
                     
                     <div id="inventory-content">
