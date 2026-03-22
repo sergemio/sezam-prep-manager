@@ -327,10 +327,15 @@ body {
 }
 
 .dropdown-item {
-    padding: 10px 16px;
+    padding: 14px 20px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
+    border-bottom: 1px solid #f0f0ec;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
 }
 
 .dropdown-item:hover {
@@ -339,6 +344,51 @@ body {
 
 .dropdown-item.active {
     background-color: var(--bg-medium);
+    font-weight: 700;
+}
+
+/* User switch toast */
+.user-switch-toast {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    background: #2d6a1e;
+    color: white;
+    font-family: var(--font-main);
+    transform: translateY(-100%);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.user-switch-toast.show {
+    transform: translateY(0);
+}
+
+.user-switch-toast.hide {
+    transform: translateY(-100%);
+    transition: transform 0.25s ease-in;
+}
+
+.user-switch-toast .toast-initials {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.user-switch-toast .toast-name {
+    font-size: 18px;
     font-weight: 700;
 }
 

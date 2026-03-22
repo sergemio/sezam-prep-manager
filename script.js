@@ -42,6 +42,26 @@ function formatDate(dateString) {
 let prepItems = [...initialPrepItems];
 let currentStaff = '';
 let currentItemIndex = 0;
+
+// Toast notification for user switch
+function showUserSwitchToast(name) {
+    const existing = document.querySelector('.user-switch-toast');
+    if (existing) existing.remove();
+
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase();
+    const toast = document.createElement('div');
+    toast.className = 'user-switch-toast';
+    toast.innerHTML = `<span class="toast-initials">${initials}</span><span class="toast-name">${name}</span>`;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    setTimeout(() => {
+        toast.classList.add('hide');
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 1500);
+}
 let isChecking = false;
 let tasks = [];
 
@@ -83,6 +103,7 @@ function loadStaffMembers() {
                         // Add click event
                         button.addEventListener('click', () => {
                             currentStaff = staff.name;
+                            showUserSwitchToast(staff.name);
                             showMainInterface();
                         });
                         
@@ -2271,6 +2292,7 @@ function toggleUserDropdown() {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             currentStaff = member.name;
+            showUserSwitchToast(member.name);
             showMainInterface();
             dropdown.remove();
         });
@@ -2292,7 +2314,7 @@ function toggleModalUserDropdown(btn) {
     dropdown.style.cssText = `
         position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
         background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        padding: 8px 0; z-index: 10001; min-width: 180px; border: 1px solid var(--border-light);
+        padding: 4px 0; z-index: 10001; min-width: 200px; border: 1px solid var(--border-light);
         opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
     `;
 
@@ -2305,6 +2327,7 @@ function toggleModalUserDropdown(btn) {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             currentStaff = member.name;
+            showUserSwitchToast(member.name);
             btn.innerHTML = `${member.name} <span style="font-size: 12px;">▼</span>`;
             dropdown.remove();
         });
