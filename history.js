@@ -74,9 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const date = new Date(log.timestamp);
                     const dateKey = date.toDateString();
                     if (!dayGroups[dateKey]) {
-                        dayGroups[dateKey] = { date, prepped: [], checked: [], other: [] };
+                        dayGroups[dateKey] = { date, prepped: [], checked: [], other: [], tasks: [] };
                     }
-                    if (log.actionType === 'count') {
+                    var taskTypes = ['task-done', 'checklist-done', 'checklist-blocked', 'checklist-unchecked'];
+                    if (taskTypes.indexOf(log.actionType) !== -1) {
+                        dayGroups[dateKey].tasks.push(log);
+                    } else if (log.actionType === 'count') {
                         dayGroups[dateKey].checked.push(log);
                     } else if (['prep', 'cantprep', 'canprepagain'].includes(log.actionType)) {
                         dayGroups[dateKey].prepped.push(log);
@@ -101,6 +104,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         case 'canprepagain': actionText = 'Available'; changeText = 'Can now be prepped'; break;
                         case 'test': actionText = 'test'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
                         case 'task-done': actionText = 'completed task'; changeText = ''; break;
+                        case 'checklist-done': actionText = 'completed'; changeText = ''; break;
+                        case 'checklist-blocked': actionText = "can't complete"; changeText = log.details || ''; break;
+                        case 'checklist-unchecked': actionText = 'unchecked'; changeText = ''; break;
                         default: actionText = 'updated'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
                     }
                     return `<div class="log-item action-${log.actionType}" data-log-key="${logKey}">
@@ -117,7 +123,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const groupMeta = [
                     { key: 'prepped', label: 'Prepped', open: false, cssClass: 'group-prepped' },
                     { key: 'checked', label: 'Checked', open: false, cssClass: 'group-checked' },
-                    { key: 'other', label: 'Other', open: false, cssClass: 'group-other' }
+                    { key: 'other', label: 'Other', open: false, cssClass: 'group-other' },
+                    { key: 'tasks', label: 'Tasks', open: false, cssClass: 'group-tasks' }
                 ];
 
                 Object.values(dayGroups).forEach(day => {
