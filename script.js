@@ -42,6 +42,11 @@ function formatDate(dateString) {
 let prepItems = [...initialPrepItems];
 let currentStaff = '';
 let currentItemIndex = 0;
+let openingItems = [];
+let closingItems = [];
+let openingStatus = {};
+let closingStatus = {};
+let currentDateKey = '';
 
 // Toast notification for user switch
 function showUserSwitchToast(name) {
@@ -428,6 +433,25 @@ function initApp() {
 
         window.firebaseDb.onTasksChange(function(loadedTasks) {
             tasks = loadedTasks || [];
+            updateTodoList();
+        });
+
+        // Checklist data loading
+        currentDateKey = window.firebaseDb.getDateKey();
+        window.firebaseDb.opening.onItemsChange(function(items) {
+            openingItems = items;
+            updateTodoList();
+        });
+        window.firebaseDb.closing.onItemsChange(function(items) {
+            closingItems = items;
+            updateTodoList();
+        });
+        window.firebaseDb.opening.onStatusChange(currentDateKey, function(status) {
+            openingStatus = status;
+            updateTodoList();
+        });
+        window.firebaseDb.closing.onStatusChange(currentDateKey, function(status) {
+            closingStatus = status;
             updateTodoList();
         });
     } else {
@@ -1311,6 +1335,291 @@ function getTaskDaysOverdue(task) {
     return 0;
 }
 
+// --- Checklist helpers ---
+
+function getChecklistProgress(items, status) {
+    var total = items.length;
+    if (total === 0) return { done: 0, total: 0, percent: 0 };
+    var done = 0;
+    items.forEach(function(item) {
+        var s = status[item.id];
+        if (s && (s.checked || s.cantComplete)) done++;
+    });
+    return { done: done, total: total, percent: Math.round((done / total) * 100) };
+}
+
+function getProgressColor(percent) {
+    if (percent < 50) {
+        var t = percent / 50;
+        var r = 239 + Math.round((255 - 239) * t);
+        var g = 68 + Math.round((152 - 68) * t);
+        var b = 68 + Math.round((0 - 68) * t);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    } else {
+        var t2 = (percent - 50) / 50;
+        var r2 = 255 + Math.round((76 - 255) * t2);
+        var g2 = 152 + Math.round((175 - 152) * t2);
+        var b2 = Math.round(80 * t2);
+        return 'rgb(' + r2 + ',' + g2 + ',' + b2 + ')';
+    }
+}
+
+function isChecklistComplete(items, status) {
+    if (items.length === 0) return true;
+    return items.every(function(item) {
+        var s = status[item.id];
+        return s && (s.checked || s.cantComplete);
+    });
+}
+
+function renderChecklistCard(type, items, status, container) {
+    if (type === 'closing' && new Date().getHours() < 22) return;
+    if (isChecklistComplete(items, status)) return;
+    if (items.length === 0) return;
+
+    var progress = getChecklistProgress(items, status);
+    var color = getProgressColor(progress.percent);
+    var label = type === 'opening' ? 'OPENING' : 'CLOSING';
+
+    var card = document.createElement('div');
+    card.className = 'todo-item todo-item-checklist ' + type;
+
+    card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<span class="todo-item-name">' + label + ' Checklist</span>' +
+            '<span class="todo-tag ' + type + '">' + label + '</span>' +
+        '</div>' +
+        '<div class="checklist-progress">' +
+            '<div class="checklist-progress-fill" style="width:' + progress.percent + '%;background:' + color + '"></div>' +
+        '</div>' +
+        '<div class="checklist-progress-text">' + progress.done + '/' + progress.total + '</div>';
+
+    card.addEventListener('click', function() {
+        showChecklistModal(type, type === 'opening' ? openingItems : closingItems, type === 'opening' ? openingStatus : closingStatus);
+    });
+
+    container.appendChild(card);
+}
+
+// --- Checklist modal ---
+
+function showChecklistModal(type, items, status) {
+    var dateKey = window.firebaseDb.getDateKey();
+    var label = type === 'opening' ? 'Opening' : 'Closing';
+    var helpers = type === 'opening' ? window.firebaseDb.opening : window.firebaseDb.closing;
+
+    SoundFX.pop();
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.maxWidth = '500px';
+    box.style.maxHeight = '85vh';
+    box.style.overflowY = 'auto';
+
+    var progress = getChecklistProgress(items, status);
+
+    box.innerHTML =
+        '<h3 style="margin:0 0 4px">' + label + ' Checklist</h3>' +
+        '<div class="checklist-progress" style="margin-bottom:12px">' +
+            '<div class="checklist-progress-fill" id="modal-progress-fill" style="width:' + progress.percent + '%;background:' + getProgressColor(progress.percent) + '"></div>' +
+        '</div>' +
+        '<div id="modal-progress-text" class="checklist-progress-text" style="margin-bottom:16px">' + progress.done + '/' + progress.total + '</div>' +
+        '<ul class="checklist-list" id="checklist-modal-list"></ul>';
+
+    backdrop.appendChild(box);
+    document.body.appendChild(backdrop);
+
+    var listEl = document.getElementById('checklist-modal-list');
+    items.forEach(function(item) {
+        var row = createChecklistRow(item, status[item.id], dateKey, type, helpers);
+        listEl.appendChild(row);
+    });
+
+    // Close on backdrop click
+    backdrop.addEventListener('click', function(e) {
+        if (e.target === backdrop) {
+            backdrop.remove();
+            helpers.offStatusChange(dateKey);
+        }
+    });
+
+    // Real-time status listener for modal updates
+    helpers.onStatusChange(dateKey, function(newStatus) {
+        var prog = getChecklistProgress(items, newStatus);
+        var fill = document.getElementById('modal-progress-fill');
+        var text = document.getElementById('modal-progress-text');
+        if (fill) {
+            fill.style.width = prog.percent + '%';
+            fill.style.background = getProgressColor(prog.percent);
+        }
+        if (text) text.textContent = prog.done + '/' + prog.total;
+
+        items.forEach(function(item) {
+            updateChecklistRow(item, newStatus[item.id]);
+        });
+
+        if (isChecklistComplete(items, newStatus)) {
+            SoundFX.complete();
+            showNotification(label + ' Complete', prog.total + '/' + prog.total, 'success');
+            setTimeout(function() {
+                backdrop.remove();
+                helpers.offStatusChange(dateKey);
+            }, 1500);
+        }
+    });
+}
+
+// --- Checklist row creation + interaction ---
+
+function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
+    var row = document.createElement('li');
+    row.className = 'checklist-row';
+    row.setAttribute('data-item-id', item.id);
+
+    var isChecked = itemStatus && itemStatus.checked;
+    var isCant = itemStatus && itemStatus.cantComplete;
+
+    if (isChecked) row.classList.add('checked');
+    if (isCant) row.classList.add('cant-complete');
+
+    var checkZone = document.createElement('div');
+    checkZone.className = 'checklist-check-zone';
+    if (isChecked) { checkZone.classList.add('checked'); checkZone.textContent = '\u2713'; }
+    else if (isCant) { checkZone.classList.add('cant-complete'); checkZone.textContent = '\u2717'; }
+
+    var nameDiv = document.createElement('div');
+    nameDiv.style.cssText = 'flex:1;padding:0 12px';
+    var nameSpan = document.createElement('div');
+    nameSpan.className = 'checklist-item-name';
+    nameSpan.textContent = item.name;
+    nameDiv.appendChild(nameSpan);
+
+    if (isChecked && itemStatus.checkedBy) {
+        var meta = document.createElement('div');
+        meta.className = 'checklist-item-meta';
+        var time = new Date(itemStatus.checkedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        meta.textContent = itemStatus.checkedBy + ' ' + time;
+        nameDiv.appendChild(meta);
+    }
+    if (isCant && itemStatus.reason) {
+        var reasonText = document.createElement('div');
+        reasonText.className = 'checklist-reason-text';
+        reasonText.textContent = itemStatus.reason;
+        nameDiv.appendChild(reasonText);
+    }
+
+    var cantBtn = document.createElement('button');
+    cantBtn.className = 'checklist-cant-btn';
+    cantBtn.textContent = '\u2717';
+    cantBtn.title = "Can't complete";
+
+    checkZone.addEventListener('click', function() {
+        if (isChecked || isCant) {
+            helpers.clearItemStatus(dateKey, item.id);
+            logChecklistAction('checklist-unchecked', type, item);
+        } else {
+            helpers.setItemStatus(dateKey, item.id, {
+                checked: true,
+                checkedBy: currentStaff,
+                checkedAt: new Date().toISOString()
+            });
+            SoundFX.tap();
+            checkZone.classList.add('just-checked');
+            setTimeout(function() { checkZone.classList.remove('just-checked'); }, 400);
+            logChecklistAction('checklist-done', type, item);
+        }
+    });
+
+    cantBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isCant) {
+            helpers.clearItemStatus(dateKey, item.id);
+            logChecklistAction('checklist-unchecked', type, item);
+            return;
+        }
+        showCantCompleteInput(item, dateKey, type, helpers, row);
+    });
+
+    row.appendChild(checkZone);
+    row.appendChild(nameDiv);
+    row.appendChild(cantBtn);
+    return row;
+}
+
+function showCantCompleteInput(item, dateKey, type, helpers, row) {
+    var existing = row.querySelector('.checklist-reason-input');
+    if (existing) { existing.remove(); return; }
+
+    var input = document.createElement('input');
+    input.className = 'checklist-reason-input';
+    input.placeholder = 'Pourquoi ?';
+    input.type = 'text';
+    row.appendChild(input);
+    input.focus();
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && input.value.trim()) {
+            helpers.setItemStatus(dateKey, item.id, {
+                cantComplete: true,
+                reason: input.value.trim(),
+                reportedBy: currentStaff,
+                reportedAt: new Date().toISOString()
+            });
+            logChecklistAction('checklist-blocked', type, item, input.value.trim());
+            input.remove();
+        }
+    });
+}
+
+function updateChecklistRow(item, itemStatus) {
+    var row = document.querySelector('[data-item-id="' + item.id + '"]');
+    if (!row) return;
+
+    var checkZone = row.querySelector('.checklist-check-zone');
+    var nameDiv = row.querySelector('.checklist-item-name').parentElement;
+    var isChecked = itemStatus && itemStatus.checked;
+    var isCant = itemStatus && itemStatus.cantComplete;
+
+    row.className = 'checklist-row' + (isChecked ? ' checked' : '') + (isCant ? ' cant-complete' : '');
+    checkZone.className = 'checklist-check-zone' + (isChecked ? ' checked' : '') + (isCant ? ' cant-complete' : '');
+    checkZone.textContent = isChecked ? '\u2713' : (isCant ? '\u2717' : '');
+
+    var oldMeta = nameDiv.querySelector('.checklist-item-meta');
+    if (oldMeta) oldMeta.remove();
+    var oldReason = nameDiv.querySelector('.checklist-reason-text');
+    if (oldReason) oldReason.remove();
+
+    if (isChecked && itemStatus.checkedBy) {
+        var meta = document.createElement('div');
+        meta.className = 'checklist-item-meta';
+        var time = new Date(itemStatus.checkedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        meta.textContent = itemStatus.checkedBy + ' ' + time;
+        nameDiv.appendChild(meta);
+    }
+    if (isCant && itemStatus.reason) {
+        var reasonText = document.createElement('div');
+        reasonText.className = 'checklist-reason-text';
+        reasonText.textContent = itemStatus.reason;
+        nameDiv.appendChild(reasonText);
+    }
+}
+
+function logChecklistAction(actionType, type, item, reason) {
+    var prefix = type === 'opening' ? '[Opening]' : '[Closing]';
+    var log = {
+        id: 'log_' + Date.now(),
+        timestamp: new Date().toISOString(),
+        user: currentStaff,
+        itemName: prefix + ' ' + item.name,
+        actionType: actionType
+    };
+    if (reason) log.details = reason;
+    window.firebaseDb.saveActivityLog(log);
+}
+
 function updateTodoList() {
     const sortedItems = sortItemsByDisplayOrder(prepItems);
 
@@ -1374,6 +1683,12 @@ function updateTodoList() {
         todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
         generateStatusSummary(todoItems);
         return;
+    }
+
+    // Render checklist cards at top of tasks container
+    if (tasksContainer) {
+        renderChecklistCard('opening', openingItems, openingStatus, tasksContainer);
+        renderChecklistCard('closing', closingItems, closingStatus, tasksContainer);
     }
 
     // Render tasks into tasks container
