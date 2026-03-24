@@ -1304,6 +1304,18 @@ function getTaskMissedCount(task) {
 
 function isTaskDue(task) {
     if (!task.active) return false;
+    // Schedule filtering
+    if (task.scheduleDays && task.scheduleDays.length > 0) {
+        var today = new Date().getDay();
+        if (task.scheduleDays.indexOf(today) === -1) return false;
+    }
+    if (task.scheduleTime) {
+        var now = new Date();
+        var parts = task.scheduleTime.split(':');
+        var scheduleMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        var nowMinutes = now.getHours() * 60 + now.getMinutes();
+        if (nowMinutes < scheduleMinutes) return false;
+    }
     if (task.type === 'one-off') {
         return !task.lastCompletedAt;
     }

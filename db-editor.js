@@ -175,6 +175,9 @@ function initApp() {
 
     // Initialize tasks management
     initTasksManagement();
+
+    // Initialize checklists management
+    initChecklistsManagement();
 }
 
 // Load items from Firebase
@@ -842,6 +845,8 @@ function showAddTaskForm() {
     taskDateInput.value = '';
     taskTimeInput.value = '';
     taskActiveInput.checked = true;
+    document.querySelectorAll('.day-toggle').forEach(function(btn) { btn.classList.remove('active'); });
+    document.getElementById('task-schedule-time').value = '';
     updateTaskTypeFields();
     deleteTaskButton.classList.add('hidden');
     document.body.style.overflow = 'hidden';
@@ -861,6 +866,13 @@ function showEditTaskForm(taskId) {
     taskDateInput.value = task.scheduledDate || '';
     taskTimeInput.value = task.scheduledTime || '';
     taskActiveInput.checked = task.active;
+    document.querySelectorAll('.day-toggle').forEach(function(btn) {
+        btn.classList.remove('active');
+        if (task.scheduleDays && task.scheduleDays.indexOf(parseInt(btn.getAttribute('data-day'))) !== -1) {
+            btn.classList.add('active');
+        }
+    });
+    document.getElementById('task-schedule-time').value = task.scheduleTime || '';
     updateTaskTypeFields();
     deleteTaskButton.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -898,6 +910,12 @@ function saveTask() {
         task.scheduledDate = taskDateInput.value;
         task.scheduledTime = taskTimeInput.value || null;
     }
+    var selectedDays = [];
+    document.querySelectorAll('.day-toggle.active').forEach(function(btn) {
+        selectedDays.push(parseInt(btn.getAttribute('data-day')));
+    });
+    task.scheduleDays = selectedDays.length > 0 ? selectedDays : null;
+    task.scheduleTime = document.getElementById('task-schedule-time').value || null;
     // Preserve completion state on edit
     if (!isAddingTask) {
         const existing = allTasks.find(t => t.id === currentEditingTaskId);
@@ -942,4 +960,93 @@ function initTasksManagement() {
             renderTasksTable();
         });
     }
+    // Day toggle click handlers
+    document.querySelectorAll('.day-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            btn.classList.toggle('active');
+        });
+    });
+}
+
+function initChecklistsManagement() {
+    if (!window.firebaseDb) return;
+
+    var openingItemsList = [];
+    var closingItemsList = [];
+
+    window.firebaseDb.opening.onItemsChange(function(items) {
+        openingItemsList = items;
+        renderChecklistTable('opening-items-body', items, 'opening');
+    });
+    window.firebaseDb.closing.onItemsChange(function(items) {
+        closingItemsList = items;
+        renderChecklistTable('closing-items-body', items, 'closing');
+    });
+
+    function renderChecklistTable(tbodyId, items, type) {
+        var tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        items.forEach(function(item) {
+            var tr = document.createElement('tr');
+            tr.setAttribute('data-id', item.id);
+            tr.innerHTML =
+                '<td class="drag-handle" style="cursor:grab;text-align:center">☰</td>' +
+                '<td>' + item.name + '</td>' +
+                '<td class="actions-cell">' +
+                    '<button class="btn btn-sm" data-action="edit" data-type="' + type + '" data-id="' + item.id + '">Edit</button> ' +
+                    '<button class="btn btn-sm" style="color:#ef4444" data-action="delete" data-type="' + type + '" data-id="' + item.id + '">Del</button>' +
+                '</td>';
+            tbody.appendChild(tr);
+        });
+
+        // Wire button events via delegation
+        tbody.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            var action = btn.getAttribute('data-action');
+            var btnType = btn.getAttribute('data-type');
+            var id = btn.getAttribute('data-id');
+            if (action === 'edit') editChecklistItem(btnType, id);
+            if (action === 'delete') deleteChecklistItem(btnType, id);
+        });
+
+        // Wire drag & drop
+        if (typeof initDragAndDrop === 'function') {
+            initDragAndDrop(tbody, items, 'checklist-' + type);
+        }
+    }
+
+    function editChecklistItem(type, itemId) {
+        var helpers = type === 'opening' ? window.firebaseDb.opening : window.firebaseDb.closing;
+        var items = type === 'opening' ? openingItemsList : closingItemsList;
+        var item = items.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+        var newName = prompt('Modifier le nom :', item.name);
+        if (newName && newName !== item.name) {
+            item.name = newName;
+            helpers.saveItem(item);
+        }
+    }
+
+    function deleteChecklistItem(type, itemId) {
+        if (!confirm('Supprimer cet item ?')) return;
+        var helpers = type === 'opening' ? window.firebaseDb.opening : window.firebaseDb.closing;
+        helpers.deleteItem(itemId);
+    }
+
+    document.getElementById('add-opening-item').addEventListener('click', function() {
+        var name = prompt('Nom du nouvel item Opening :');
+        if (!name) return;
+        var id = 'op_' + Date.now();
+        var order = openingItemsList.length + 1;
+        window.firebaseDb.opening.saveItem({ id: id, name: name, order: order });
+    });
+    document.getElementById('add-closing-item').addEventListener('click', function() {
+        var name = prompt('Nom du nouvel item Closing :');
+        if (!name) return;
+        var id = 'cl_' + Date.now();
+        var order = closingItemsList.length + 1;
+        window.firebaseDb.closing.saveItem({ id: id, name: name, order: order });
+    });
 }

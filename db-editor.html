@@ -433,6 +433,28 @@
 
     <!-- Tasks Section -->
     <div id="tasks-section" class="tab-section">
+        <div class="card" style="margin-bottom:16px">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">Opening Checklist</h2>
+                <button id="add-opening-item" class="action-button add-new-button">+ Add</button>
+            </div>
+            <table class="inventory-table db-table">
+                <thead><tr><th style="width:30px"></th><th>Name</th><th style="width:120px">Actions</th></tr></thead>
+                <tbody id="opening-items-body"></tbody>
+            </table>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+            <div class="section-header-row">
+                <h2 class="card-title" style="margin-bottom:0;">Closing Checklist</h2>
+                <button id="add-closing-item" class="action-button add-new-button">+ Add</button>
+            </div>
+            <table class="inventory-table db-table">
+                <thead><tr><th style="width:30px"></th><th>Name</th><th style="width:120px">Actions</th></tr></thead>
+                <tbody id="closing-items-body"></tbody>
+            </table>
+        </div>
+
         <div class="card">
             <div class="section-header-row">
                 <h2 class="card-title" style="margin-bottom:0;">Tasks</h2>
@@ -624,6 +646,22 @@
             <input type="date" id="task-date-input">
             <label for="task-time-input" style="margin-top: 8px;">Time (optional)</label>
             <input type="time" id="task-time-input">
+        </div>
+        <div class="form-group" id="schedule-days-group">
+            <label>Jours</label>
+            <div id="schedule-days-picker" style="display:flex;gap:4px;flex-wrap:wrap">
+                <button type="button" class="day-toggle" data-day="1">Lun</button>
+                <button type="button" class="day-toggle" data-day="2">Mar</button>
+                <button type="button" class="day-toggle" data-day="3">Mer</button>
+                <button type="button" class="day-toggle" data-day="4">Jeu</button>
+                <button type="button" class="day-toggle" data-day="5">Ven</button>
+                <button type="button" class="day-toggle" data-day="6">Sam</button>
+                <button type="button" class="day-toggle" data-day="0">Dim</button>
+            </div>
+        </div>
+        <div class="form-group" id="schedule-time-group">
+            <label>Heure d'apparition</label>
+            <input type="time" id="task-schedule-time">
         </div>
         <div class="form-group">
             <label>

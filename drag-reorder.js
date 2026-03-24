@@ -97,6 +97,20 @@ function saveNewOrder(tbody, items, type) {
 
     // Save to Firebase
     if (window.firebaseDb) {
+        if (type === 'checklist-opening') {
+            updatedItems.forEach(function(item, index) { item.order = index + 1; });
+            window.firebaseDb.opening.saveAllItems(updatedItems)
+                .then(function() { if (typeof showSuccessMessage === 'function') showSuccessMessage('Order updated.'); })
+                .catch(function(error) { console.error('Error saving order:', error); if (typeof showErrorMessage === 'function') showErrorMessage('Failed to save new order.'); });
+            return;
+        }
+        if (type === 'checklist-closing') {
+            updatedItems.forEach(function(item, index) { item.order = index + 1; });
+            window.firebaseDb.closing.saveAllItems(updatedItems)
+                .then(function() { if (typeof showSuccessMessage === 'function') showSuccessMessage('Order updated.'); })
+                .catch(function(error) { console.error('Error saving order:', error); if (typeof showErrorMessage === 'function') showErrorMessage('Failed to save new order.'); });
+            return;
+        }
         const saveFn = type === 'ic' ? window.firebaseDb.saveAllIcItems : window.firebaseDb.saveAllItems;
         saveFn(updatedItems)
             .then(() => {
