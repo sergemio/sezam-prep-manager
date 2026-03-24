@@ -1925,3 +1925,32 @@ tr.drag-placeholder td {
     color: white;
     border-color: #80b244;
 }
+
+/* Checklist collapsible sections in DB Editor */
+.toggle-arrow {
+    display: inline-block;
+    font-size: 12px;
+    margin-right: 6px;
+    transition: transform 0.2s;
+}
+.checklist-collapsible {
+    overflow: hidden;
+}
+#checklist-edit-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#checklist-edit-modal.hidden {
+    display: none;
+}
+#checklist-edit-modal .form-container {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}

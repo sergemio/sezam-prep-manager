@@ -973,14 +973,63 @@ function initChecklistsManagement() {
 
     var openingItemsList = [];
     var closingItemsList = [];
+    var editingChecklistItem = null; // { type, item, helpers }
+
+    // Toggle sections
+    function setupToggle(toggleId, contentId, countId) {
+        var toggle = document.getElementById(toggleId);
+        var content = document.getElementById(contentId);
+        if (!toggle || !content) return;
+        toggle.addEventListener('click', function(e) {
+            if (e.target.closest('.add-new-button')) return; // don't toggle when clicking Add
+            var arrow = toggle.querySelector('.toggle-arrow');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                if (arrow) arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                if (arrow) arrow.textContent = '▶';
+            }
+        });
+    }
+    setupToggle('opening-toggle', 'opening-content', 'opening-count');
+    setupToggle('closing-toggle', 'closing-content', 'closing-count');
+
+    // Edit modal elements
+    var editModal = document.getElementById('checklist-edit-modal');
+    var editNameInput = document.getElementById('checklist-item-name-input');
+    var editTitle = document.getElementById('checklist-edit-title');
+    var saveBtn = document.getElementById('save-checklist-item');
+    var cancelBtn = document.getElementById('cancel-checklist-edit');
+
+    if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
+    if (editModal) editModal.addEventListener('click', function(e) {
+        if (e.target === editModal) closeEditModal();
+    });
+
+    function showEditModal(title, currentName) {
+        if (!editModal) return;
+        editTitle.textContent = title;
+        editNameInput.value = currentName;
+        editModal.classList.remove('hidden');
+        editNameInput.focus();
+    }
+    function closeEditModal() {
+        if (editModal) editModal.classList.add('hidden');
+        editingChecklistItem = null;
+    }
 
     window.firebaseDb.opening.onItemsChange(function(items) {
         openingItemsList = items;
         renderChecklistTable('opening-items-body', items, 'opening');
+        var count = document.getElementById('opening-count');
+        if (count) count.textContent = '(' + items.length + ')';
     });
     window.firebaseDb.closing.onItemsChange(function(items) {
         closingItemsList = items;
         renderChecklistTable('closing-items-body', items, 'closing');
+        var count = document.getElementById('closing-count');
+        if (count) count.textContent = '(' + items.length + ')';
     });
 
     function renderChecklistTable(tbodyId, items, type) {
@@ -1025,11 +1074,8 @@ function initChecklistsManagement() {
         var items = type === 'opening' ? openingItemsList : closingItemsList;
         var item = items.find(function(i) { return i.id === itemId; });
         if (!item) return;
-        var newName = prompt('Modifier le nom :', item.name);
-        if (newName && newName !== item.name) {
-            item.name = newName;
-            helpers.saveItem(item);
-        }
+        editingChecklistItem = { type: type, item: item, helpers: helpers };
+        showEditModal('Modifier — ' + (type === 'opening' ? 'Opening' : 'Closing'), item.name);
     }
 
     function deleteChecklistItem(type, itemId) {
@@ -1039,17 +1085,45 @@ function initChecklistsManagement() {
     }
 
     document.getElementById('add-opening-item').addEventListener('click', function() {
-        var name = prompt('Nom du nouvel item Opening :');
-        if (!name) return;
-        var id = 'op_' + Date.now();
-        var order = openingItemsList.length + 1;
-        window.firebaseDb.opening.saveItem({ id: id, name: name, order: order });
+        editingChecklistItem = {
+            type: 'opening',
+            item: null,
+            helpers: window.firebaseDb.opening,
+            isNew: true,
+            order: openingItemsList.length + 1
+        };
+        showEditModal('Ajouter — Opening', '');
     });
     document.getElementById('add-closing-item').addEventListener('click', function() {
-        var name = prompt('Nom du nouvel item Closing :');
-        if (!name) return;
-        var id = 'cl_' + Date.now();
-        var order = closingItemsList.length + 1;
-        window.firebaseDb.closing.saveItem({ id: id, name: name, order: order });
+        editingChecklistItem = {
+            type: 'closing',
+            item: null,
+            helpers: window.firebaseDb.closing,
+            isNew: true,
+            order: closingItemsList.length + 1
+        };
+        showEditModal('Ajouter — Closing', '');
     });
+
+    // Update save to handle both edit and add
+    if (saveBtn) {
+        saveBtn.removeEventListener('click', saveBtn._handler);
+        saveBtn._handler = function() {
+            if (!editingChecklistItem || !editNameInput.value.trim()) return;
+            if (editingChecklistItem.isNew) {
+                var prefix = editingChecklistItem.type === 'opening' ? 'op_' : 'cl_';
+                var newItem = {
+                    id: prefix + Date.now(),
+                    name: editNameInput.value.trim(),
+                    order: editingChecklistItem.order
+                };
+                editingChecklistItem.helpers.saveItem(newItem);
+            } else {
+                editingChecklistItem.item.name = editNameInput.value.trim();
+                editingChecklistItem.helpers.saveItem(editingChecklistItem.item);
+            }
+            closeEditModal();
+        };
+        saveBtn.addEventListener('click', saveBtn._handler);
+    }
 }
