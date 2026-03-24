@@ -984,9 +984,12 @@ function initChecklistsManagement() {
     });
 
     function renderChecklistTable(tbodyId, items, type) {
-        var tbody = document.getElementById(tbodyId);
-        if (!tbody) return;
-        tbody.innerHTML = '';
+        var oldTbody = document.getElementById(tbodyId);
+        if (!oldTbody) return;
+        // Clone and replace to avoid duplicate event listeners on re-render
+        var tbody = oldTbody.cloneNode(false);
+        oldTbody.parentNode.replaceChild(tbody, oldTbody);
+
         items.forEach(function(item) {
             var tr = document.createElement('tr');
             tr.setAttribute('data-id', item.id);
