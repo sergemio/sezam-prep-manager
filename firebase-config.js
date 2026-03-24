@@ -93,6 +93,84 @@ const activityLogs = createLogHelpers('activityLogs', 'log');
 const icActivityLogs = createLogHelpers('icActivityLogs', 'iclog');
 const tasks = createCrudHelpers('tasks');
 
+// Returns today's date as "YYYY-MM-DD", but before 4h AM returns yesterday
+function getDateKey() {
+    const now = new Date();
+    if (now.getHours() < 4) {
+        now.setDate(now.getDate() - 1);
+    }
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+// Helper to create checklist CRUD + daily status functions for a named checklist
+function createChecklistHelpers(checklistName) {
+    const itemsPath = `checklists/${checklistName}/items`;
+    const statusBasePath = `checklists/${checklistName}/status`;
+    const statusListeners = {};
+
+    return {
+        // Items CRUD
+        saveItem: function(item) {
+            return set(ref(database, itemsPath + '/' + item.id), item);
+        },
+        saveAllItems: function(items) {
+            const obj = {};
+            items.forEach(item => { obj[item.id] = item; });
+            return set(ref(database, itemsPath), obj);
+        },
+        loadItems: function() {
+            return get(ref(database, itemsPath)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    return Object.values(snapshot.val()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                }
+                return [];
+            });
+        },
+        deleteItem: function(itemId) {
+            return remove(ref(database, itemsPath + '/' + itemId));
+        },
+        onItemsChange: function(callback) {
+            onValue(ref(database, itemsPath), (snapshot) => {
+                const data = snapshot.val();
+                const arr = data ? Object.values(data).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : [];
+                callback(arr);
+            });
+        },
+
+        // Daily Status
+        getStatus: function(dateKey) {
+            return get(ref(database, statusBasePath + '/' + dateKey)).then((snapshot) => {
+                return snapshot.exists() ? snapshot.val() : {};
+            });
+        },
+        setItemStatus: function(dateKey, itemId, statusObj) {
+            return set(ref(database, statusBasePath + '/' + dateKey + '/' + itemId), statusObj);
+        },
+        clearItemStatus: function(dateKey, itemId) {
+            return remove(ref(database, statusBasePath + '/' + dateKey + '/' + itemId));
+        },
+        onStatusChange: function(dateKey, callback) {
+            const unsubscribe = onValue(ref(database, statusBasePath + '/' + dateKey), (snapshot) => {
+                callback(snapshot.exists() ? snapshot.val() : {});
+            });
+            statusListeners[dateKey] = unsubscribe;
+        },
+        offStatusChange: function(dateKey) {
+            if (statusListeners[dateKey]) {
+                statusListeners[dateKey]();
+                delete statusListeners[dateKey];
+            }
+        }
+    };
+}
+
+// Build checklist helpers
+const opening = createChecklistHelpers('opening');
+const closing = createChecklistHelpers('closing');
+
 // Global Firebase API — same interface as before, nothing breaks
 window.firebaseDb = {
     // Low-level access (used by LastCheckTracker)
@@ -140,7 +218,12 @@ window.firebaseDb = {
     saveAllTasks: tasks.saveAll,
     loadTasks: tasks.load,
     deleteTasks: tasks.delete,
-    onTasksChange: tasks.onChange
+    onTasksChange: tasks.onChange,
+
+    // Checklist helpers
+    getDateKey: getDateKey,
+    opening: opening,
+    closing: closing
 };
 
 // Dispatch event so pages know Firebase is ready
