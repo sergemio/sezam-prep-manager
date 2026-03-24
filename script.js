@@ -1679,16 +1679,18 @@ function updateTodoList() {
         if (prepsCount) prepsCount.textContent = prepItemsList.length;
     }
 
-    if (todoItems.length === 0) {
-        todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
-        generateStatusSummary(todoItems);
-        return;
-    }
-
-    // Render checklist cards at top of tasks container
+    // Render checklist cards at top of tasks container (before early return check)
     if (tasksContainer) {
         renderChecklistCard('opening', openingItems, openingStatus, tasksContainer);
         renderChecklistCard('closing', closingItems, closingStatus, tasksContainer);
+    }
+
+    var hasChecklists = tasksContainer && tasksContainer.children.length > 0;
+
+    if (todoItems.length === 0 && !hasChecklists) {
+        todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
+        generateStatusSummary(todoItems);
+        return;
     }
 
     // Render tasks into tasks container
