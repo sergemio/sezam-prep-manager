@@ -1897,7 +1897,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
     todoItem.style.borderLeftColor = isOverdue ? '#ef4444' : '#3b82f6';
     todoItem.innerHTML = `
         <div class="todo-item-name">${task.title}</div>
-        <div class="todo-item-detail">${freqText}${isOverdue ? ' \u2022 En retard (' + overdue + ' jour' + (overdue > 1 ? 's' : '') + ')' : ''}</div>
+        ${isOverdue ? '<div class="todo-item-detail">En retard (' + overdue + ' jour' + (overdue > 1 ? 's' : '') + ')</div>' : ''}
         <div class="todo-footer">
             <span class="todo-tag ${isOverdue ? 'overdue' : 'task'}">${isOverdue ? 'OVERDUE' : 'TASK'}</span>
         </div>
