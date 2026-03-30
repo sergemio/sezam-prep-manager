@@ -454,6 +454,16 @@ function initApp() {
             closingStatus = status;
             updateTodoList();
         });
+        // Checklist force display listeners
+        window.checklistForceDisplay = {};
+        window.firebaseDb.opening.onForceDisplayChange(function(val) {
+            window.checklistForceDisplay.opening = val;
+            updateTodoList();
+        });
+        window.firebaseDb.closing.onForceDisplayChange(function(val) {
+            window.checklistForceDisplay.closing = val;
+            updateTodoList();
+        });
     } else {
         // If Firebase is not available, use local storage
         loadLocalData();
@@ -1304,6 +1314,7 @@ function getTaskMissedCount(task) {
 
 function isTaskDue(task) {
     if (!task.active) return false;
+    if (task.forceDisplay) return true;
     // Schedule filtering
     if (task.scheduleDays && task.scheduleDays.length > 0) {
         var today = new Date().getDay();
@@ -1385,7 +1396,9 @@ function isChecklistComplete(items, status) {
 }
 
 function renderChecklistCard(type, items, status, container) {
-    if (type === 'closing' && new Date().getHours() < 22) return;
+    if (window.checklistForceDisplay?.[type] === true) { /* forced on, skip time checks */ }
+    else if (window.checklistForceDisplay?.[type] === false) return;
+    else if (type === 'closing' && new Date().getHours() < 22) return;
     if (isChecklistComplete(items, status)) return;
     if (items.length === 0) return;
 

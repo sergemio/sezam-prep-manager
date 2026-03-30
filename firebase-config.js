@@ -163,6 +163,19 @@ function createChecklistHelpers(checklistName) {
                 statusListeners[dateKey]();
                 delete statusListeners[dateKey];
             }
+        },
+
+        // Force Display toggle
+        getForceDisplay: function() {
+            return get(ref(database, `checklists/${checklistName}/forceDisplay`)).then(s => s.exists() ? s.val() : null);
+        },
+        setForceDisplay: function(value) {
+            return set(ref(database, `checklists/${checklistName}/forceDisplay`), value);
+        },
+        onForceDisplayChange: function(callback) {
+            onValue(ref(database, `checklists/${checklistName}/forceDisplay`), (snapshot) => {
+                callback(snapshot.exists() ? snapshot.val() : null);
+            });
         }
     };
 }

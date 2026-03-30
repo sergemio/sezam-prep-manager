@@ -435,7 +435,10 @@
     <div id="tasks-section" class="tab-section">
         <div class="card checklist-section" style="margin-bottom:16px">
             <div class="section-header-row" style="cursor:pointer" id="opening-toggle">
-                <h2 class="card-title" style="margin-bottom:0;"><span class="toggle-arrow">▶</span> Opening Checklist <span id="opening-count" style="font-size:14px;color:#888"></span></h2>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <h2 class="card-title" style="margin-bottom:0;"><span class="toggle-arrow">▶</span> Opening Checklist <span id="opening-count" style="font-size:14px;color:#888"></span></h2>
+                    <button id="toggle-opening-display" class="display-toggle" title="Toggle display in to-do"></button>
+                </div>
                 <button id="add-opening-item" class="action-button add-new-button">+ Add</button>
             </div>
             <div id="opening-content" class="checklist-collapsible" style="display:none">
@@ -448,7 +451,10 @@
 
         <div class="card checklist-section" style="margin-bottom:16px">
             <div class="section-header-row" style="cursor:pointer" id="closing-toggle">
-                <h2 class="card-title" style="margin-bottom:0;"><span class="toggle-arrow">▶</span> Closing Checklist <span id="closing-count" style="font-size:14px;color:#888"></span></h2>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <h2 class="card-title" style="margin-bottom:0;"><span class="toggle-arrow">▶</span> Closing Checklist <span id="closing-count" style="font-size:14px;color:#888"></span></h2>
+                    <button id="toggle-closing-display" class="display-toggle" title="Toggle display in to-do"></button>
+                </div>
                 <button id="add-closing-item" class="action-button add-new-button">+ Add</button>
             </div>
             <div id="closing-content" class="checklist-collapsible" style="display:none">
@@ -488,6 +494,7 @@
                         <th>Type</th>
                         <th>Frequency</th>
                         <th>Status</th>
+                        <th>Display</th>
                         <th>Last Done</th>
                     </tr>
                 </thead>

@@ -798,7 +798,7 @@ function updateTaskTypeFields() {
 function renderTasksTable() {
     tasksTableBody.innerHTML = '';
     if (allTasks.length === 0) {
-        tasksTableBody.innerHTML = '<tr><td colspan="5" class="empty-state-cell">No tasks defined yet</td></tr>';
+        tasksTableBody.innerHTML = '<tr><td colspan="6" class="empty-state-cell">No tasks defined yet</td></tr>';
         return;
     }
     allTasks.forEach(task => {
@@ -820,14 +820,20 @@ function renderTasksTable() {
             lastDone = formatCheckDate(task.lastCompletedAt) + ' by ' + (task.lastCompletedBy || '?');
         }
 
+        const isOn = !!task.forceDisplay;
         row.innerHTML = `
             <td class="item-name-cell">${task.title || task.name || 'Untitled'}</td>
             <td>${task.type}</td>
             <td>${freqDisplay}</td>
             <td><span class="${task.active ? 'status-active' : 'status-inactive'}">${task.active ? 'Active' : 'Inactive'}</span></td>
+            <td style="text-align:center"><button class="display-toggle ${isOn ? 'on' : ''}" data-task-id="${task.id}" title="${isOn ? 'Showing in to-do' : 'Hidden from to-do'}"></button></td>
             <td>${lastDone}</td>
         `;
         tasksTableBody.appendChild(row);
+        row.querySelector('.display-toggle').addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleTaskForceDisplay(task.id, !isOn);
+        });
         row.addEventListener('click', function() {
             showEditTaskForm(this.getAttribute('data-task-id'));
         });
@@ -922,6 +928,7 @@ function saveTask() {
         if (existing) {
             task.lastCompletedAt = existing.lastCompletedAt || null;
             task.lastCompletedBy = existing.lastCompletedBy || null;
+            if (existing.forceDisplay) task.forceDisplay = existing.forceDisplay;
         }
     }
     window.firebaseDb.saveTask(task).then(() => {
@@ -936,6 +943,22 @@ function deleteTask() {
     window.firebaseDb.deleteTasks(currentEditingTaskId).then(() => {
         showSuccessMessage('Task deleted');
         cancelTaskEdit();
+    });
+}
+
+function toggleTaskForceDisplay(taskId, newValue) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+    task.forceDisplay = newValue;
+    window.firebaseDb.saveTask(task).then(() => {
+        showSuccessMessage(newValue ? 'Task forced to to-do' : 'Task removed from to-do');
+        // Log activity
+        window.firebaseDb.saveActivityLog({
+            timestamp: new Date().toISOString(),
+            itemName: task.title || task.name,
+            actionType: newValue ? 'force-display-on' : 'force-display-off',
+            user: window.currentUser || 'admin'
+        });
     });
 }
 
@@ -994,6 +1017,34 @@ function initChecklistsManagement() {
     }
     setupToggle('opening-toggle', 'opening-content', 'opening-count');
     setupToggle('closing-toggle', 'closing-content', 'closing-count');
+
+    // Checklist force display toggles
+    function setupChecklistDisplayToggle(type) {
+        var btn = document.getElementById('toggle-' + type + '-display');
+        if (!btn) return;
+        // Listen for current state
+        window.firebaseDb[type].onForceDisplayChange(function(val) {
+            var isOn = val === true;
+            btn.classList.toggle('on', isOn);
+            btn.title = isOn ? 'Showing in to-do' : 'Auto mode';
+        });
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var currentlyOn = btn.classList.contains('on');
+            var newVal = currentlyOn ? null : true;
+            window.firebaseDb[type].setForceDisplay(newVal).then(function() {
+                showSuccessMessage(type.charAt(0).toUpperCase() + type.slice(1) + ' checklist ' + (newVal ? 'forced to to-do' : 'back to auto'));
+                window.firebaseDb.saveActivityLog({
+                    timestamp: new Date().toISOString(),
+                    itemName: type.charAt(0).toUpperCase() + type.slice(1) + ' Checklist',
+                    actionType: newVal ? 'force-display-on' : 'force-display-off',
+                    user: window.currentUser || 'admin'
+                });
+            });
+        });
+    }
+    setupChecklistDisplayToggle('opening');
+    setupChecklistDisplayToggle('closing');
 
     // Edit modal elements
     var editModal = document.getElementById('checklist-edit-modal');

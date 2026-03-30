@@ -939,6 +939,38 @@ body {
     border: 1px solid #e2e8f0;
 }
 
+/* Display toggle switch (iOS style) */
+.display-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #ccc;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.25s;
+    padding: 0;
+    flex-shrink: 0;
+}
+.display-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.25s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.display-toggle.on {
+    background: #4caf50;
+}
+.display-toggle.on::after {
+    transform: translateX(20px);
+}
+
 /* Touch-friendly numeric input styles */
 .touch-input-container {
     width: 100%;
