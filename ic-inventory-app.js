@@ -531,7 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const levelBarFill = row.querySelector('.level-bar-fill');
             if (levelBarFill) {
-                levelBarFill.setAttribute('style', `width: ${displayPercentage}%; background-color: ${levelBarColor}; height: 100%; border-radius: 14px;`);
+                levelBarFill.setAttribute('style', `width: ${displayPercentage}%; background-color: ${levelBarColor}; height: 100%; border-radius: 4px;`);
                 
                 // Debug: Check if styles were applied
                 if (item.name === 'Viande Meat [Ground beef] Frozen 1KG') {
