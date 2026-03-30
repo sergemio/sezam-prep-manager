@@ -1759,23 +1759,31 @@ function generateStatusSummary(todoItems) {
     }
 
     if (emptyPreps.length > 0) {
-        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n}</span>`);
-        lines.push(`<p class="summary-line urgent">${joinList(tags)} completely empty</p>`);
+        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n}</span>`).join(' ');
+        lines.push(`<p class="summary-line urgent">${tags} completely empty</p>`);
     }
 
     if (criticalPreps.length > 0) {
-        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n}</span>`);
-        lines.push(`<p class="summary-line warning">${joinList(tags)} critically low</p>`);
+        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n}</span>`).join(' ');
+        lines.push(`<p class="summary-line warning">${tags} critically low</p>`);
     }
 
     if (pendingTasks.length > 0) {
-        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n}</span>`);
-        lines.push(`<p class="summary-line info">${joinList(tags)} still pending</p>`);
+        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n}</span>`).join(' ');
+        lines.push(`<p class="summary-line info">${tags} still pending</p>`);
     }
 
     if (cantPrepPreps.length > 0) {
-        const tags = cantPrepPreps.map(t => `<span class="summary-badge cant-prep">${t.name}</span> ${t.reason}`);
-        lines.push(`<p class="summary-line muted">Can't prep: ${joinList(tags)}</p>`);
+        const grouped = {};
+        cantPrepPreps.forEach(t => {
+            if (!grouped[t.reason]) grouped[t.reason] = [];
+            grouped[t.reason].push(t.name);
+        });
+        const parts = Object.entries(grouped).map(([reason, names]) => {
+            const tags = names.map(n => `<span class="summary-badge cant-prep">${n}</span>`).join(' ');
+            return `${reason} — ${tags}`;
+        });
+        lines.push(`<p class="summary-line muted">Can't prep: ${parts.join(', ')}</p>`);
     }
 
     if (lines.length === 0) {
