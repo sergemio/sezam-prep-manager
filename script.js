@@ -38,6 +38,20 @@ function formatDate(dateString) {
     return `${day} ${month}, ${hours}:${minutes}`;
 }
 
+// Creates a fuchsia user button for modals (reuses existing style + toggleModalUserDropdown)
+function createModalUserPicker() {
+    const btn = document.createElement('button');
+    btn.className = 'user-login-btn';
+    btn.style.fontSize = '14px';
+    btn.style.padding = '6px 14px';
+    btn.innerHTML = `${currentStaff || 'Select user'} <span style="font-size:12px;">\u25BC</span>`;
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleModalUserDropdown(btn);
+    });
+    return btn;
+}
+
 // App state
 let prepItems = [...initialPrepItems];
 let currentStaff = '';
@@ -698,10 +712,18 @@ function showQuickUpdateModal(item, context = 'default') {
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
-    modalHeader.innerHTML = `
-        <h3 style="margin: 0;">${item.name}</h3>
-        <p style="margin: 5px 0;">Current: ${item.currentLevel} ${item.unit}</p>
-    `;
+    const headerRow = document.createElement('div');
+    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;';
+    headerRow.appendChild(createModalUserPicker());
+    const titleEl = document.createElement('h3');
+    titleEl.style.margin = '0';
+    titleEl.textContent = item.name;
+    headerRow.appendChild(titleEl);
+    modalHeader.appendChild(headerRow);
+    const subtitleEl = document.createElement('p');
+    subtitleEl.style.margin = '5px 0';
+    subtitleEl.textContent = `Current: ${item.currentLevel} ${item.unit}`;
+    modalHeader.appendChild(subtitleEl);
 
     // Create input group with hidden input
     const inputGroup = document.createElement('div');
@@ -1933,8 +1955,17 @@ function showTaskModal(task) {
         lastDoneText = `By ${task.lastCompletedBy || '?'}, ${d.toLocaleDateString('fr-FR')} at ${hours}:${minutes}`;
     }
 
-    modalContent.innerHTML = `
-        <h3 style="margin: 0 0 12px 0; color: #333;">${task.title}</h3>
+    // Build header row with title + user picker
+    const headerRow = document.createElement('div');
+    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
+    headerRow.appendChild(createModalUserPicker());
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = 'margin:0;color:#333;';
+    titleEl.textContent = task.title;
+    headerRow.appendChild(titleEl);
+    modalContent.appendChild(headerRow);
+
+    const infoHtml = `
         ${task.description ? `<p style="margin: 0 0 16px 0; color: #555; font-size: 14px; line-height: 1.5;">${task.description}</p>` : ''}
         <div style="margin-bottom: 16px; padding: 12px; background: #f7f9f5; border-radius: 6px; font-size: 14px;">
             <div style="margin-bottom: 6px;"><strong>Type:</strong> ${freqText}</div>
@@ -1945,6 +1976,9 @@ function showTaskModal(task) {
             <button id="task-close-btn" style="padding: 14px 20px; background-color: #e5e7eb; color: #333; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Fermer</button>
         </div>
     `;
+    const infoDiv = document.createElement('div');
+    infoDiv.innerHTML = infoHtml;
+    modalContent.appendChild(infoDiv);
 
     modalBackdrop.appendChild(modalContent);
     document.body.appendChild(modalBackdrop);

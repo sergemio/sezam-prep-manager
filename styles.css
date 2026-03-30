@@ -939,6 +939,14 @@ body {
     border: 1px solid #e2e8f0;
 }
 
+/* Modal header with user picker */
+.modal-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
 /* Display toggle switch (iOS style) */
 .display-toggle {
     position: relative;

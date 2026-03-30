@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (window.firebaseDb && window.firebaseDb.loadStaffMembers) {
                 window.firebaseDb.loadStaffMembers()
                     .then(staffMembers => {
+                        window.staffMembers = staffMembers;
                         if (staffMembers && staffMembers.length > 0) {
                             // Filter to only active staff members
                             const activeStaff = staffMembers.filter(staff => staff.active);
