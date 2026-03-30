@@ -83,6 +83,148 @@ function moveIcItem(itemId, direction) {
 }
 
 // Initialize I&C items management
+// --- Smart dropdown helpers ---
+
+function setupSmartDropdown(selectId, newInputId, getOptions, allowEmpty) {
+    var select = document.getElementById(selectId);
+    var newInput = document.getElementById(newInputId);
+    if (!select || !newInput) return;
+
+    select.addEventListener('change', function() {
+        if (this.value === '__new__') {
+            newInput.style.display = 'block';
+            newInput.focus();
+        } else {
+            newInput.style.display = 'none';
+            newInput.value = '';
+        }
+    });
+}
+
+function populateDropdown(selectId, newInputId, options, currentValue, allowEmpty) {
+    var select = document.getElementById(selectId);
+    var newInput = document.getElementById(newInputId);
+    if (!select) return;
+    select.innerHTML = '';
+    if (allowEmpty) {
+        var emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '— None —';
+        select.appendChild(emptyOpt);
+    }
+    options.forEach(function(val) {
+        var opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        select.appendChild(opt);
+    });
+    // Add "+ New..." option
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New...';
+    select.appendChild(newOpt);
+    // Set current value
+    if (currentValue && options.indexOf(currentValue) === -1 && currentValue !== '') {
+        // Value exists but not in options yet — add it
+        var extraOpt = document.createElement('option');
+        extraOpt.value = currentValue;
+        extraOpt.textContent = currentValue;
+        select.insertBefore(extraOpt, select.lastChild);
+    }
+    select.value = currentValue || '';
+    if (newInput) { newInput.style.display = 'none'; newInput.value = ''; }
+}
+
+function getDropdownValue(selectId, newInputId) {
+    var select = document.getElementById(selectId);
+    var newInput = document.getElementById(newInputId);
+    if (select && select.value === '__new__' && newInput) {
+        return newInput.value.trim();
+    }
+    return select ? select.value : '';
+}
+
+// --- Providers multi-select ---
+var selectedProviders = [];
+
+function setupProvidersDropdown() {
+    var select = document.getElementById('ic-providers-select');
+    var newInput = document.getElementById('ic-providers-new');
+    if (!select) return;
+
+    select.addEventListener('change', function() {
+        if (this.value === '__new__') {
+            newInput.style.display = 'block';
+            newInput.focus();
+            this.value = '';
+        } else if (this.value) {
+            addProvider(this.value);
+            this.value = '';
+        }
+    });
+
+    newInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var val = this.value.trim();
+            if (val) {
+                addProvider(val);
+                this.value = '';
+                this.style.display = 'none';
+            }
+        }
+    });
+}
+
+function populateProvidersDropdown(currentProviders) {
+    selectedProviders = currentProviders || [];
+    var allProviders = [...new Set(icItems.flatMap(function(i) { return i.providers || []; }))].sort();
+    var select = document.getElementById('ic-providers-select');
+    var newInput = document.getElementById('ic-providers-new');
+    if (!select) return;
+    select.innerHTML = '<option value="">+ Add provider...</option>';
+    allProviders.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        select.appendChild(opt);
+    });
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New provider...';
+    select.appendChild(newOpt);
+    if (newInput) { newInput.style.display = 'none'; newInput.value = ''; }
+    renderProviderChips();
+}
+
+function addProvider(name) {
+    if (selectedProviders.indexOf(name) === -1) {
+        selectedProviders.push(name);
+        renderProviderChips();
+    }
+}
+
+function removeProvider(name) {
+    selectedProviders = selectedProviders.filter(function(p) { return p !== name; });
+    renderProviderChips();
+}
+
+function renderProviderChips() {
+    var container = document.getElementById('ic-providers-list');
+    if (!container) return;
+    container.innerHTML = '';
+    selectedProviders.forEach(function(p) {
+        var chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:9999px;font-size:13px;';
+        chip.innerHTML = p + ' <span style="cursor:pointer;color:#999;font-weight:bold;">&times;</span>';
+        chip.querySelector('span').addEventListener('click', function() { removeProvider(p); });
+        container.appendChild(chip);
+    });
+    // Sync hidden input
+    var hidden = document.getElementById('ic-providers');
+    if (hidden) hidden.value = selectedProviders.join(', ');
+}
+
 function initIcItemsManagement() {
     
     // Get DOM elements
@@ -112,6 +254,12 @@ return;
 // Load data from Firebase
 loadIcItemsFromFirebase();
     
+    // Smart dropdown setup
+    setupSmartDropdown('ic-unit', 'ic-unit-new', () => [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort());
+    setupSmartDropdown('ic-location', 'ic-location-new', () => [...new Set(icItems.map(i => i.location).filter(Boolean))].sort());
+    setupSmartDropdown('ic-sublocation', 'ic-sublocation-new', () => [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), true);
+    setupProvidersDropdown();
+
     // Set up event listeners
     addNewIcButton.addEventListener('click', showAddNewIcForm);
     saveIcButton.addEventListener('click', saveIcItem);
@@ -213,11 +361,11 @@ function showAddNewIcForm() {
     icNameInput.value = '';
     icCurrentInput.value = '0';
     icTargetInput.value = '1';
-    icUnitInput.value = 'units';
-    icLocationInput.value = '';
-    icSublocationInput.value = '';
-    icDisplayOrderInput.value = newId; // Initially set display order to match ID
-    icProvidersInput.value = ''; // Empty providers list
+    populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), 'units');
+    populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), '');
+    populateDropdown('ic-sublocation', 'ic-sublocation-new', [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), '', true);
+    icDisplayOrderInput.value = newId;
+    populateProvidersDropdown([]);
     
     // Hide delete button for new items
     deleteIcButton.classList.add('hidden');
@@ -247,17 +395,11 @@ return;
     icNameInput.value = item.name;
     icCurrentInput.value = item.currentLevel;
     icTargetInput.value = item.targetLevel;
-    icUnitInput.value = item.unit;
-    icLocationInput.value = item.location || '';
-    icSublocationInput.value = item.sublocation || '';
+    populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), item.unit);
+    populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), item.location || '');
+    populateDropdown('ic-sublocation', 'ic-sublocation-new', [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), item.sublocation || '', true);
     icDisplayOrderInput.value = item.displayOrder || item.id;
-    
-    // Format providers for form input
-    if (item.providers && item.providers.length > 0) {
-icProvidersInput.value = item.providers.join(', ');
-    } else {
-icProvidersInput.value = '';
-    }
+    populateProvidersDropdown(item.providers ? [...item.providers] : []);
     
     // Show delete button for existing items
     deleteIcButton.classList.remove('hidden');
@@ -274,21 +416,18 @@ function saveIcItem() {
     // Validate form
     if (!validateIcForm()) return;
     
-    // Parse providers from comma-separated list
-    const providersText = icProvidersInput.value.trim();
-    const providers = providersText ? 
-providersText.split(',').map(p => p.trim()).filter(p => p.length > 0) : 
-[];
-    
+    // Get providers from chip list
+    const providers = [...selectedProviders];
+
     // Create updated item object
     const updatedItem = {
 id: parseInt(icIdInput.value),
 name: icNameInput.value.trim(),
 currentLevel: parseFloat(icCurrentInput.value),
 targetLevel: parseFloat(icTargetInput.value),
-unit: icUnitInput.value.trim(),
-location: icLocationInput.value.trim(),
-sublocation: icSublocationInput.value.trim() || null,
+unit: getDropdownValue('ic-unit', 'ic-unit-new'),
+location: getDropdownValue('ic-location', 'ic-location-new'),
+sublocation: getDropdownValue('ic-sublocation', 'ic-sublocation-new') || null,
 displayOrder: parseInt(icDisplayOrderInput.value),
 providers: providers,
 lastCheckedTime: new Date().toISOString(),
@@ -380,13 +519,13 @@ showErrorMessage('Please enter a valid target level (must be greater than 0).');
 return false;
     }
     
-    if (!icUnitInput.value.trim()) {
-showErrorMessage('Please enter a unit (e.g., units, kg, liters).');
+    if (!getDropdownValue('ic-unit', 'ic-unit-new')) {
+showErrorMessage('Please select or enter a unit.');
 return false;
     }
-    
-    if (!icLocationInput.value.trim()) {
-showErrorMessage('Please enter a location for the I&C item.');
+
+    if (!getDropdownValue('ic-location', 'ic-location-new')) {
+showErrorMessage('Please select or enter a location.');
 return false;
     }
     

@@ -146,6 +146,9 @@ function initApp() {
     // Load data from Firebase
     loadItemsFromFirebase();
     
+    // Smart dropdown for unit
+    setupSmartDropdown('item-unit', 'item-unit-new', () => [...new Set(prepItems.map(i => i.unit).filter(Boolean))].sort());
+
     // Set up event listeners
     addNewItemButton.addEventListener('click', showAddNewForm);
     saveItemButton.addEventListener('click', saveItem);
@@ -283,8 +286,8 @@ function showAddNewForm() {
     itemNameInput.value = '';
     itemCurrentInput.value = '0';
     itemTargetInput.value = '1';
-    itemUnitInput.value = 'containers';
-    itemDisplayOrderInput.value = newId; // Initially set display order to match ID
+    populateDropdown('item-unit', 'item-unit-new', [...new Set(prepItems.map(i => i.unit).filter(Boolean))].sort(), 'containers');
+    itemDisplayOrderInput.value = newId;
     
     // Hide delete button for new items
     deleteItemButton.classList.add('hidden');
@@ -314,8 +317,8 @@ function showEditForm(itemId) {
     itemNameInput.value = item.name;
     itemCurrentInput.value = item.currentLevel;
     itemTargetInput.value = item.targetLevel;
-    itemUnitInput.value = item.unit;
-    itemDisplayOrderInput.value = item.displayOrder || item.id; // Use ID as fallback if displayOrder doesn't exist yet
+    populateDropdown('item-unit', 'item-unit-new', [...new Set(prepItems.map(i => i.unit).filter(Boolean))].sort(), item.unit);
+    itemDisplayOrderInput.value = item.displayOrder || item.id;
     
     // Show delete button for existing items
     deleteItemButton.classList.remove('hidden');
@@ -338,7 +341,7 @@ function saveItem() {
         name: itemNameInput.value.trim(),
         currentLevel: parseFloat(itemCurrentInput.value),
         targetLevel: parseFloat(itemTargetInput.value),
-        unit: itemUnitInput.value.trim(),
+        unit: getDropdownValue('item-unit', 'item-unit-new'),
         displayOrder: parseInt(itemDisplayOrderInput.value),
         lastCheckedTime: new Date().toISOString(),
         lastCheckedBy: 'Admin (DB Editor)'
@@ -420,7 +423,7 @@ function validateForm() {
         return false;
     }
     
-    if (!itemUnitInput.value.trim()) {
+    if (!getDropdownValue('item-unit', 'item-unit-new')) {
         showErrorMessage('Please enter a unit (e.g., containers, kg, liters).');
         return false;
     }

@@ -512,34 +512,28 @@
             <h3 id="form-title">Edit Item</h3>
         </div>
         
-        <div class="form-group">
-            <label for="item-id">ID:</label>
-            <input type="number" id="item-id" class="form-control" required>
-        </div>
+        <input type="hidden" id="item-id">
+        <input type="hidden" id="item-display-order">
 
-        <div class="form-group">
-            <label for="item-display-order">Display Order:</label>
-            <input type="number" id="item-display-order" class="form-control" required>
-        </div>
-        
         <div class="form-group">
             <label for="item-name">Name:</label>
             <input type="text" id="item-name" class="form-control" required>
         </div>
-        
+
         <div class="form-group">
             <label for="item-current">Current Level:</label>
             <input type="number" id="item-current" class="form-control" step="0.25" min="0" required>
         </div>
-        
+
         <div class="form-group">
             <label for="item-target">Target Level:</label>
             <input type="number" id="item-target" class="form-control" step="0.25" min="0" required>
         </div>
-        
+
         <div class="form-group">
             <label for="item-unit">Unit:</label>
-            <input type="text" id="item-unit" class="form-control" required>
+            <select id="item-unit" class="form-control"></select>
+            <input type="text" id="item-unit-new" class="form-control" placeholder="New unit name..." style="display:none;margin-top:6px;">
         </div>
         
         <div class="button-group">
@@ -590,49 +584,48 @@
             <h3 id="ic-form-title">Edit I&C Item</h3>
         </div>
         
-        <div class="form-group">
-            <label for="ic-id">ID:</label>
-            <input type="number" id="ic-id" class="form-control" required>
-        </div>
+        <input type="hidden" id="ic-id">
+        <input type="hidden" id="ic-display-order">
 
-        <div class="form-group">
-            <label for="ic-display-order">Display Order:</label>
-            <input type="number" id="ic-display-order" class="form-control" required>
-        </div>
-        
         <div class="form-group">
             <label for="ic-name">Name:</label>
             <input type="text" id="ic-name" class="form-control" required>
         </div>
-        
+
         <div class="form-group">
             <label for="ic-current">Current Level:</label>
             <input type="number" id="ic-current" class="form-control" step="0.25" min="0" required>
         </div>
-        
+
         <div class="form-group">
             <label for="ic-target">Target Level:</label>
             <input type="number" id="ic-target" class="form-control" step="0.25" min="0" required>
         </div>
-        
+
         <div class="form-group">
             <label for="ic-unit">Unit:</label>
-            <input type="text" id="ic-unit" class="form-control" required>
+            <select id="ic-unit" class="form-control"></select>
+            <input type="text" id="ic-unit-new" class="form-control" placeholder="New unit name..." style="display:none;margin-top:6px;">
         </div>
-        
+
         <div class="form-group">
             <label for="ic-location">Location:</label>
-            <input type="text" id="ic-location" class="form-control" required>
+            <select id="ic-location" class="form-control"></select>
+            <input type="text" id="ic-location-new" class="form-control" placeholder="New location name..." style="display:none;margin-top:6px;">
         </div>
-        
+
         <div class="form-group">
             <label for="ic-sublocation">Sublocation:</label>
-            <input type="text" id="ic-sublocation" class="form-control">
+            <select id="ic-sublocation" class="form-control"></select>
+            <input type="text" id="ic-sublocation-new" class="form-control" placeholder="New sublocation name..." style="display:none;margin-top:6px;">
         </div>
-        
+
         <div class="form-group">
-            <label for="ic-providers">Providers (comma-separated):</label>
-            <input type="text" id="ic-providers" class="form-control" placeholder="Provider 1, Provider 2, etc.">
+            <label>Providers:</label>
+            <div id="ic-providers-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+            <select id="ic-providers-select" class="form-control"><option value="">+ Add provider...</option></select>
+            <input type="text" id="ic-providers-new" class="form-control" placeholder="New provider name..." style="display:none;margin-top:6px;">
+            <input type="hidden" id="ic-providers">
         </div>
         
         <div class="button-group">
