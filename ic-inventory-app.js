@@ -440,7 +440,55 @@ document.addEventListener('DOMContentLoaded', function() {
             return dateString;
         }
     }
-    
+
+    // Log activity changes to Firebase
+    function logActivityChange(item, oldValue, newValue, actionType) {
+        if (window.firebaseDb && typeof window.firebaseDb.saveIcActivityLog === 'function') {
+            const activity = {
+                timestamp: new Date().toISOString(),
+                user: currentStaff,
+                itemId: item.id,
+                itemName: item.name,
+                location: item.location,
+                sublocation: item.sublocation,
+                actionType: actionType,
+                oldValue: oldValue,
+                newValue: newValue,
+                unit: item.unit
+            };
+
+            window.firebaseDb.saveIcActivityLog(activity)
+                .catch(error => {
+                    console.error("Error logging activity:", error);
+                });
+        }
+    }
+
+    // Unified save function for all IC data
+    function saveData(specificItem) {
+        // Always save to localStorage as backup
+        localStorage.setItem('icItems', JSON.stringify(window.icItems));
+
+        // Save to Firebase if available
+        if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
+            window.firebaseDb.saveAllIcItems(window.icItems)
+                .catch(error => {
+                    console.error("Error saving to Firebase:", error);
+                    if (typeof showMessage === 'function') {
+                        showMessage("Failed to save data to server.", "error");
+                    }
+                });
+        } else if (window.firebaseDb && window.firebaseDb.saveIcItem && specificItem) {
+            window.firebaseDb.saveIcItem(specificItem)
+                .catch(error => {
+                    console.error("Error saving item:", error);
+                    if (typeof showMessage === 'function') {
+                        showMessage("Failed to save item to server.", "error");
+                    }
+                });
+        }
+    }
+
     // Update overview table
     function updateOverviewTable() {
         const overviewTableBody = document.getElementById('overview-table-body');
@@ -1856,7 +1904,217 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return values;
     }
-    
+
+    // Reusable touch slider creation function
+    function createTouchSlider(options) {
+        const {
+            containerId, // Container element ID or element
+            valueDisplayId, // Element to display current value
+            handleId, // Slider handle element
+            progressId, // Progress bar element
+            ticksId, // Ticks container element
+            decreaseId, // Decrease button ID
+            increaseId, // Increase button ID
+            hiddenInputId, // Hidden input to store value
+            initialValue = 0, // Starting value
+            minValue = 0, // Minimum value
+            maxValue = 20 // Maximum value
+        } = options;
+
+        // DOM elements
+        const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
+        const valueDisplay = document.getElementById(valueDisplayId);
+        const handle = document.getElementById(handleId);
+        const progress = document.getElementById(progressId);
+        const ticksContainer = document.getElementById(ticksId);
+        const decreaseBtn = document.getElementById(decreaseId);
+        const increaseBtn = document.getElementById(increaseId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+
+        if (!container || !valueDisplay || !handle || !progress || !ticksContainer) {
+            console.error('Missing required elements for slider');
+            return null;
+        }
+
+        // Generate values array with the right increments
+        const values = [];
+        for (let i = 0; i <= 12; i++) {
+            values.push(i * 0.25); // 0 to 3 in 0.25 increments
+        }
+        for (let i = 4; i <= maxValue; i++) {
+            values.push(i); // 4 to 20 in increments of 1
+        }
+
+        // Instance-specific state
+        let currentValue = findClosestValue(initialValue, values);
+        let isDragging = false;
+
+        // Find closest value in values array
+        function findClosestValue(value, valueArray) {
+            // Find exact match first
+            const exactIndex = valueArray.indexOf(value);
+            if (exactIndex !== -1) return value;
+
+            // Find closest value
+            let closest = valueArray[0];
+            let closestDiff = Math.abs(value - closest);
+
+            for (const v of valueArray) {
+                const diff = Math.abs(value - v);
+                if (diff < closestDiff) {
+                    closestDiff = diff;
+                    closest = v;
+                }
+            }
+            return closest;
+        }
+
+        // Update the slider display
+        function updateSlider() {
+            const valueIndex = values.indexOf(currentValue);
+            const percentage = valueIndex / (values.length - 1) * 100;
+
+            handle.style.left = `${percentage}%`;
+            progress.style.width = `${percentage}%`;
+
+            // Format display value (show 2 decimal places for values < 3)
+            valueDisplay.textContent = currentValue < 3 ? currentValue.toFixed(2) : currentValue.toFixed(0);
+
+            // Update hidden input if provided
+            if (hiddenInput) {
+                hiddenInput.value = currentValue;
+                // Trigger change event
+                const event = new Event('change');
+                hiddenInput.dispatchEvent(event);
+            }
+        }
+
+        // Create tick marks
+        function createTicks() {
+            // Clear existing ticks
+            ticksContainer.innerHTML = '';
+
+            values.forEach((val, index) => {
+                const percentage = index / (values.length - 1) * 100;
+
+                // Create tick mark
+                const tick = document.createElement('div');
+                tick.className = val % 1 === 0 ? 'tick major' : 'tick';
+                tick.style.left = `${percentage}%`;
+                ticksContainer.appendChild(tick);
+
+                // Add labels for whole numbers (but not for every number to avoid crowding)
+                if (val % 1 === 0 && (val <= 3 || val % 2 === 0)) {
+                    const label = document.createElement('div');
+                    label.className = 'tick-label';
+                    label.textContent = val;
+                    label.style.left = `${percentage}%`;
+                    ticksContainer.appendChild(label);
+                }
+            });
+        }
+
+        // Event handlers
+        function startDragging(e) {
+            isDragging = true;
+            e.preventDefault();
+        }
+
+        function stopDragging() {
+            isDragging = false;
+        }
+
+        function handleMove(event) {
+            if (!isDragging) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const clientX = event.type.includes('touch') ?
+                event.touches[0].clientX : event.clientX;
+            let percentage = (clientX - containerRect.left) / containerRect.width;
+
+            // Clamp percentage
+            percentage = Math.max(0, Math.min(percentage, 1));
+
+            // Find closest value
+            const valueIndex = Math.round(percentage * (values.length - 1));
+            currentValue = values[valueIndex];
+
+            updateSlider();
+            event.preventDefault();
+        }
+
+        function handleClick(event) {
+            if (event.target === handle) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const percentage = (event.clientX - containerRect.left) / containerRect.width;
+
+            // Find closest value
+            const valueIndex = Math.round(percentage * (values.length - 1));
+            currentValue = values[valueIndex];
+
+            updateSlider();
+        }
+
+        function decreaseValue() {
+            const currentIndex = values.indexOf(currentValue);
+            if (currentIndex > 0) {
+                currentValue = values[currentIndex - 1];
+                updateSlider();
+            }
+        }
+
+        function increaseValue() {
+            const currentIndex = values.indexOf(currentValue);
+            if (currentIndex < values.length - 1) {
+                currentValue = values[currentIndex + 1];
+                updateSlider();
+            }
+        }
+
+        // Set up event handlers
+        handle.addEventListener('mousedown', startDragging);
+        handle.addEventListener('touchstart', startDragging);
+
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('touchmove', handleMove, { passive: false });
+
+        document.addEventListener('mouseup', stopDragging);
+        document.addEventListener('touchend', stopDragging);
+
+        container.addEventListener('click', handleClick);
+
+        if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseValue);
+        if (increaseBtn) increaseBtn.addEventListener('click', increaseValue);
+
+        // Initialize
+        createTicks();
+        updateSlider();
+
+        // Return an API for external control
+        return {
+            setValue: function(value) {
+                currentValue = findClosestValue(value, values);
+                updateSlider();
+            },
+            getValue: function() {
+                return currentValue;
+            },
+            destroy: function() {
+                // Remove event listeners
+                handle.removeEventListener('mousedown', startDragging);
+                handle.removeEventListener('touchstart', startDragging);
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('touchmove', handleMove);
+                document.removeEventListener('mouseup', stopDragging);
+                document.removeEventListener('touchend', stopDragging);
+                container.removeEventListener('click', handleClick);
+                if (decreaseBtn) decreaseBtn.removeEventListener('click', decreaseValue);
+                if (increaseBtn) increaseBtn.removeEventListener('click', increaseValue);
+            }
+        };
+    }
+
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
         SoundFX.pop();
@@ -1917,21 +2175,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize the slider after the modal is added to DOM
         setTimeout(() => {
-            if (typeof createTouchSlider === 'function') {
-                modalSlider = createTouchSlider({
-                    containerId: content.querySelector('.slider-container'),
-                    valueDisplayId: 'modal-current-value',
-                    handleId: 'modal-handle',
-                    progressId: 'modal-progress',
-                    ticksId: 'modal-ticks',
-                    decreaseId: 'modal-decrease',
-                    increaseId: 'modal-increase',
-                    hiddenInputId: 'modal-current-level',
-                    initialValue: item.currentLevel
-                });
-            } else {
-                console.error('createTouchSlider function not found');
-            }
+            modalSlider = createTouchSlider({
+                containerId: content.querySelector('.slider-container'),
+                valueDisplayId: 'modal-current-value',
+                handleId: 'modal-handle',
+                progressId: 'modal-progress',
+                ticksId: 'modal-ticks',
+                decreaseId: 'modal-decrease',
+                increaseId: 'modal-increase',
+                hiddenInputId: 'modal-current-level',
+                initialValue: item.currentLevel
+            });
         }, 0);
         
         // Cancel button
