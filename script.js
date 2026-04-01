@@ -2009,6 +2009,10 @@ function completeTask(task) {
     const staffName = currentStaff || 'Unknown';
     task.lastCompletedAt = now;
     task.lastCompletedBy = staffName;
+    // Clear forceDisplay so completed task doesn't stay in todo list
+    if (task.forceDisplay) {
+        task.forceDisplay = false;
+    }
     window.firebaseDb.saveTask(task);
     window.firebaseDb.saveActivityLog({
         timestamp: now,
