@@ -313,6 +313,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="action-button" id="add-item-to-location">Add Item to ${currentLocation}</button>
                 </div>
             `;
+
+            // Add event listener to the add item button
+            const addItemButton = document.getElementById('add-item-to-location');
+            if (addItemButton) {
+                addItemButton.addEventListener('click', showAddNewItemModal);
+            }
+
             return;
         }
         
@@ -418,6 +425,19 @@ document.addEventListener('DOMContentLoaded', function() {
             spacer.style.height = '20px';
             inventoryContent.appendChild(spacer);
         });
+
+        // Add "Add New Item" button at the bottom
+        const addButtonContainer = document.createElement('div');
+        addButtonContainer.style.textAlign = 'center';
+        addButtonContainer.style.marginTop = '20px';
+
+        const addButton = document.createElement('button');
+        addButton.className = 'action-button';
+        addButton.innerHTML = `<i class="fas fa-plus"></i> Add New Item to ${currentLocation}`;
+        addButton.addEventListener('click', showAddNewItemModal);
+
+        addButtonContainer.appendChild(addButton);
+        inventoryContent.appendChild(addButtonContainer);
     }
     
     // Format date nicely
@@ -2282,6 +2302,511 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.appendChild(content);
     }
     
+    // Show the modal for adding a new item
+    function showAddNewItemModal() {
+        // Create modal backdrop
+        const modalBackdrop = document.createElement('div');
+        modalBackdrop.className = 'modal-backdrop';
+        modalBackdrop.style.position = 'fixed';
+        modalBackdrop.style.top = '0';
+        modalBackdrop.style.left = '0';
+        modalBackdrop.style.width = '100%';
+        modalBackdrop.style.height = '100%';
+        modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        modalBackdrop.style.display = 'flex';
+        modalBackdrop.style.justifyContent = 'center';
+        modalBackdrop.style.alignItems = 'center';
+        modalBackdrop.style.zIndex = '1001';
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.backgroundColor = 'white';
+        modalContent.style.padding = '20px';
+        modalContent.style.borderRadius = '5px';
+        modalContent.style.width = '90%';
+        modalContent.style.maxWidth = '500px';
+        modalContent.style.maxHeight = '90vh';
+        modalContent.style.overflowY = 'auto';
+
+        // Create modal header
+        const modalHeader = document.createElement('div');
+        modalHeader.style.marginBottom = '20px';
+        modalHeader.innerHTML = `
+            <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Add New I&C Item</h3>
+            <p style="margin: 8px 0 0 0; color: var(--text-medium);">
+                Create a new ingredients & consumables tracking item
+            </p>
+        `;
+
+        // Create form fields
+        const formFields = document.createElement('div');
+        formFields.style.display = 'grid';
+        formFields.style.gap = '15px';
+
+        // Generate a new ID (max ID + 1)
+        const newId = window.icItems.length > 0
+            ? Math.max(...window.icItems.map(item => item.id)) + 1
+            : 1;
+
+        // Helper function to create a form group
+        function createFormGroup(id, label, type = 'text', value = '', required = true, placeholder = '') {
+            const group = document.createElement('div');
+            group.style.display = 'flex';
+            group.style.flexDirection = 'column';
+            group.style.gap = '5px';
+
+            const labelEl = document.createElement('label');
+            labelEl.htmlFor = id;
+            labelEl.textContent = label;
+            labelEl.style.fontWeight = '500';
+
+            const input = document.createElement('input');
+            input.type = type;
+            input.id = id;
+            input.value = value;
+            input.required = required;
+            input.placeholder = placeholder;
+            input.style.padding = '10px';
+            input.style.borderRadius = '4px';
+            input.style.border = '1px solid var(--border-light)';
+
+            group.appendChild(labelEl);
+            group.appendChild(input);
+
+            return group;
+        }
+
+        // Helper function to create a select group
+        function createSelectGroup(id, label, options, value = '', required = true) {
+            const group = document.createElement('div');
+            group.style.display = 'flex';
+            group.style.flexDirection = 'column';
+            group.style.gap = '5px';
+
+            const labelEl = document.createElement('label');
+            labelEl.htmlFor = id;
+            labelEl.textContent = label;
+            labelEl.style.fontWeight = '500';
+
+            const select = document.createElement('select');
+            select.id = id;
+            select.required = required;
+            select.style.padding = '10px';
+            select.style.borderRadius = '4px';
+            select.style.border = '1px solid var(--border-light)';
+
+            // Add options
+            options.forEach(option => {
+                const optionEl = document.createElement('option');
+                optionEl.value = option;
+                optionEl.textContent = option;
+
+                if (option === value) {
+                    optionEl.selected = true;
+                }
+
+                select.appendChild(optionEl);
+            });
+
+            group.appendChild(labelEl);
+            group.appendChild(select);
+
+            return group;
+        }
+
+        // ID field (hidden)
+        const idField = document.createElement('input');
+        idField.type = 'hidden';
+        idField.id = 'new-item-id';
+        idField.value = newId;
+        formFields.appendChild(idField);
+
+        // Name field
+        formFields.appendChild(createFormGroup('new-item-name', 'Item Name *', 'text', '', true, 'Enter item name'));
+
+        // Current level field
+        formFields.appendChild(createFormGroup('new-item-current', 'Current Level *', 'number', '0', true, '0'));
+
+        // Target level field
+        formFields.appendChild(createFormGroup('new-item-target', 'Target Level *', 'number', '1', true, '1'));
+
+        // Unit field
+        formFields.appendChild(createFormGroup('new-item-unit', 'Unit *', 'text', 'units', true, 'units, bottles, kg, etc.'));
+
+        // Location field - with both dropdown of existing and option to create new
+        const locationGroup = document.createElement('div');
+        locationGroup.style.display = 'flex';
+        locationGroup.style.flexDirection = 'column';
+        locationGroup.style.gap = '5px';
+
+        const locationLabel = document.createElement('label');
+        locationLabel.htmlFor = 'new-item-location';
+        locationLabel.textContent = 'Location *';
+        locationLabel.style.fontWeight = '500';
+
+        const locationSelect = document.createElement('select');
+        locationSelect.id = 'new-item-location';
+        locationSelect.required = true;
+        locationSelect.style.padding = '10px';
+        locationSelect.style.borderRadius = '4px';
+        locationSelect.style.border = '1px solid var(--border-light)';
+
+        // First option is to create a new location
+        const newLocationOption = document.createElement('option');
+        newLocationOption.value = 'new';
+        newLocationOption.textContent = '+ Add New Location';
+        locationSelect.appendChild(newLocationOption);
+
+        // Add existing locations
+        [...allLocations].filter(loc => loc !== 'All').sort().forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+
+            // Preselect current location if not "All"
+            if (location === currentLocation && currentLocation !== 'All') {
+                option.selected = true;
+            }
+
+            locationSelect.appendChild(option);
+        });
+
+        // New location input (hidden initially)
+        const newLocationInput = document.createElement('input');
+        newLocationInput.type = 'text';
+        newLocationInput.id = 'new-location-input';
+        newLocationInput.placeholder = 'Enter new location name';
+        newLocationInput.style.padding = '10px';
+        newLocationInput.style.borderRadius = '4px';
+        newLocationInput.style.border = '1px solid var(--border-light)';
+        newLocationInput.style.marginTop = '8px';
+        newLocationInput.style.display = 'none';
+
+        // Show/hide new location input based on selection
+        locationSelect.addEventListener('change', () => {
+            if (locationSelect.value === 'new') {
+                newLocationInput.style.display = 'block';
+                newLocationInput.required = true;
+
+                // Also update sublocation options
+                updateSublocationSelect(null);
+            } else {
+                newLocationInput.style.display = 'none';
+                newLocationInput.required = false;
+
+                // Update sublocation options for the selected location
+                updateSublocationSelect(locationSelect.value);
+            }
+        });
+
+        locationGroup.appendChild(locationLabel);
+        locationGroup.appendChild(locationSelect);
+        locationGroup.appendChild(newLocationInput);
+
+        formFields.appendChild(locationGroup);
+
+        // Sublocation field - with both dropdown of existing and option to create new
+        const sublocationGroup = document.createElement('div');
+        sublocationGroup.style.display = 'flex';
+        sublocationGroup.style.flexDirection = 'column';
+        sublocationGroup.style.gap = '5px';
+
+        const sublocationLabel = document.createElement('label');
+        sublocationLabel.htmlFor = 'new-item-sublocation';
+        sublocationLabel.textContent = 'Sublocation';
+        sublocationLabel.style.fontWeight = '500';
+
+        const sublocationSelect = document.createElement('select');
+        sublocationSelect.id = 'new-item-sublocation';
+        sublocationSelect.style.padding = '10px';
+        sublocationSelect.style.borderRadius = '4px';
+        sublocationSelect.style.border = '1px solid var(--border-light)';
+
+        // Function to update sublocation options based on selected location
+        function updateSublocationSelect(location) {
+            sublocationSelect.innerHTML = '';
+
+            // First option is for no sublocation
+            const noSublocationOption = document.createElement('option');
+            noSublocationOption.value = '';
+            noSublocationOption.textContent = 'General (No Sublocation)';
+            sublocationSelect.appendChild(noSublocationOption);
+
+            // Next option is to create a new sublocation
+            const newSublocationOption = document.createElement('option');
+            newSublocationOption.value = 'new';
+            newSublocationOption.textContent = '+ Add New Sublocation';
+            sublocationSelect.appendChild(newSublocationOption);
+
+            // Add existing sublocations for selected location
+            if (location && allSublocations.has(location)) {
+                [...allSublocations.get(location)].sort().forEach(sublocation => {
+                    const option = document.createElement('option');
+                    option.value = sublocation;
+                    option.textContent = sublocation;
+                    sublocationSelect.appendChild(option);
+                });
+            }
+
+            // Update the display of new sublocation input
+            if (sublocationSelect.value === 'new') {
+                newSublocationInput.style.display = 'block';
+            } else {
+                newSublocationInput.style.display = 'none';
+            }
+        }
+
+        // New sublocation input (hidden initially)
+        const newSublocationInput = document.createElement('input');
+        newSublocationInput.type = 'text';
+        newSublocationInput.id = 'new-sublocation-input';
+        newSublocationInput.placeholder = 'Enter new sublocation name';
+        newSublocationInput.style.padding = '10px';
+        newSublocationInput.style.borderRadius = '4px';
+        newSublocationInput.style.border = '1px solid var(--border-light)';
+        newSublocationInput.style.marginTop = '8px';
+        newSublocationInput.style.display = 'none';
+
+        // Show/hide new sublocation input based on selection
+        sublocationSelect.addEventListener('change', () => {
+            if (sublocationSelect.value === 'new') {
+                newSublocationInput.style.display = 'block';
+                newSublocationInput.required = true;
+            } else {
+                newSublocationInput.style.display = 'none';
+                newSublocationInput.required = false;
+            }
+        });
+
+        sublocationGroup.appendChild(sublocationLabel);
+        sublocationGroup.appendChild(sublocationSelect);
+        sublocationGroup.appendChild(newSublocationInput);
+
+        formFields.appendChild(sublocationGroup);
+
+        // Initialize sublocation options
+        updateSublocationSelect(currentLocation !== 'All' ? currentLocation : null);
+
+        // Providers section
+        const providersGroup = document.createElement('div');
+        providersGroup.style.display = 'flex';
+        providersGroup.style.flexDirection = 'column';
+        providersGroup.style.gap = '5px';
+        providersGroup.style.marginTop = '10px';
+
+        const providersLabel = document.createElement('label');
+        providersLabel.textContent = 'Providers';
+        providersLabel.style.fontWeight = '500';
+
+        const providersChips = document.createElement('div');
+        providersChips.className = 'provider-chips';
+        providersChips.id = 'providers-chips';
+
+        const addProviderInput = document.createElement('div');
+        addProviderInput.className = 'add-provider-input';
+
+        const providerInput = document.createElement('input');
+        providerInput.type = 'text';
+        providerInput.id = 'provider-input';
+        providerInput.placeholder = 'Add a provider';
+
+        const addProviderButton = document.createElement('button');
+        addProviderButton.textContent = 'Add';
+        addProviderButton.type = 'button';
+
+        // Current providers array
+        const providers = [];
+
+        // Function to add a provider
+        function addProvider() {
+            const providerName = providerInput.value.trim();
+            if (providerName && !providers.includes(providerName)) {
+                providers.push(providerName);
+                updateProviderChips();
+                providerInput.value = '';
+            }
+        }
+
+        // Function to update provider chips display
+        function updateProviderChips() {
+            providersChips.innerHTML = '';
+
+            providers.forEach(provider => {
+                const chip = document.createElement('div');
+                chip.className = 'provider-chip';
+
+                const chipText = document.createElement('span');
+                chipText.textContent = provider;
+
+                const removeButton = document.createElement('button');
+                removeButton.className = 'remove-provider';
+                removeButton.textContent = '\u00d7';
+                removeButton.addEventListener('click', () => {
+                    const index = providers.indexOf(provider);
+                    if (index !== -1) {
+                        providers.splice(index, 1);
+                        updateProviderChips();
+                    }
+                });
+
+                chip.appendChild(chipText);
+                chip.appendChild(removeButton);
+                providersChips.appendChild(chip);
+            });
+        }
+
+        // Add event listeners
+        addProviderButton.addEventListener('click', addProvider);
+        providerInput.addEventListener('keypress', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addProvider();
+            }
+        });
+
+        addProviderInput.appendChild(providerInput);
+        addProviderInput.appendChild(addProviderButton);
+
+        providersGroup.appendChild(providersLabel);
+        providersGroup.appendChild(providersChips);
+        providersGroup.appendChild(addProviderInput);
+
+        formFields.appendChild(providersGroup);
+
+        // Create buttons
+        const buttonGroup = document.createElement('div');
+        buttonGroup.style.display = 'flex';
+        buttonGroup.style.justifyContent = 'space-between';
+        buttonGroup.style.marginTop = '20px';
+        buttonGroup.style.gap = '10px';
+
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Save Item';
+        saveButton.className = 'action-button';
+        saveButton.style.flex = '1';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.className = 'secondary-button';
+        cancelButton.style.flex = '1';
+
+        buttonGroup.appendChild(cancelButton);
+        buttonGroup.appendChild(saveButton);
+
+        // Add all elements to modal
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(formFields);
+        modalContent.appendChild(buttonGroup);
+        modalBackdrop.appendChild(modalContent);
+
+        // Add to document
+        document.body.appendChild(modalBackdrop);
+
+        // Function to close modal
+        function closeModal() {
+            document.body.removeChild(modalBackdrop);
+        }
+
+        // Save button event
+        saveButton.addEventListener('click', () => {
+            // Validate form fields
+            const name = document.getElementById('new-item-name').value.trim();
+            const currentLevel = parseFloat(document.getElementById('new-item-current').value);
+            const targetLevel = parseFloat(document.getElementById('new-item-target').value);
+            const unit = document.getElementById('new-item-unit').value.trim();
+
+            // Get location
+            let location;
+            if (locationSelect.value === 'new') {
+                location = newLocationInput.value.trim();
+            } else {
+                location = locationSelect.value;
+            }
+
+            // Get sublocation
+            let sublocation = '';
+            if (sublocationSelect.value === 'new') {
+                sublocation = newSublocationInput.value.trim();
+            } else if (sublocationSelect.value !== '') {
+                sublocation = sublocationSelect.value;
+            }
+
+            // Validation
+            if (!name) {
+                alert('Please enter an item name');
+                return;
+            }
+
+            if (isNaN(currentLevel) || currentLevel < 0) {
+                alert('Current level must be a valid number (0 or greater)');
+                return;
+            }
+
+            if (isNaN(targetLevel) || targetLevel <= 0) {
+                alert('Target level must be a valid number (greater than 0)');
+                return;
+            }
+
+            if (!unit) {
+                alert('Please enter a unit');
+                return;
+            }
+
+            if (!location) {
+                alert('Please select or enter a location');
+                return;
+            }
+
+            // Create new item object
+            const newItem = {
+                id: parseInt(document.getElementById('new-item-id').value),
+                name: name,
+                currentLevel: currentLevel,
+                targetLevel: targetLevel,
+                unit: unit,
+                location: location,
+                sublocation: sublocation,
+                providers: providers,
+                lastCheckedTime: new Date().toISOString(),
+                lastCheckedBy: currentStaff,
+                displayOrder: window.icItems.length > 0 ? Math.max(...window.icItems.map(item => item.displayOrder || 0)) + 1 : 1
+            };
+
+            // Add to icItems array
+            window.icItems.push(newItem);
+
+            // Save to Firebase and local storage
+            saveData();
+
+            // Log the activity
+            logActivityChange(newItem, null, newItem.currentLevel, 'add');
+
+            // Extract locations and update UI
+            extractLocationsAndSublocations();
+            updateLocationFilters();
+            updateInventoryTables();
+            updateLowStockList();
+            updateStats();
+
+            // Show success message
+            showMessage(`New item "${name}" added successfully`, "success");
+
+            // Close modal
+            closeModal();
+        });
+
+        // Cancel button event
+        cancelButton.addEventListener('click', closeModal);
+
+        // Close on backdrop click
+        modalBackdrop.addEventListener('click', (event) => {
+            if (event.target === modalBackdrop) {
+                closeModal();
+            }
+        });
+    }
+
     // Check and purge old I&C activity logs (older than 2 months)
     function checkAndPurgeOldHistory() {
         // Check if we've already done purge check this session
