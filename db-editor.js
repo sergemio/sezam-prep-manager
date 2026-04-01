@@ -165,7 +165,7 @@ function initApp() {
     // Set up real-time updates
     if (window.firebaseDb) {
         window.firebaseDb.onItemsChange((updatedItems) => {
-            if (updatedItems && updatedItems.length > 0) {
+            if (updatedItems) {
                 prepItems = updatedItems;
                 sortPrepItems();
                 renderItemsTable();

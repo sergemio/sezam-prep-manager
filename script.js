@@ -410,8 +410,12 @@ function initApp() {
                     updateStats();
                     
                 } else {
-                    // If Firebase returns empty, try loading from localStorage as fallback
-                    loadLocalData();
+                    // Firebase returned empty — DB is genuinely empty, don't resurrect from cache
+                    prepItems = [];
+                    localStorage.setItem('prepItems', JSON.stringify(prepItems));
+                    updateInventoryTable();
+                    updateTodoList();
+                    updateStats();
                 }
                 
                 // Hide loading indicator regardless of data source
@@ -427,8 +431,8 @@ function initApp() {
         // 2. Set up real-time listeners for ongoing updates
         window.firebaseDb.onItemsChange((updatedItems) => {
 
-            if (updatedItems && updatedItems.length > 0) {
-                // Only update if we have valid data
+            if (updatedItems) {
+                // Update with whatever Firebase returns (including empty arrays)
                 prepItems = updatedItems;
 
                 // IMPORTANT: Sort by displayOrder using the helper function

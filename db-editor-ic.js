@@ -276,7 +276,7 @@ if (e.target === icEditForm) {
     // Set up real-time updates
     if (window.firebaseDb && window.firebaseDb.onIcItemsChange) {
 window.firebaseDb.onIcItemsChange((updatedIcItems) => {
-    if (updatedIcItems && updatedIcItems.length > 0) {
+    if (updatedIcItems) {
         icItems = updatedIcItems;
         sortIcItems();
         renderIcItemsTable();
