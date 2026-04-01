@@ -122,6 +122,7 @@ function loadStaffMembers() {
                         // Add click event
                         button.addEventListener('click', () => {
                             currentStaff = staff.name;
+                            localStorage.setItem('currentStaff', staff.name);
                             showUserSwitchToast(staff.name);
                             showMainInterface();
                         });
@@ -172,6 +173,7 @@ function createDefaultStaffButtons() {
         // Add click event
         button.addEventListener('click', () => {
             currentStaff = staffName;
+            localStorage.setItem('currentStaff', staffName);
             showMainInterface();
         });
         
@@ -330,8 +332,8 @@ function initApp() {
         dateBadge.textContent = days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()];
     }
 
-    // Set Serge Men as the default user
-    currentStaff = 'Serge Men';
+    // Restore last user from localStorage, or default to Serge Men
+    currentStaff = localStorage.getItem('currentStaff') || 'Serge Men';
 
     // Show main interface directly
     showMainInterface();
@@ -2470,7 +2472,8 @@ function showPrepCheckStaffModal() {
         if (selectedStaffName) {
             // Update the current staff with the selected one
             currentStaff = selectedStaffName;
-            
+            localStorage.setItem('currentStaff', selectedStaffName);
+
             // Update UI to show selected staff
             if (currentUserElement) {
                 currentUserElement.textContent = currentStaff;
@@ -2680,6 +2683,7 @@ function toggleUserDropdown() {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             currentStaff = member.name;
+            localStorage.setItem('currentStaff', member.name);
             showUserSwitchToast(member.name);
             showMainInterface();
             dropdown.remove();
@@ -2715,6 +2719,7 @@ function toggleModalUserDropdown(btn) {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             currentStaff = member.name;
+            localStorage.setItem('currentStaff', member.name);
             showUserSwitchToast(member.name);
             btn.innerHTML = `${member.name} <span style="font-size: 12px;">▼</span>`;
             dropdown.remove();
