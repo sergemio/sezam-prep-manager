@@ -1740,6 +1740,32 @@ function updateTodoList() {
 
     var hasChecklists = tasksContainer && tasksContainer.children.length > 0;
 
+    // Check if all actionable work is done (Can't Prep items don't count)
+    const actionableItems = todoItems.filter(e => !(e._type === 'prep' && e.data.canPrep === false));
+    const allActionableDone = actionableItems.length === 0 && !hasChecklists;
+
+    if (allActionableDone) {
+        todoListContainer.innerHTML = `
+            <div class="celebration-card">
+                <div class="celebration-confetti"></div>
+                <div class="celebration-check">&#10003;</div>
+                <div class="celebration-title">All done!</div>
+                <div class="celebration-sub">Great job, everything is prepped</div>
+            </div>`;
+        if (!window._celebrationShown) {
+            window._celebrationShown = true;
+            setTimeout(() => SoundFX.celebration(), 300);
+        }
+        // Still render Can't Prep items below the celebration if any
+        const cantPrepItems = todoItems.filter(e => e._type === 'prep' && e.data.canPrep === false);
+        cantPrepItems.forEach(entry => renderPrepTodoItem(entry.data));
+        generateStatusSummary(todoItems);
+        return;
+    }
+
+    // Reset celebration flag when there's work to do
+    window._celebrationShown = false;
+
     if (todoItems.length === 0 && !hasChecklists) {
         todoListContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
         generateStatusSummary(todoItems);

@@ -35,6 +35,21 @@ const SoundFX = (() => {
             playTone(800, 0.06, 'sine', 0.06, 0);
         },
 
+        // Victory fanfare — all preps done
+        celebration() {
+            // Fanfare: C5 E5 G5 → C6 chord with shimmer
+            playTone(523, 0.18, 'sine', 0.10, 0);       // C5
+            playTone(659, 0.18, 'sine', 0.10, 0.12);    // E5
+            playTone(784, 0.18, 'sine', 0.10, 0.24);    // G5
+            // Big resolve chord
+            playTone(1047, 0.5, 'sine', 0.13, 0.4);     // C6
+            playTone(1319, 0.5, 'sine', 0.09, 0.4);     // E6
+            playTone(1568, 0.5, 'sine', 0.07, 0.4);     // G6
+            // Sparkle top notes
+            playTone(2093, 0.3, 'sine', 0.05, 0.55);    // C7
+            playTone(2637, 0.25, 'sine', 0.03, 0.65);   // E7
+        },
+
         // Soft pop — modal open
         pop() {
             const ac = getCtx();
