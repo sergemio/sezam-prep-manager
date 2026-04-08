@@ -1825,7 +1825,7 @@ function generateStatusSummary(todoItems) {
 
     if (overdueTasks.length > 0) {
         const tags = overdueTasks.map(t =>
-            `<span class="summary-badge overdue">${t.name}</span> ${t.days} jour${t.days > 1 ? 's' : ''} late`
+            `<span class="summary-badge overdue">${t.name}</span> ${t.days} day${t.days > 1 ? 's' : ''} late`
         );
         lines.push(`<p class="summary-line urgent">${joinList(tags)} — overdue ⚠️</p>`);
     }
@@ -1956,7 +1956,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
     todoItem.style.borderLeftColor = isOverdue ? '#ef4444' : '#3b82f6';
     todoItem.innerHTML = `
         <div class="todo-item-name">${task.title}</div>
-        ${isOverdue ? '<div class="todo-item-detail">En retard (' + overdue + ' jour' + (overdue > 1 ? 's' : '') + ')</div>' : ''}
+        ${isOverdue ? '<div class="todo-item-detail">Overdue (' + overdue + ' day' + (overdue > 1 ? 's' : '') + ')</div>' : ''}
         <div class="todo-footer">
             <span class="todo-tag ${isOverdue ? 'overdue' : 'task'}">${isOverdue ? 'OVERDUE' : 'TASK'}</span>
         </div>
