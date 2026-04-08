@@ -2096,6 +2096,54 @@ function initTouchInput() {
     }
 }
 
+// Compute slider range and step from an item's target level.
+// Rules (from spec 2026-04-08-adaptive-slider-design.md):
+//   target <= 3     -> max = max(3, target*2), step 0.1
+//   target 4 or 5   -> max = target*2, step 0.5
+//   target > 5      -> max = ceil(target*1.5), step 1 (integers only)
+// If current > computed max, expand max to ceil(current * 1.2) so the
+// slider always includes the stored value.
+function computeSliderConfig(targetLevel, currentLevel) {
+    const target = parseFloat(targetLevel) || 0;
+    const current = parseFloat(currentLevel) || 0;
+
+    let max, step;
+    if (target <= 0) {
+        max = 20;
+        step = null; // null = use legacy mixed steps
+    } else if (target <= 3) {
+        max = Math.max(3, target * 2);
+        step = 0.1;
+    } else if (target <= 5) {
+        max = target * 2;
+        step = 0.5;
+    } else {
+        max = Math.ceil(target * 1.5);
+        step = 1;
+    }
+
+    if (current > max) {
+        max = Math.ceil(current * 1.2);
+    }
+
+    const values = [];
+    if (step === null) {
+        for (let i = 0; i <= 12; i++) values.push(i * 0.25);
+        for (let i = 4; i <= max; i++) values.push(i);
+    } else if (step === 1) {
+        for (let i = 0; i <= max; i++) values.push(i);
+    } else {
+        // Integer arithmetic to avoid float drift (0.1 + 0.2 problem)
+        const stepInt = Math.round(step * 10);
+        const maxInt = Math.round(max * 10);
+        for (let i = 0; i <= maxInt; i += stepInt) {
+            values.push(Math.round(i) / 10);
+        }
+    }
+
+    return { min: 0, max: max, step: step, values: values };
+}
+
 // Reusable touch slider creation function
 function createTouchSlider(options) {
     const {
