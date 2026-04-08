@@ -1569,8 +1569,12 @@ function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
     cantBtn.textContent = '\u2717';
     cantBtn.title = "Can't complete";
 
-    checkZone.addEventListener('click', function() {
-        if (isChecked || isCant) {
+    function handleCheckZoneTap(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        // Read current state from DOM (not stale closure)
+        var currentlyChecked = checkZone.classList.contains('checked');
+        var currentlyCant = checkZone.classList.contains('cant-complete');
+        if (currentlyChecked || currentlyCant) {
             helpers.clearItemStatus(dateKey, item.id);
             logChecklistAction('checklist-unchecked', type, item);
         } else {
@@ -1584,7 +1588,8 @@ function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
             setTimeout(function() { checkZone.classList.remove('just-checked'); }, 400);
             logChecklistAction('checklist-done', type, item);
         }
-    });
+    }
+    checkZone.addEventListener('click', handleCheckZoneTap);
 
     cantBtn.addEventListener('click', function(e) {
         e.stopPropagation();
