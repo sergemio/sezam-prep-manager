@@ -2156,8 +2156,7 @@ function createTouchSlider(options) {
         increaseId,
         hiddenInputId,
         initialValue = 0,
-        minValue = 0,
-        maxValue = 20
+        targetLevel = 0
     } = options;
 
 
@@ -2176,14 +2175,10 @@ function createTouchSlider(options) {
         return null;
     }
 
-    // Generate values array with the right increments
-    const values = [];
-    for (let i = 0; i <= 12; i++) {
-        values.push(i * 0.25); // 0 to 3 in 0.25 increments
-    }
-    for (let i = 4; i <= maxValue; i++) {
-        values.push(i); // 4 to 20 in increments of 1
-    }
+    // Adaptive range and step based on target level
+    let sliderConfig = computeSliderConfig(targetLevel, initialValue);
+    let values = sliderConfig.values;
+    let currentTarget = parseFloat(targetLevel) || 0;
 
     // Instance-specific state
     let currentValue = findClosestValue(parseFloat(initialValue) || 0, values);
@@ -2218,7 +2213,15 @@ function createTouchSlider(options) {
         progress.style.width = `${percentage}%`;
 
         // Format display value (show 2 decimal places for values < 3)
-        valueDisplay.textContent = currentValue < 3 ? currentValue.toFixed(2) : currentValue.toFixed(0);
+        // Format based on step: 0.1/0.5 → 1 decimal, integers → 0 decimal
+        if (sliderConfig.step === 0.1 || sliderConfig.step === 0.5) {
+            valueDisplay.textContent = currentValue.toFixed(1);
+        } else if (sliderConfig.step === 1) {
+            valueDisplay.textContent = currentValue.toFixed(0);
+        } else {
+            // Legacy fallback
+            valueDisplay.textContent = currentValue < 3 ? currentValue.toFixed(2) : currentValue.toFixed(0);
+        }
 
         // Update hidden input if provided
         if (hiddenInput) {
@@ -2243,8 +2246,15 @@ function createTouchSlider(options) {
             tick.style.left = `${percentage}%`;
             ticksContainer.appendChild(tick);
             
-            // Add labels for whole numbers (but not for every number to avoid crowding)
-            if (val % 1 === 0 && (val <= 3 || val % 2 === 0)) {
+            // Adaptive label interval to avoid crowding for large ranges
+            const max = sliderConfig.max;
+            let labelInterval;
+            if (max <= 4) labelInterval = 1;
+            else if (max <= 10) labelInterval = 2;
+            else if (max <= 20) labelInterval = 5;
+            else labelInterval = 10;
+
+            if (val % 1 === 0 && val % labelInterval === 0) {
                 const label = document.createElement('div');
                 label.className = 'tick-label';
                 label.textContent = val;
