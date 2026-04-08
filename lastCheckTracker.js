@@ -265,11 +265,36 @@ const LastCheckTracker = {
                 ? 'by ' + this.state.staffName
                 : '';
         }
-        // Optional color coding on the card (kept subtle to not clash with brand theme)
+        // Pastel background that shifts as time passes (stays readable)
         if (cardEl && this.state.lastCheckTimestamp) {
-            const color = this.getStatusColor(hours);
-            cardEl.style.borderLeft = '4px solid ' + color;
+            cardEl.style.borderLeft = '';
+            cardEl.style.background = this.getPastelBackground(hours);
         }
+    },
+
+    // Interpolate pastel background through green → yellow → orange → red
+    getPastelBackground(hours) {
+        // Pastel color stops (light enough to keep text readable)
+        const stops = [
+            { h: 0,  c1: [230, 247, 238], c2: [212, 240, 224] }, // green  #e6f7ee → #d4f0e0
+            { h: 3,  c1: [254, 249, 219], c2: [253, 243, 192] }, // yellow #fef9db → #fdf3c0
+            { h: 5,  c1: [255, 237, 213], c2: [254, 223, 186] }, // orange #ffedd5 → #fedfba
+            { h: 8,  c1: [254, 226, 226], c2: [252, 207, 207] }  // red    #fee2e2 → #fccfcf
+        ];
+        // Clamp to last stop if beyond
+        let lo = stops[0], hi = stops[stops.length - 1];
+        for (let i = 0; i < stops.length - 1; i++) {
+            if (hours >= stops[i].h && hours < stops[i + 1].h) {
+                lo = stops[i]; hi = stops[i + 1]; break;
+            }
+            if (hours >= stops[stops.length - 1].h) { lo = hi = stops[stops.length - 1]; }
+        }
+        const range = hi.h - lo.h;
+        const t = range === 0 ? 0 : Math.min(1, Math.max(0, (hours - lo.h) / range));
+        const lerp = (a, b) => Math.round(a + (b - a) * t);
+        const c1 = [lerp(lo.c1[0], hi.c1[0]), lerp(lo.c1[1], hi.c1[1]), lerp(lo.c1[2], hi.c1[2])];
+        const c2 = [lerp(lo.c2[0], hi.c2[0]), lerp(lo.c2[1], hi.c2[1]), lerp(lo.c2[2], hi.c2[2])];
+        return `linear-gradient(135deg, rgb(${c1.join(',')}) 0%, rgb(${c2.join(',')}) 100%)`;
     },
 
     // Start periodic updates
