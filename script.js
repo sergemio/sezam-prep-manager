@@ -2057,9 +2057,9 @@ function showCurrentPrepItem() {
     checkItemNameElement.textContent = item.name;
     checkItemTargetElement.innerHTML = `Target: <strong>${item.targetLevel}</strong> ${item.unit}`;
     
-    // Reset the slider to 0 using the slider API
+    // Reconfigure the slider for this item's target level
     if (prepCheckSlider) {
-        prepCheckSlider.setValue(0);
+        prepCheckSlider.reconfigure(item.targetLevel, 0);
     } else {
         // Fallback if slider isn't initialized yet
         currentLevelInput.value = '0';
@@ -2075,6 +2075,7 @@ function initTouchInput() {
     if (document.getElementById('current-value') && document.getElementById('handle')) {
         // Initialize the main prep check slider if not already done
         if (!prepCheckSlider) {
+            const firstItem = (typeof prepItems !== 'undefined' && prepItems.length) ? prepItems[0] : null;
             prepCheckSlider = createTouchSlider({
                 containerId: document.querySelector('.slider-container'),
                 valueDisplayId: 'current-value',
@@ -2084,7 +2085,8 @@ function initTouchInput() {
                 decreaseId: 'decrease',
                 increaseId: 'increase',
                 hiddenInputId: 'current-level-input',
-                initialValue: 0
+                initialValue: 0,
+                targetLevel: firstItem ? (parseFloat(firstItem.targetLevel) || 0) : 0
             });
         }
     }
@@ -2343,6 +2345,15 @@ function createTouchSlider(options) {
         },
         getValue: function() {
             return currentValue;
+        },
+        reconfigure: function(newTarget, newInitial) {
+            currentTarget = parseFloat(newTarget) || 0;
+            sliderConfig = computeSliderConfig(currentTarget, newInitial);
+            values = sliderConfig.values;
+            currentValue = findClosestValue(parseFloat(newInitial) || 0, values);
+            createTicks();
+            if (typeof renderTargetMarker === 'function') renderTargetMarker();
+            updateSlider();
         },
         destroy: function() {
             // Remove event listeners
