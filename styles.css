@@ -1113,6 +1113,30 @@ body {
     margin: 30px 0;
 }
 
+.slider-target-marker {
+    position: absolute;
+    top: 8px;
+    bottom: 24px;
+    width: 3px;
+    background: var(--primary-light, #8cc845);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+    box-shadow: 0 0 0 1px rgba(87, 124, 43, 0.4);
+}
+.slider-target-marker::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--primary-dark, #577c2b);
+}
+
 .slider-track {
     position: absolute;
     top: 50%;

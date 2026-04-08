@@ -2333,8 +2333,27 @@ function createTouchSlider(options) {
     if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseValue);
     if (increaseBtn) increaseBtn.addEventListener('click', increaseValue);
     
+    // Target marker element (reused across reconfigures)
+    let targetMarkerEl = null;
+    function renderTargetMarker() {
+        if (!currentTarget || currentTarget <= 0) {
+            if (targetMarkerEl) targetMarkerEl.style.display = 'none';
+            return;
+        }
+        if (!targetMarkerEl) {
+            targetMarkerEl = document.createElement('div');
+            targetMarkerEl.className = 'slider-target-marker';
+            container.appendChild(targetMarkerEl);
+        }
+        targetMarkerEl.style.display = '';
+        const pct = Math.min(100, Math.max(0, (currentTarget / sliderConfig.max) * 100));
+        targetMarkerEl.style.left = `calc(${pct}% - 1.5px)`;
+        targetMarkerEl.title = 'Target: ' + currentTarget;
+    }
+
     // Initialize
     createTicks();
+    renderTargetMarker();
     updateSlider();
     
     // Return an API for external control
