@@ -728,7 +728,11 @@ function showQuickUpdateModal(item, context = 'default') {
     modalHeader.appendChild(headerRow);
     const subtitleEl = document.createElement('p');
     subtitleEl.style.margin = '5px 0';
-    subtitleEl.textContent = `Current: ${item.currentLevel} ${item.unit}`;
+    subtitleEl.style.color = '#666';
+    subtitleEl.style.fontSize = '14px';
+    const targetStr = `Target: ${item.targetLevel} ${item.unit}`;
+    const currentStr = `Current: ${item.currentLevel} ${item.unit}`;
+    subtitleEl.innerHTML = `<strong>${targetStr}</strong> &nbsp;•&nbsp; ${currentStr}`;
     modalHeader.appendChild(subtitleEl);
 
     // Create input group with hidden input
