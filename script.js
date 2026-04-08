@@ -939,19 +939,13 @@ function showQuickUpdateModal(item, context = 'default') {
             decreaseId: 'modal-decrease',
             increaseId: 'modal-increase',
             hiddenInputId: 'modal-current-level',
-            initialValue: initialValue
+            initialValue: initialValue,
+            targetLevel: parseFloat(item.targetLevel) || 0
         });
 
-        // Force an immediate update after creation
+        // Force an immediate update after creation — setValue() calls updateSlider()
         if (modalSlider) {
             modalSlider.setValue(initialValue);
-            // Update the display value immediately
-            const displayElement = document.getElementById('modal-current-value');
-            if (displayElement) {
-                displayElement.textContent = initialValue < 3 ? 
-                    initialValue.toFixed(2) : 
-                    initialValue.toFixed(0);
-            }
         }
     }, 100);
     
