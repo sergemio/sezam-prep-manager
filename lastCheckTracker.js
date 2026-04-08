@@ -92,33 +92,9 @@ const LastCheckTracker = {
         }
     },
 
-    // Create the status element in the DOM
+    // Status element already exists in HTML (#last-check-card with #last-check-value and #last-check-by)
     createStatusElement() {
-        const statsGrid = document.querySelector('.stats-grid');
-        if (!statsGrid) return;
-
-        const statusCard = document.createElement('div');
-        statusCard.className = 'stat-card last-check-status';
-        statusCard.innerHTML = `
-            <div class="stat-label">Last Full Check</div>
-            <div class="stat-value" id="last-check-time">Never</div>
-        `;
-        statsGrid.appendChild(statusCard);
-
-        // Add styles
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            .last-check-status {
-                transition: background-color 0.3s ease;
-                flex: 1;
-            }
-            .last-check-status .stat-value {
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-        `;
-        document.head.appendChild(styleSheet);
+        // No-op: using existing HTML elements
     },
 
     // Load data with enhanced error handling
@@ -275,17 +251,25 @@ const LastCheckTracker = {
 
     // Update the display
     updateDisplay() {
-        const statusElement = document.getElementById('last-check-time');
-        if (!statusElement) return;
+        const valueEl = document.getElementById('last-check-value');
+        const byEl = document.getElementById('last-check-by');
+        const cardEl = document.getElementById('last-check-card');
+        if (!valueEl) return;
 
         const hours = this.getHoursSinceLastCheck();
-        const color = this.getStatusColor(hours);
         const timeText = this.formatTimeDisplay(hours);
 
-        statusElement.textContent = timeText;
-        statusElement.closest('.stat-card').style.backgroundColor = color;
-        // Add text color adjustment for better contrast
-        statusElement.closest('.stat-card').style.color = hours >= this.thresholds.orange ? '#fff' : '#000';
+        valueEl.textContent = timeText;
+        if (byEl) {
+            byEl.textContent = this.state.lastCheckTimestamp && this.state.staffName
+                ? 'by ' + this.state.staffName
+                : '';
+        }
+        // Optional color coding on the card (kept subtle to not clash with brand theme)
+        if (cardEl && this.state.lastCheckTimestamp) {
+            const color = this.getStatusColor(hours);
+            cardEl.style.borderLeft = '4px solid ' + color;
+        }
     },
 
     // Start periodic updates
