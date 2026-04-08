@@ -2009,8 +2009,8 @@ function showTaskModal(task) {
             <div><strong>Last done:</strong> ${lastDoneText}</div>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button id="task-done-btn" style="flex: 1; padding: 14px; background-color: #80b244; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Marquer comme fait</button>
-            <button id="task-close-btn" style="padding: 14px 20px; background-color: #e5e7eb; color: #333; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Fermer</button>
+            <button id="task-done-btn" style="flex: 1; padding: 14px; background-color: #80b244; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Mark as done &#10003;</button>
+            <button id="task-close-btn" style="padding: 14px 20px; background-color: #e5e7eb; color: #333; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Close</button>
         </div>
     `;
     const infoDiv = document.createElement('div');
