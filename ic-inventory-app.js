@@ -1643,9 +1643,13 @@ document.addEventListener('DOMContentLoaded', function() {
             currentValueDisplay.textContent = item.currentLevel;
         }
         
-        // Update slider if it exists
+        // Reconfigure slider for this item's target level
         if (window.countSlider) {
-            window.countSlider.setValue(item.currentLevel);
+            if (typeof window.countSlider.reconfigure === 'function') {
+                window.countSlider.reconfigure(item.targetLevel, item.currentLevel);
+            } else {
+                window.countSlider.setValue(item.currentLevel);
+            }
         }
     }
     
@@ -1739,401 +1743,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countInterface) countInterface.style.display = 'none';
     }
     
-    // Touch slider functionality
+    // Touch slider functionality — delegates to shared slider.js
     function initTouchSlider() {
-        // Create slider if not exists
-        if (!window.countSlider) {
-            const container = document.querySelector('.slider-container');
-            const handle = document.getElementById('handle');
-            const progress = document.getElementById('progress');
-            const ticks = document.getElementById('ticks');
-            
-            if (!container || !handle || !progress || !ticks) {
-                console.error("Missing slider elements");
-                return;
-            }
-            
-            // Initialize slider
-            window.countSlider = {
-                // Generate values array
-                values: generateValues(),
-                currentValue: parseFloat(currentLevelInput.value) || 0,
-                
-                // Initialize
-                init: function() {
-                    this.createTicks();
-                    this.updateDisplay();
-                    this.setupEvents();
-                },
-                
-                // Create tick marks
-                createTicks: function() {
-                    ticks.innerHTML = '';
-                    
-                    this.values.forEach((val, index) => {
-                        const percentage = index / (this.values.length - 1) * 100;
-                        
-                        const tick = document.createElement('div');
-                        tick.className = val % 1 === 0 ? 'tick major' : 'tick';
-                        tick.style.left = percentage + '%';
-                        ticks.appendChild(tick);
-                        
-                        // Add labels for whole numbers
-                        if (val % 1 === 0 && (val <= 3 || val % 2 === 0)) {
-                            const label = document.createElement('div');
-                            label.className = 'tick-label';
-                            label.textContent = val;
-                            label.style.left = percentage + '%';
-                            ticks.appendChild(label);
-                        }
-                    });
-                },
-                
-                // Update slider display
-                updateDisplay: function() {
-                    const valueIndex = this.values.indexOf(this.currentValue);
-                    const percentage = valueIndex / (this.values.length - 1) * 100;
-                    
-                    handle.style.left = percentage + '%';
-                    progress.style.width = percentage + '%';
-                    
-                    // Update text displays
-                    currentLevelInput.value = this.currentValue;
-                    currentValueDisplay.textContent = this.currentValue < 3 ? 
-                        this.currentValue.toFixed(2) : this.currentValue.toFixed(0);
-                },
-                
-                // Set value
-                setValue: function(value) {
-                    this.currentValue = this.findClosestValue(value);
-                    this.updateDisplay();
-                },
-                
-                // Find closest value in values array
-                findClosestValue: function(value) {
-                    const exactMatch = this.values.indexOf(value);
-                    if (exactMatch !== -1) return value;
-                    
-                    // Find closest
-                    let closest = this.values[0];
-                    let minDiff = Math.abs(value - closest);
-                    
-                    for (const v of this.values) {
-                        const diff = Math.abs(value - v);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            closest = v;
-                        }
-                    }
-                    
-                    return closest;
-                },
-                
-                // Set up event handlers
-                setupEvents: function() {
-                    // Decrease button
-                    const decreaseBtn = document.getElementById('decrease');
-                    if (decreaseBtn) {
-                        decreaseBtn.addEventListener('click', () => {
-                            const index = this.values.indexOf(this.currentValue);
-                            if (index > 0) {
-                                this.setValue(this.values[index - 1]);
-                            }
-                        });
-                    }
-                    
-                    // Increase button
-                    const increaseBtn = document.getElementById('increase');
-                    if (increaseBtn) {
-                        increaseBtn.addEventListener('click', () => {
-                            const index = this.values.indexOf(this.currentValue);
-                            if (index < this.values.length - 1) {
-                                this.setValue(this.values[index + 1]);
-                            }
-                        });
-                    }
-                    
-                    // Slider click
-                    container.addEventListener('click', (e) => {
-                        if (e.target === handle) return;
-                        
-                        const rect = container.getBoundingClientRect();
-                        const percentage = (e.clientX - rect.left) / rect.width;
-                        const index = Math.round(percentage * (this.values.length - 1));
-                        
-                        this.setValue(this.values[index]);
-                    });
-                    
-                    // Drag functionality
-                    let isDragging = false;
-                    
-                    handle.addEventListener('mousedown', startDrag);
-                    handle.addEventListener('touchstart', startDrag);
-                    
-                    document.addEventListener('mousemove', onDrag);
-                    document.addEventListener('touchmove', onDrag);
-                    
-                    document.addEventListener('mouseup', endDrag);
-                    document.addEventListener('touchend', endDrag);
-                    
-                    function startDrag(e) {
-                        e.preventDefault();
-                        isDragging = true;
-                    }
-                    
-                    const that = this;
-                    function onDrag(e) {
-                        if (!isDragging) return;
-                        
-                        const rect = container.getBoundingClientRect();
-                        const clientX = e.type.includes('touch') ? 
-                            e.touches[0].clientX : e.clientX;
-                        
-                        const percentage = Math.max(0, Math.min((clientX - rect.left) / rect.width, 1));
-                        const index = Math.round(percentage * (that.values.length - 1));
-                        
-                        that.setValue(that.values[index]);
-                        
-                        e.preventDefault();
-                    }
-                    
-                    function endDrag() {
-                        isDragging = false;
-                    }
-                }
-            };
-            
-            // Initialize slider
-            window.countSlider.init();
-        }
+        if (window.countSlider) return; // already initialised
+        const firstItem = countQueue[0] || null;
+        window.countSlider = window.createTouchSlider({
+            containerId: document.querySelector('.slider-container'),
+            valueDisplayId: 'current-value',
+            handleId: 'handle',
+            progressId: 'progress',
+            ticksId: 'ticks',
+            decreaseId: 'decrease',
+            increaseId: 'increase',
+            hiddenInputId: 'current-level-input',
+            initialValue: firstItem ? (parseFloat(firstItem.currentLevel) || 0) : 0,
+            targetLevel: firstItem ? (parseFloat(firstItem.targetLevel) || 0) : 0
+        });
     }
     
-    // Generate values array for slider
-    function generateValues() {
-        const values = [];
-        
-        // 0 to 3 in 0.25 increments
-        for (let i = 0; i <= 12; i++) {
-            values.push(i * 0.25);
-        }
-        
-        // 4 to 20 in increments of 1
-        for (let i = 4; i <= 20; i++) {
-            values.push(i);
-        }
-        
-        return values;
-    }
-
-    // Reusable touch slider creation function
-    function createTouchSlider(options) {
-        const {
-            containerId, // Container element ID or element
-            valueDisplayId, // Element to display current value
-            handleId, // Slider handle element
-            progressId, // Progress bar element
-            ticksId, // Ticks container element
-            decreaseId, // Decrease button ID
-            increaseId, // Increase button ID
-            hiddenInputId, // Hidden input to store value
-            initialValue = 0, // Starting value
-            minValue = 0, // Minimum value
-            maxValue = 20 // Maximum value
-        } = options;
-
-        // DOM elements
-        const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
-        const valueDisplay = document.getElementById(valueDisplayId);
-        const handle = document.getElementById(handleId);
-        const progress = document.getElementById(progressId);
-        const ticksContainer = document.getElementById(ticksId);
-        const decreaseBtn = document.getElementById(decreaseId);
-        const increaseBtn = document.getElementById(increaseId);
-        const hiddenInput = document.getElementById(hiddenInputId);
-
-        if (!container || !valueDisplay || !handle || !progress || !ticksContainer) {
-            console.error('Missing required elements for slider');
-            return null;
-        }
-
-        // Generate values array with the right increments
-        const values = [];
-        for (let i = 0; i <= 12; i++) {
-            values.push(i * 0.25); // 0 to 3 in 0.25 increments
-        }
-        for (let i = 4; i <= maxValue; i++) {
-            values.push(i); // 4 to 20 in increments of 1
-        }
-
-        // Instance-specific state
-        let currentValue = findClosestValue(initialValue, values);
-        let isDragging = false;
-
-        // Find closest value in values array
-        function findClosestValue(value, valueArray) {
-            // Find exact match first
-            const exactIndex = valueArray.indexOf(value);
-            if (exactIndex !== -1) return value;
-
-            // Find closest value
-            let closest = valueArray[0];
-            let closestDiff = Math.abs(value - closest);
-
-            for (const v of valueArray) {
-                const diff = Math.abs(value - v);
-                if (diff < closestDiff) {
-                    closestDiff = diff;
-                    closest = v;
-                }
-            }
-            return closest;
-        }
-
-        // Update the slider display
-        function updateSlider() {
-            const valueIndex = values.indexOf(currentValue);
-            const percentage = valueIndex / (values.length - 1) * 100;
-
-            handle.style.left = `${percentage}%`;
-            progress.style.width = `${percentage}%`;
-
-            // Format display value (show 2 decimal places for values < 3)
-            valueDisplay.textContent = currentValue < 3 ? currentValue.toFixed(2) : currentValue.toFixed(0);
-
-            // Update hidden input if provided
-            if (hiddenInput) {
-                hiddenInput.value = currentValue;
-                // Trigger change event
-                const event = new Event('change');
-                hiddenInput.dispatchEvent(event);
-            }
-        }
-
-        // Create tick marks
-        function createTicks() {
-            // Clear existing ticks
-            ticksContainer.innerHTML = '';
-
-            values.forEach((val, index) => {
-                const percentage = index / (values.length - 1) * 100;
-
-                // Create tick mark
-                const tick = document.createElement('div');
-                tick.className = val % 1 === 0 ? 'tick major' : 'tick';
-                tick.style.left = `${percentage}%`;
-                ticksContainer.appendChild(tick);
-
-                // Add labels for whole numbers (but not for every number to avoid crowding)
-                if (val % 1 === 0 && (val <= 3 || val % 2 === 0)) {
-                    const label = document.createElement('div');
-                    label.className = 'tick-label';
-                    label.textContent = val;
-                    label.style.left = `${percentage}%`;
-                    ticksContainer.appendChild(label);
-                }
-            });
-        }
-
-        // Event handlers
-        function startDragging(e) {
-            isDragging = true;
-            e.preventDefault();
-        }
-
-        function stopDragging() {
-            isDragging = false;
-        }
-
-        function handleMove(event) {
-            if (!isDragging) return;
-
-            const containerRect = container.getBoundingClientRect();
-            const clientX = event.type.includes('touch') ?
-                event.touches[0].clientX : event.clientX;
-            let percentage = (clientX - containerRect.left) / containerRect.width;
-
-            // Clamp percentage
-            percentage = Math.max(0, Math.min(percentage, 1));
-
-            // Find closest value
-            const valueIndex = Math.round(percentage * (values.length - 1));
-            currentValue = values[valueIndex];
-
-            updateSlider();
-            event.preventDefault();
-        }
-
-        function handleClick(event) {
-            if (event.target === handle) return;
-
-            const containerRect = container.getBoundingClientRect();
-            const percentage = (event.clientX - containerRect.left) / containerRect.width;
-
-            // Find closest value
-            const valueIndex = Math.round(percentage * (values.length - 1));
-            currentValue = values[valueIndex];
-
-            updateSlider();
-        }
-
-        function decreaseValue() {
-            const currentIndex = values.indexOf(currentValue);
-            if (currentIndex > 0) {
-                currentValue = values[currentIndex - 1];
-                updateSlider();
-            }
-        }
-
-        function increaseValue() {
-            const currentIndex = values.indexOf(currentValue);
-            if (currentIndex < values.length - 1) {
-                currentValue = values[currentIndex + 1];
-                updateSlider();
-            }
-        }
-
-        // Set up event handlers
-        handle.addEventListener('mousedown', startDragging);
-        handle.addEventListener('touchstart', startDragging);
-
-        document.addEventListener('mousemove', handleMove);
-        document.addEventListener('touchmove', handleMove, { passive: false });
-
-        document.addEventListener('mouseup', stopDragging);
-        document.addEventListener('touchend', stopDragging);
-
-        container.addEventListener('click', handleClick);
-
-        if (decreaseBtn) decreaseBtn.addEventListener('click', decreaseValue);
-        if (increaseBtn) increaseBtn.addEventListener('click', increaseValue);
-
-        // Initialize
-        createTicks();
-        updateSlider();
-
-        // Return an API for external control
-        return {
-            setValue: function(value) {
-                currentValue = findClosestValue(value, values);
-                updateSlider();
-            },
-            getValue: function() {
-                return currentValue;
-            },
-            destroy: function() {
-                // Remove event listeners
-                handle.removeEventListener('mousedown', startDragging);
-                handle.removeEventListener('touchstart', startDragging);
-                document.removeEventListener('mousemove', handleMove);
-                document.removeEventListener('touchmove', handleMove);
-                document.removeEventListener('mouseup', stopDragging);
-                document.removeEventListener('touchend', stopDragging);
-                container.removeEventListener('click', handleClick);
-                if (decreaseBtn) decreaseBtn.removeEventListener('click', decreaseValue);
-                if (increaseBtn) increaseBtn.removeEventListener('click', increaseValue);
-            }
-        };
-    }
 
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
@@ -2151,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h3 style="margin: 0; color: #333;">${item.name}</h3>
                     <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
                 </div>
-                <p style="margin: 5px 0;">Current: ${item.currentLevel} ${item.unit} | Target: ${item.targetLevel} ${item.unit}</p>
+                <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Target: ${item.targetLevel} ${item.unit}</strong> &nbsp;•&nbsp; Current: ${item.currentLevel} ${item.unit}</p>
             </div>
             
             <div style="margin-bottom: 15px;">
@@ -2196,7 +1823,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize the slider after the modal is added to DOM
         setTimeout(() => {
-            modalSlider = createTouchSlider({
+            modalSlider = window.createTouchSlider({
                 containerId: content.querySelector('.slider-container'),
                 valueDisplayId: 'modal-current-value',
                 handleId: 'modal-handle',
@@ -2205,7 +1832,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 decreaseId: 'modal-decrease',
                 increaseId: 'modal-increase',
                 hiddenInputId: 'modal-current-level',
-                initialValue: item.currentLevel
+                initialValue: parseFloat(item.currentLevel) || 0,
+                targetLevel: parseFloat(item.targetLevel) || 0
             });
         }, 0);
         
