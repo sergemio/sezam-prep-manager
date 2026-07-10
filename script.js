@@ -221,11 +221,22 @@ const headerUserNameElement = document.getElementById('header-user-name');
 const userLoginButton = document.getElementById('user-login-btn');
 
 //SaveData function to ensure Firebase saves are completed properly
-function saveData() {
-    
+// Pass the modified item to write only that item — a full-array write from one
+// device silently overwrites concurrent edits made on other devices
+function saveData(item) {
+
         // Always save to local storage as backup
     localStorage.setItem('prepItems', JSON.stringify(prepItems));
-    
+
+    if (item && window.firebaseDb && window.firebaseDb.saveItem) {
+        window.firebaseDb.saveItem(item)
+            .catch(error => {
+                console.error(`Error saving item ${item.id}:`, error);
+                showErrorNotification("Failed to save data to server. Please check your connection.");
+            });
+        return;
+    }
+
     // Save to Firebase if available - now using batch updates for better consistency
     if (window.firebaseDb && window.firebaseDb.saveAllItems) {
         // Use batch update instead of individual items
@@ -527,55 +538,6 @@ badgeStyles.textContent = `
 `;
 document.head.appendChild(badgeStyles);
 
-// Function to mark an item as "Can Prep Again"
-function markItemAsCanPrepAgain(item) {
-    // Find the item in the prepItems array
-    const itemIndex = prepItems.findIndex(i => i.id === item.id);
-    if (itemIndex !== -1) {
-        // Get original reason for logging
-        const originalReason = prepItems[itemIndex].cantPrepReason;
-        
-        // Reset the "can't prep" information
-        prepItems[itemIndex].canPrep = true;
-        prepItems[itemIndex].cantPrepReason = null;
-        prepItems[itemIndex].cantPrepTime = null;
-        prepItems[itemIndex].cantPrepBy = null;
-        prepItems[itemIndex].cantPrepReasonText = null;
-        
-        // Save to Firebase
-        saveData();
-        
-        // Log the activity if history system is available
-        if (window.historySystem && typeof window.historySystem.logItemModification === 'function') {
-            window.historySystem.logItemModification(
-                prepItems[itemIndex],
-                currentStaff,
-                'canprepagain'
-            ).catch(error => {
-                console.error("Error logging can-prep-again activity:", error);
-            });
-        }
-        
-        // Update UI
-        updateInventoryTable();
-        updateTodoList();
-        updateStats();
-        SoundFX.complete();
-
-        // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.textContent = `${item.name} can now be prepped again`;
-        successMessage.className = 'toast toast--success';
-        document.body.appendChild(successMessage);
-        
-        setTimeout(() => {
-            if (document.body.contains(successMessage)) {
-                document.body.removeChild(successMessage);
-            }
-        }, 3000);
-    }
-}
-
 
 // Create loading indicator functions
 function showLoadingIndicator() {
@@ -670,9 +632,9 @@ function saveAndNext() {
     
     // IMPORTANT: Ensure displayOrder is preserved after update
     item.displayOrder = displayOrder;
-    
+
     // Save data to localStorage
-    saveData();
+    saveData(item);
     
     // Log the activity if history system is available
     if (window.historySystem && typeof window.historySystem.logQuantityChange === 'function') {
@@ -1007,9 +969,9 @@ function showQuickUpdateModal(item, context = 'default') {
             } else {
                 prepItems[itemIndex].updateType = 'prep'; // Mark as prep update (default)
             }
-            
+
             // Save to localStorage
-            saveData();
+            saveData(prepItems[itemIndex]);
             
             // Log the activity if history system is available
             if (window.historySystem && typeof window.historySystem.logQuantityChange === 'function') {
@@ -1248,9 +1210,9 @@ function markItemAsCantPrep(item, reason, reasonText = null) {
         prepItems[itemIndex].cantPrepTime = new Date().toISOString();
         prepItems[itemIndex].cantPrepBy = currentStaff;
         prepItems[itemIndex].cantPrepReasonText = reasonText;
-        
+
         // Save to Firebase
-        saveData();
+        saveData(prepItems[itemIndex]);
         
         // Log the activity if history system is available
         if (window.historySystem && typeof window.historySystem.logItemModification === 'function') {
@@ -1296,9 +1258,9 @@ function markItemAsCanPrepAgain(item) {
         prepItems[itemIndex].cantPrepTime = null;
         prepItems[itemIndex].cantPrepBy = null;
         prepItems[itemIndex].cantPrepReasonText = null;
-        
+
         // Save to Firebase
-        saveData();
+        saveData(prepItems[itemIndex]);
         
         // Log the activity if history system is available
         if (window.historySystem && typeof window.historySystem.logItemModification === 'function') {
@@ -1472,13 +1434,23 @@ function showChecklistModal(type, items, status) {
 
     var progress = getChecklistProgress(items, status);
 
-    box.innerHTML =
-        '<h3 style="margin:0 0 4px">' + label + ' Checklist</h3>' +
+    var headerRow = document.createElement('div');
+    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:4px;';
+    headerRow.appendChild(createModalUserPicker());
+    var titleEl = document.createElement('h3');
+    titleEl.style.margin = '0';
+    titleEl.textContent = label + ' Checklist';
+    headerRow.appendChild(titleEl);
+    box.appendChild(headerRow);
+
+    var restHtml = document.createElement('div');
+    restHtml.innerHTML =
         '<div class="checklist-progress" style="margin-bottom:12px">' +
             '<div class="checklist-progress-fill" id="modal-progress-fill" style="width:' + progress.percent + '%;background:' + getProgressColor(progress.percent) + '"></div>' +
         '</div>' +
         '<div id="modal-progress-text" class="checklist-progress-text" style="margin-bottom:16px">' + progress.done + '/' + progress.total + '</div>' +
         '<ul class="checklist-list" id="checklist-modal-list"></ul>';
+    box.appendChild(restHtml);
 
     backdrop.appendChild(box);
     document.body.appendChild(backdrop);
@@ -1540,6 +1512,7 @@ function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
     checkZone.className = 'checklist-check-zone';
     if (isChecked) { checkZone.classList.add('checked'); checkZone.textContent = '\u2713'; }
     else if (isCant) { checkZone.classList.add('cant-complete'); checkZone.textContent = '\u2717'; }
+    else { checkZone.textContent = '\u2713'; checkZone.style.color = '#ddd'; }
 
     var nameDiv = document.createElement('div');
     nameDiv.style.cssText = 'flex:1;padding:0 12px';
@@ -1566,6 +1539,7 @@ function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
     cantBtn.className = 'checklist-cant-btn';
     cantBtn.textContent = '\u2717';
     cantBtn.title = "Can't complete";
+    if (!isCant) cantBtn.style.color = '#ddd';
 
     function handleCheckZoneTap(e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -1596,7 +1570,12 @@ function createChecklistRow(item, itemStatus, dateKey, type, helpers) {
             logChecklistAction('checklist-unchecked', type, item);
             return;
         }
-        showCantCompleteInput(item, dateKey, type, helpers, row);
+        helpers.setItemStatus(dateKey, item.id, {
+            cantComplete: true,
+            reportedBy: currentStaff,
+            reportedAt: new Date().toISOString()
+        });
+        logChecklistAction('checklist-blocked', type, item);
     });
 
     row.appendChild(checkZone);
@@ -1641,7 +1620,8 @@ function updateChecklistRow(item, itemStatus) {
 
     row.className = 'checklist-row' + (isChecked ? ' checked' : '') + (isCant ? ' cant-complete' : '');
     checkZone.className = 'checklist-check-zone' + (isChecked ? ' checked' : '') + (isCant ? ' cant-complete' : '');
-    checkZone.textContent = isChecked ? '\u2713' : (isCant ? '\u2717' : '');
+    checkZone.textContent = isChecked ? '\u2713' : (isCant ? '\u2717' : '\u2713');
+    checkZone.style.color = (!isChecked && !isCant) ? '#ddd' : '';
 
     var oldMeta = nameDiv.querySelector('.checklist-item-meta');
     if (oldMeta) oldMeta.remove();
@@ -2395,57 +2375,6 @@ function sortItemsByDisplayOrder(items) {
         // Fallback to ID as the default order
         return a.id - b.id;
     });
-}
-
-// Also update the loadItemsFromFirebase function in db-editor.js
-// to ensure consistent sorting when items are loaded from Firebase
-function loadItemsFromFirebase() {
-    if (window.firebaseDb) {
-        window.firebaseDb.loadItems()
-            .then(items => {
-                if (items && items.length > 0) {
-                    prepItems = items;
-                    // Apply consistent sorting logic
-                    prepItems.sort((a, b) => {
-                        // First by displayOrder if both items have it
-                        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                            return a.displayOrder - b.displayOrder;
-                        }
-                        
-                        // If only one item has displayOrder, prioritize it
-                        if (a.displayOrder !== undefined && b.displayOrder === undefined) {
-                            return -1; // Items with display order come first
-                        }
-                        if (a.displayOrder === undefined && b.displayOrder !== undefined) {
-                            return 1; // Items with display order come first
-                        }
-                        
-                        // Fallback to ID as the default order
-                        return a.id - b.id;
-                    });
-                    
-                    // Update UI with sorted items
-                    updateInventoryTable();
-                    updateTodoList();
-                    updateStats();
-                } else {
-                    // Show empty state
-                    itemsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="8" style="text-align: center; padding: 20px;">
-                                No items found in database. Add your first item to get started.
-                            </td>
-                        </tr>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading items:', error);
-                showErrorMessage('Failed to load items from database.');
-            });
-    } else {
-        showErrorMessage('Firebase database not initialized.');
-    }
 }
 
 function completePrepCheck() {

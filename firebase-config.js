@@ -2,7 +2,7 @@
 // Single source of truth — loaded by all pages
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, get, update, remove, query, orderByKey, startAt, endBefore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDhp7efZHDj2fw3qx9XOW41YcaR3pWu3Hs",
@@ -71,6 +71,26 @@ function createLogHelpers(basePath, prefix) {
                     return Object.entries(snapshot.val()).map(([key, value]) => ({...value, key}));
                 }
                 return [];
+            });
+        },
+        // Server-side ranged load: log keys are "<prefix>_<ms>_<rand>", so key order = chronological order
+        loadSince: function(sinceMs) {
+            const q = query(ref(database, basePath), orderByKey(), startAt(prefix + '_' + sinceMs));
+            return get(q).then((snapshot) => {
+                if (snapshot.exists()) {
+                    return Object.entries(snapshot.val()).map(([key, value]) => ({...value, key}));
+                }
+                return [];
+            });
+        },
+        // Batch-delete all logs whose key sorts before "<prefix>_<cutoffMs>" (single atomic update)
+        deleteOlderThan: function(cutoffMs) {
+            const q = query(ref(database, basePath), orderByKey(), endBefore(prefix + '_' + cutoffMs));
+            return get(q).then((snapshot) => {
+                if (!snapshot.exists()) return 0;
+                const updates = {};
+                Object.keys(snapshot.val()).forEach(key => { updates[basePath + '/' + key] = null; });
+                return update(ref(database), updates).then(() => Object.keys(updates).length);
             });
         },
         delete: function(logId) {
@@ -203,6 +223,8 @@ window.firebaseDb = {
     // Activity logs
     saveActivityLog: activityLogs.save,
     loadActivityLogs: activityLogs.load,
+    loadRecentActivityLogs: activityLogs.loadSince,
+    deleteOldActivityLogs: activityLogs.deleteOlderThan,
     deleteActivityLog: activityLogs.delete,
     onActivityLogsChange: activityLogs.onChange,
 

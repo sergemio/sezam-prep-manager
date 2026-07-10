@@ -22,9 +22,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show loading
         historyContent.innerHTML = '<div class="empty-state"><p>Loading activity logs...</p></div>';
-        
-        // Load logs directly
-        window.firebaseDb.loadActivityLogs()
+
+        // Calculate date 15 days ago
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+        // Load only the last 15 days server-side (fallback to full load if helper unavailable)
+        const logsPromise = (typeof window.firebaseDb.loadRecentActivityLogs === 'function')
+            ? window.firebaseDb.loadRecentActivityLogs(fifteenDaysAgo.getTime())
+            : window.firebaseDb.loadActivityLogs();
+
+        logsPromise
             .then(logs => {
                 
                 if (!logs || logs.length === 0) {
@@ -39,18 +47,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Calculate date 15 days ago
-                const fifteenDaysAgo = new Date();
-                fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-                
-                // Filter logs to only include last 15 days
+                // Filter logs to only include last 15 days (safety net for the fallback path)
                 const recentLogs = logs.filter(log => {
                     const logDate = new Date(log.timestamp);
                     return logDate >= fifteenDaysAgo;
                 });
-                
-                // Clean up older logs
-                cleanupOldLogs(logs, fifteenDaysAgo);
+
+                // Clean up older logs (server-side, once per session)
+                cleanupOldLogsOnce(fifteenDaysAgo);
                 
                 // If no recent logs, show empty state
                 if (recentLogs.length === 0) {
@@ -90,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Helper: format a single log item HTML
                 function formatLogItem(log) {
-                    const logKey = log.key || extractLogKeyFromTimestamp(log.timestamp);
+                    const logKey = log.key || '';
                     const date = new Date(log.timestamp);
                     const timeString = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                     let actionText = '', changeText = '';
@@ -114,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="log-user">${log.user}</div>
                         <div class="log-action"><span class="action-label">${actionText}</span><span class="item-name">${log.itemName}</span></div>
                         <div class="log-change">${changeText}</div>
-                        <div class="log-delete-icon">&#x2715;</div>
+                        ${logKey ? '<div class="log-delete-icon">&#x2715;</div>' : ''}
                     </div>`;
                 }
 
@@ -303,15 +307,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.head.appendChild(style);
     }
     
-    // Extract a unique log key from timestamp - used when log.key isn't available
-    function extractLogKeyFromTimestamp(timestamp) {
-        if (!timestamp) return 'unknown_log';
-        // Convert timestamp to a key format (similar to Firebase's auto-generated format)
-        // Use the timestamp's milliseconds as part of the key
-        const date = new Date(timestamp);
-        return `log_${date.getTime()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-    
     // Add delete functionality to log items
     function addDeleteFunctionalityToLogs() {
         const logItems = document.querySelectorAll('.log-item');
@@ -438,49 +433,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // showNotification is now in notifications.js
     
-    // Delete logs older than 15 days
-    function cleanupOldLogs(logs, cutoffDate) {
-        // Only proceed if deleteActivityLog is available
-        if (!window.firebaseDb || typeof window.firebaseDb.deleteActivityLog !== 'function') {
-            return Promise.resolve();
+    // Delete logs older than the cutoff, server-side, at most once per browser session
+    function cleanupOldLogsOnce(cutoffDate) {
+        if (!window.firebaseDb || typeof window.firebaseDb.deleteOldActivityLogs !== 'function') {
+            return;
         }
-        
-        // Find logs older than the cutoff date
-        const oldLogs = logs.filter(log => {
-            const logDate = new Date(log.timestamp);
-            return logDate < cutoffDate;
-        });
-        
-        if (oldLogs.length === 0) {
-            return Promise.resolve();
+        if (sessionStorage.getItem('historyCleanupDone')) {
+            return;
         }
-        
-        
-        // Extract log keys - this depends on how keys are stored
-        // If the logs have an explicit 'key' property, use that
-        const deletePromises = [];
-        
-        oldLogs.forEach(log => {
-            if (log.key) {
-                // If the log object has its key stored
-                deletePromises.push(window.firebaseDb.deleteActivityLog(log.key));
-            } else {
-                // Try to delete using our best guess of the key format
-                const logKey = extractLogKeyFromTimestamp(log.timestamp);
-                if (logKey && logKey !== 'unknown_log') {
-                    deletePromises.push(window.firebaseDb.deleteActivityLog(logKey));
-                } else {
-                }
-            }
-        });
-        
-        if (deletePromises.length === 0) {
-            return Promise.resolve();
-        }
-        
-        return Promise.all(deletePromises)
-            .then(() => {
-            })
+        sessionStorage.setItem('historyCleanupDone', 'true');
+        window.firebaseDb.deleteOldActivityLogs(cutoffDate.getTime())
             .catch(error => {
                 console.error("Error deleting old logs:", error);
             });

@@ -485,25 +485,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Unified save function for all IC data
+    // Pass the modified item to write only that item — a full-array write from one
+    // device silently overwrites concurrent edits made on other devices
     function saveData(specificItem) {
         // Always save to localStorage as backup
         localStorage.setItem('icItems', JSON.stringify(window.icItems));
 
         // Save to Firebase if available
-        if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-            window.firebaseDb.saveAllIcItems(window.icItems)
-                .catch(error => {
-                    console.error("Error saving to Firebase:", error);
-                    if (typeof showMessage === 'function') {
-                        showMessage("Failed to save data to server.", "error");
-                    }
-                });
-        } else if (window.firebaseDb && window.firebaseDb.saveIcItem && specificItem) {
+        if (specificItem && window.firebaseDb && window.firebaseDb.saveIcItem) {
             window.firebaseDb.saveIcItem(specificItem)
                 .catch(error => {
                     console.error("Error saving item:", error);
                     if (typeof showMessage === 'function') {
                         showMessage("Failed to save item to server.", "error");
+                    }
+                });
+        } else if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
+            window.firebaseDb.saveAllIcItems(window.icItems)
+                .catch(error => {
+                    console.error("Error saving to Firebase:", error);
+                    if (typeof showMessage === 'function') {
+                        showMessage("Failed to save data to server.", "error");
                     }
                 });
         }
@@ -955,10 +957,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Save to local storage
                 localStorage.setItem('icItems', JSON.stringify(icItems));
-                
-                // Save to Firebase if available
-                if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-                    window.firebaseDb.saveAllIcItems(icItems)
+
+                // Save to Firebase if available — only the edited item, a full-array
+                // write would overwrite concurrent edits from other devices
+                if (window.firebaseDb && window.firebaseDb.saveIcItem) {
+                    window.firebaseDb.saveIcItem(icItems[itemIndex])
                         .then(() => {
                             console.log("Item updated in Firebase successfully");
                         })
@@ -2418,7 +2421,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.icItems.push(newItem);
 
             // Save to Firebase and local storage
-            saveData();
+            saveData(newItem);
 
             // Log the activity
             logActivityChange(newItem, null, newItem.currentLevel, 'add');
@@ -2943,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.icItems[itemIndex].lastCheckedTime = new Date().toISOString();
 
                 // Save to Firebase and local storage
-                saveData();
+                saveData(window.icItems[itemIndex]);
 
                 // Log the activity if quantity changed
                 if (oldItem.currentLevel !== currentLevel) {
@@ -2977,8 +2980,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Remove the item
                     window.icItems.splice(itemIndex, 1);
 
-                    // Save to Firebase and local storage
-                    saveData();
+                    // Local backup only — the DB write is the targeted delete below,
+                    // not a full-array rewrite
+                    localStorage.setItem('icItems', JSON.stringify(window.icItems));
 
                     // If Firebase has a specific delete function, use it
                     if (window.firebaseDb && window.firebaseDb.deleteIcItem) {
