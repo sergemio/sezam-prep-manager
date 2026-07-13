@@ -510,8 +510,10 @@ window.historySystem = {
         };
 
         if (actionType === 'cantprep') {
-            activity.reason = item.cantPrepReason;
-            activity.reasonText = item.cantPrepReasonText;
+            // Coerce to null: Firebase forbids undefined, and after the item is saved
+            // Firebase omits null keys, so cantPrepReasonText reads back as undefined
+            activity.reason = item.cantPrepReason ?? null;
+            activity.reasonText = item.cantPrepReasonText ?? null;
             // For 'cantprep', oldValue and newValue might not be directly relevant in the same way.
             // We're logging the *state* of not being able to prep.
             activity.oldValue = null; 

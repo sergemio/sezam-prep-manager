@@ -63,7 +63,12 @@ function createLogHelpers(basePath, prefix) {
     return {
         save: function(activity) {
             const logId = prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            return set(ref(database, basePath + '/' + logId), activity);
+            // Firebase set() throws SYNCHRONOUSLY on any undefined value, which would
+            // abort the caller mid-flow (e.g. leave a modal stuck open). Strip undefined
+            // keys so a missing optional field can never break a log write.
+            const clean = {};
+            Object.keys(activity).forEach(k => { if (activity[k] !== undefined) clean[k] = activity[k]; });
+            return set(ref(database, basePath + '/' + logId), clean);
         },
         load: function() {
             return get(ref(database, basePath)).then((snapshot) => {
