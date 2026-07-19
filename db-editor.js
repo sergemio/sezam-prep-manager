@@ -429,12 +429,12 @@ function validateForm() {
 }
 
 // Confirm before deleting an item
-function confirmDeleteItem() {
+async function confirmDeleteItem() {
     const item = prepItems.find(item => item.id === currentEditingId);
     if (!item) return;
-    
-    const confirmDelete = confirm(`Are you sure you want to delete "${item.name}"? This cannot be undone.`);
-    
+
+    const confirmDelete = await confirmDialog({ title: 'Delete item?', message: `"${item.name}" will be permanently deleted. This cannot be undone.`, confirmText: 'Delete' });
+
     if (confirmDelete) {
         deleteItem(currentEditingId);
     }
@@ -727,12 +727,12 @@ function validateStaffForm() {
 }
 
 // Confirm before deleting a staff member
-function confirmDeleteStaff() {
+async function confirmDeleteStaff() {
     const staff = staffMembers.find(staff => staff.id === currentEditingStaffId);
     if (!staff) return;
-    
-    const confirmDelete = confirm(`Are you sure you want to delete "${staff.name}"? This cannot be undone.`);
-    
+
+    const confirmDelete = await confirmDialog({ title: 'Delete staff member?', message: `"${staff.name}" will be permanently deleted. This cannot be undone.`, confirmText: 'Delete' });
+
     if (confirmDelete) {
         deleteStaffMember(currentEditingStaffId);
     }
@@ -937,9 +937,9 @@ function saveTask() {
     });
 }
 
-function deleteTask() {
+async function deleteTask() {
     if (!currentEditingTaskId) return;
-    if (!confirm('Delete this task?')) return;
+    if (!(await confirmDialog({ title: 'Delete task?', message: 'This task will be permanently deleted.', confirmText: 'Delete' }))) return;
     window.firebaseDb.deleteTasks(currentEditingTaskId).then(() => {
         showSuccessMessage('Task deleted');
         cancelTaskEdit();

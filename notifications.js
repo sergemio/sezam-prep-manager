@@ -30,16 +30,16 @@ function showNotification(title, message, type = 'success') {
                 max-width: 350px;
             }
             .app-notification.success {
-                border-left: 4px solid #22c55e;
+                border-left: 4px solid var(--success);
             }
             .app-notification.error {
-                border-left: 4px solid #ef4444;
+                border-left: 4px solid var(--danger);
             }
             .app-notification.warning {
-                border-left: 4px solid #f97316;
+                border-left: 4px solid var(--warning);
             }
             .app-notification.info {
-                border-left: 4px solid #3b82f6;
+                border-left: 4px solid var(--info);
             }
             .notification-title {
                 font-weight: bold;

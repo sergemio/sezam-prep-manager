@@ -533,12 +533,12 @@ return false;
 }
 
 // Confirm before deleting an I&C item
-function confirmDeleteIcItem() {
+async function confirmDeleteIcItem() {
     const item = icItems.find(item => item.id === currentEditingIcId);
     if (!item) return;
-    
-    const confirmDelete = confirm(`Are you sure you want to delete "${item.name}"? This cannot be undone.`);
-    
+
+    const confirmDelete = await confirmDialog({ title: 'Delete item?', message: `"${item.name}" will be permanently deleted. This cannot be undone.`, confirmText: 'Delete' });
+
     if (confirmDelete) {
 deleteIcItem(currentEditingIcId);
     }

@@ -17,6 +17,8 @@
     <!-- Firebase (shared config) -->
     <script type="module" src="firebase-config.js"></script>
     <script src="db-editor-ic.js"></script>
+    <!-- Shared UI helpers (levelColor, confirmDialog) -->
+    <script src="ui-helpers.js"></script>
 
     <style>
         /* === DB Editor Modal & Form Styles === */
@@ -245,47 +247,7 @@
             margin-bottom: 20px;
         }
 
-        /* Redesigned table */
-        .db-table {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: none;
-            border: 1px solid #e8e8e0;
-        }
-
-        .db-table thead tr {
-            background-color: #f8f8f4;
-        }
-
-        .db-table thead th {
-            background-color: transparent;
-            color: #888;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 12px 16px;
-            border-bottom: 1px solid #e8e8e0;
-        }
-
-        .db-table tbody tr {
-            transition: background-color 0.1s;
-        }
-
-        .db-table tbody tr:nth-child(even) {
-            background-color: #fafaf6;
-        }
-
-        .db-table tbody tr:hover {
-            background-color: #f0f4e8;
-            filter: none;
-        }
-
-        .db-table td {
-            padding: 14px 16px;
-            font-size: 14px;
-            border-bottom: 1px solid #f0f0ec;
-        }
+        /* .db-table styles are shared from styles.css (dedup 2026-07-18) */
 
         .drag-cell {
             width: 40px;

@@ -20,7 +20,8 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
-/* Remove card styling from inventory table container */
+/* Prep Manager only (index.html): strips the card chrome around the "Preps" table.
+   The I&C app no longer has an #inventory-section — do not delete, index.html loads this file. */
 #inventory-section .card {
     background-color: transparent;
     box-shadow: none;
@@ -173,7 +174,7 @@
 /* Action type styling */
 .action-count .action-label {
     background-color: var(--accent-yellow);
-    color: #8a6e00;
+    color: var(--warning-text);
 }
 
 .action-prep .action-label {
@@ -188,12 +189,12 @@
 
 .action-edit .action-label {
     background-color: var(--accent-orange-light);
-    color: #984c0c;
+    color: var(--warning-text);
 }
 
 .action-delete .action-label {
     background-color: var(--accent-red);
-    color: #901818;
+    color: var(--danger-strong);
 }
 
 .item-name {
@@ -229,8 +230,9 @@
     .analytics-summary {
         grid-template-columns: 1fr 1fr;
     }
-    
-    /* Mobile-specific table adjustments - ONLY FOR INVENTORY TABLE */
+
+    /* Prep Manager only (index.html): mobile column sizing for the "Preps" table.
+       The I&C app no longer has an #inventory-section — do not delete. */
     #inventory-section .inventory-table {
         width: 100%;
         table-layout: fixed;
@@ -244,7 +246,6 @@
         white-space: normal;
     }
 
-    /* Set specific column widths for mobile - ONLY FOR INVENTORY TABLE */
     #inventory-section .inventory-table th:nth-child(1),
     #inventory-section .inventory-table td:nth-child(1) {
         width: 35%;  /* Item name */
@@ -260,13 +261,13 @@
         width: 25%;  /* Target value */
     }
 
-    /* Hide only the Last Checked column - ONLY FOR INVENTORY TABLE */
+    /* Hide only the Last Checked column */
     #inventory-section .inventory-table th:nth-child(4),
     #inventory-section .inventory-table td:nth-child(4) {
         display: none;
     }
 
-    /* Keep the By column but make it narrower - ONLY FOR INVENTORY TABLE */
+    /* Keep the By column but make it narrower */
     #inventory-section .inventory-table th:nth-child(5),
     #inventory-section .inventory-table td:nth-child(5) {
         width: 15%;
@@ -365,7 +366,7 @@
 }
 
 .group-checked > .log-group-header {
-    color: #8a6e00;
+    color: var(--warning-text);
 }
 
 .group-other > .log-group-header {
@@ -378,7 +379,7 @@
 }
 
 /* Tasks group */
-.group-tasks > .log-group-header { color: #4caf50; }
-.action-checklist-done .action-label { background: #e8f5e9; color: #2e7d32; }
-.action-checklist-blocked .action-label { background: #fce4ec; color: #c62828; }
+.group-tasks > .log-group-header { color: var(--color-primary); }
+.action-checklist-done .action-label { background: var(--success-surface); color: var(--color-primary); }
+.action-checklist-blocked .action-label { background: #fce4ec; color: var(--danger-strong); }
 .action-checklist-unchecked .action-label { background: #f5f5f5; color: #616161; }

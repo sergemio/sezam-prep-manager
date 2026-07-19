@@ -37,6 +37,32 @@
     text-transform: uppercase;
 }
 
+/* Last full inventory card — a date + author, not a big number */
+.ic-stat-value--check {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+
+.ic-stat-sub {
+    font-size: 13px;
+    color: var(--text-medium);
+    font-weight: 500;
+}
+
+/* Freshness tint: weekly cadence, so days-based, not hours */
+.ic-stat-card--check.is-fresh {
+    background: linear-gradient(135deg, #eef4e4 0%, #dce8cc 100%);
+}
+.ic-stat-card--check.is-aging {
+    background: linear-gradient(135deg, #fff4d6 0%, #ffe9ad 100%);
+}
+.ic-stat-card--check.is-stale {
+    background: linear-gradient(135deg, #ffe0e0 0%, #ffc9c9 100%);
+}
+.ic-stat-card--check.is-aging .ic-stat-value--check { color: var(--warning-text); }
+.ic-stat-card--check.is-stale .ic-stat-value--check { color: var(--danger-strong); }
+
 .ic-section-label {
     font-size: 13px;
     font-weight: 700;
@@ -56,6 +82,154 @@
 
 .ic-action-card {
     margin-top: 8px;
+}
+
+/* Overview toolbar — search and add sit on one line: they are the two actions of
+   the page, and a button below a 100-row table would never be seen */
+.overview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.overview-toolbar #overview-search {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 16px;
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.overview-toolbar #overview-search:focus {
+    outline: none;
+    border-color: var(--primary-dark);
+}
+
+.overview-toolbar #overview-add-item-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 13px 24px;
+}
+
+@media (max-width: 700px) {
+    .overview-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Count card — the Start button sits in the header so it stays put however long the list gets */
+.count-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.count-card-heading {
+    min-width: 0;
+}
+
+.count-card-header .ic-section-label {
+    margin-bottom: 5px;
+}
+
+.count-card-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.count-card-header #start-count-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 13px 30px;
+}
+
+/* Count preview — compact list of the items the count button will walk through.
+   Scrolls inside the card so the page itself never grows with the item count. */
+.count-preview-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+    gap: 18px 28px;
+    align-content: start;
+    max-height: min(48vh, 460px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 6px 2px 0;
+    /* Fades the cut-off row at the bottom edge, so a long list reads as
+       "scroll for more" instead of looking truncated */
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent 100%);
+}
+
+/* Section heading: a filled band so each location reads clearly as its own block */
+.count-preview-group {
+    grid-column: 1 / -1;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background-color: var(--bg-medium);
+    padding: 11px 16px;
+    border-radius: 8px;
+    margin-top: 22px;
+}
+
+.count-preview-group:first-child {
+    margin-top: 0;
+}
+
+.count-preview-item {
+    min-width: 0;
+}
+
+.count-preview-name {
+    font-size: 15px;
+    color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 7px;
+}
+
+/* The rail stays visible at any fill level, so every bar reads as the same
+   thickness — only the coloured length changes */
+.count-preview-bar {
+    height: 5px;
+    background-color: #e4e8de;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.count-preview-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+}
+
+.count-preview-empty {
+    grid-column: 1 / -1;
+    font-size: 14px;
+    color: var(--text-medium);
+}
+
+@media (max-width: 700px) {
+    .count-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .count-card-header #start-count-btn {
+        width: 100%;
+    }
 }
 
 /* Location filter styles */
@@ -90,8 +264,8 @@
 /* Badge styles */
 .location-badge {
     display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
     font-size: 12px;
     font-weight: 600;
     margin-left: 8px;
@@ -101,8 +275,8 @@
 
 .provider-badge {
     display: inline-block;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
     font-size: 11px;
     margin-top: 4px;
     margin-right: 4px;
@@ -141,13 +315,22 @@
 
 .overview-table th {
     background-color: var(--bg-medium);
-    font-weight: 600;
-    color: var(--text-dark);
+    font-size: var(--fs-eyebrow);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
     position: sticky;
     top: 0;
 }
 
-.overview-table tr:hover {
+/* Zebra rows (unified table look, Serge's choice); hover scoped to tbody so it
+   wins over the even-row stripe (equal specificity, later in source order) */
+.overview-table tbody tr:nth-child(even) {
+    background-color: var(--surface-muted);
+}
+
+.overview-table tbody tr:hover {
     background-color: var(--bg-light);
 }
 

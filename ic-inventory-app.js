@@ -29,9 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalItemsElement = document.getElementById('total-items');
     const itemsBelowFiftyElement = document.getElementById('items-below-fifty');
     const dashboardLocationFilter = document.getElementById('dashboard-location-filter');
-    const inventoryLocationFilter = document.getElementById('inventory-location-filter');
-    const inventoryContent = document.getElementById('inventory-content');
     const lowStockContainer = document.getElementById('low-stock-container');
+    const lowStockTitle = document.getElementById('low-stock-title');
+    const countCardLabel = document.getElementById('count-card-label');
+    const countPreviewList = document.getElementById('count-preview-list');
     
     // Application state
     let currentStaff = '';
@@ -145,8 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Update UI
                     updateLocationFilters();
-                    updateInventoryTables();
-                    updateLowStockList();
+                    updateDashboardLists();
                     updateStats();
                     
                     // Set up real-time updates
@@ -187,13 +187,20 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Locations:', [...allLocations]);
     }
     
-    // Update location filter buttons
+    // Update location filter buttons — every filter row is built identically,
+    // so they share one builder instead of a copy per row
     function updateLocationFilters() {
-        // Dashboard location filter
-        if (dashboardLocationFilter) {
-            dashboardLocationFilter.innerHTML = '';
-            
-            [...allLocations].sort().forEach(location => {
+        const filterRows = [
+            dashboardLocationFilter,
+            document.getElementById('overview-location-filter')
+        ];
+        const locations = [...allLocations].sort();
+
+        filterRows.forEach(row => {
+            if (!row) return;
+            row.innerHTML = '';
+
+            locations.forEach(location => {
                 const button = document.createElement('button');
                 button.className = 'location-button';
                 if (location === currentLocation) {
@@ -201,57 +208,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 button.textContent = location;
                 button.setAttribute('data-location', location);
-                
-                button.addEventListener('click', () => {
-                    changeLocation(location);
-                });
-                
-                dashboardLocationFilter.appendChild(button);
+                button.addEventListener('click', () => changeLocation(location));
+                row.appendChild(button);
             });
-        }
-        
-        // Inventory location filter
-        if (inventoryLocationFilter) {
-            inventoryLocationFilter.innerHTML = '';
-            
-            [...allLocations].sort().forEach(location => {
-                const button = document.createElement('button');
-                button.className = 'location-button';
-                if (location === currentLocation) {
-                    button.classList.add('active');
-                }
-                button.textContent = location;
-                button.setAttribute('data-location', location);
-                
-                button.addEventListener('click', () => {
-                    changeLocation(location);
-                });
-                
-                inventoryLocationFilter.appendChild(button);
-            });
-        }
-        
-        // Overview location filter
-        const overviewLocationFilter = document.getElementById('overview-location-filter');
-        if (overviewLocationFilter) {
-            overviewLocationFilter.innerHTML = '';
-            
-            [...allLocations].sort().forEach(location => {
-                const button = document.createElement('button');
-                button.className = 'location-button';
-                if (location === currentLocation) {
-                    button.classList.add('active');
-                }
-                button.textContent = location;
-                button.setAttribute('data-location', location);
-                
-                button.addEventListener('click', () => {
-                    changeLocation(location);
-                });
-                
-                overviewLocationFilter.appendChild(button);
-            });
-        }
+        });
     }
     
     // Change current location
@@ -268,8 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Update UI
-        updateInventoryTables();
-        updateLowStockList();
+        updateDashboardLists();
         
         // Update Overview table if Overview section is active
         const overviewSection = document.getElementById('overview-section');
@@ -281,163 +240,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (originalItemOrder.length === 0 && window.icItems && window.icItems.length > 0) {
             originalItemOrder = [...window.icItems];
         }
-    }
-    
-    // Update inventory tables based on current location
-    function updateInventoryTables() {
-        if (!inventoryContent) return;
-        
-        inventoryContent.innerHTML = '';
-        
-        // Filter items by selected location
-        const filteredItems = currentLocation === 'All' 
-            ? window.icItems 
-            : window.icItems.filter(item => item.location === currentLocation);
-        
-        // Group items by sublocation within the location
-        const itemsBySubLocation = {};
-        
-        filteredItems.forEach(item => {
-            const sublocation = item.sublocation || 'General';
-            if (!itemsBySubLocation[sublocation]) {
-                itemsBySubLocation[sublocation] = [];
-            }
-            itemsBySubLocation[sublocation].push(item);
-        });
-        
-        // Show message if no items for this location
-        if (Object.keys(itemsBySubLocation).length === 0) {
-            inventoryContent.innerHTML = `
-                <div style="text-align: center; padding: 30px; color: var(--text-medium);">
-                    <p>No items found for this location.</p>
-                    <button class="action-button" id="add-item-to-location">Add Item to ${currentLocation}</button>
-                </div>
-            `;
-
-            // Add event listener to the add item button
-            const addItemButton = document.getElementById('add-item-to-location');
-            if (addItemButton) {
-                addItemButton.addEventListener('click', showAddNewItemModal);
-            }
-
-            return;
-        }
-        
-        // Sort sublocations alphabetically
-        const sortedSubLocations = Object.keys(itemsBySubLocation).sort();
-        
-        // Create a table for each sublocation
-        sortedSubLocations.forEach(sublocation => {
-            const items = itemsBySubLocation[sublocation];
-            
-            // Create a sublocation header
-            const subLocationHeader = document.createElement('div');
-            subLocationHeader.className = 'sublocation-header';
-            subLocationHeader.textContent = sublocation;
-            
-            // Create table
-            const table = document.createElement('table');
-            table.className = 'inventory-table db-table';
-
-            // Create table header
-            const thead = document.createElement('thead');
-            thead.innerHTML = `
-                <tr>
-                    <th>Item</th>
-                    <th>Current</th>
-                    <th>Target</th>
-                    <th>Last Checked</th>
-                    <th>By</th>
-                </tr>
-            `;
-            
-            // Create table body
-            const tbody = document.createElement('tbody');
-            
-            // Sort items by displayOrder or name
-            items.sort((a, b) => {
-                // First by displayOrder if available
-                if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                    return a.displayOrder - b.displayOrder;
-                }
-                // Then by name
-                return a.name.localeCompare(b.name);
-            });
-            
-            // Add items to table body
-            items.forEach(item => {
-                const row = document.createElement('tr');
-                
-                // Format providers display
-                let providersHtml = '';
-                if (item.providers && item.providers.length > 0) {
-                    providersHtml = item.providers
-                        .map(provider => `<span class="provider-badge">${provider}</span>`)
-                        .join(' ');
-                } else {
-                    providersHtml = '<span style="color: var(--text-light); font-style: italic;">None</span>';
-                }
-                
-                // Format last checked time
-                const lastChecked = formatDate(item.lastCheckedTime || 'Never');
-                
-                // Calculate percentage
-                const percentage = item.targetLevel > 0 
-                    ? (item.currentLevel / item.targetLevel * 100).toFixed(0) 
-                    : 0;
-                
-                // Choose color based on percentage
-                let percentageColor = 'var(--primary-dark)';
-                if (percentage < 25) {
-                    percentageColor = 'var(--accent-red)';
-                } else if (percentage < 50) {
-                    percentageColor = 'var(--accent-orange)';
-                }
-                
-                const sc = percentage < 25 ? 'stock-critical' : percentage < 50 ? 'stock-low' : percentage < 100 ? 'stock-ok' : 'stock-full';
-
-                row.innerHTML = `
-                    <td class="item-name-cell">${item.name}</td>
-                    <td class="${sc}">${item.currentLevel} ${item.unit}</td>
-                    <td>${item.targetLevel} ${item.unit}</td>
-                    <td>${lastChecked}</td>
-                    <td>${item.lastCheckedBy || '<span class="text-muted">—</span>'}</td>
-                `;
-
-                row.style.cursor = 'pointer';
-                tbody.appendChild(row);
-
-                row.addEventListener('click', () => {
-                    showQuickUpdateModal(item);
-                });
-            });
-            
-            // Assemble the table
-            table.appendChild(thead);
-            table.appendChild(tbody);
-            
-            // Add sublocation header and table to the inventory content
-            inventoryContent.appendChild(subLocationHeader);
-            inventoryContent.appendChild(table);
-            
-            // Add spacing between tables
-            const spacer = document.createElement('div');
-            spacer.style.height = '20px';
-            inventoryContent.appendChild(spacer);
-        });
-
-        // Add "Add New Item" button at the bottom
-        const addButtonContainer = document.createElement('div');
-        addButtonContainer.style.textAlign = 'center';
-        addButtonContainer.style.marginTop = '20px';
-
-        const addButton = document.createElement('button');
-        addButton.className = 'action-button';
-        addButton.innerHTML = `<i class="fas fa-plus"></i> Add New Item to ${currentLocation}`;
-        addButton.addEventListener('click', showAddNewItemModal);
-
-        addButtonContainer.appendChild(addButton);
-        inventoryContent.appendChild(addButtonContainer);
     }
     
     // Format date nicely
@@ -723,8 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBackdrop.className = 'modal-backdrop';
 
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box';
-        modalContent.style.maxWidth = '500px';
+        modalContent.className = 'modal-box modal-box--wide';
 
         const modalHeader = document.createElement('div');
         modalHeader.className = 'modal-header';
@@ -1140,10 +941,106 @@ document.addEventListener('DOMContentLoaded', function() {
         updateOverviewTable();
     }
     
+    // Both dashboard lists are driven by the same location filter, so they always refresh together
+    function updateDashboardLists() {
+        updateLowStockList();
+        updateCountCard();
+    }
+
+    // Lists the exact items the count button is about to walk through. Uses the same
+    // location filter as startFullCountProcess, so label, list and button always agree.
+    function updateCountCard() {
+        const isAll = currentLocation === 'All';
+        const items = isAll
+            ? window.icItems
+            : window.icItems.filter(item => item.location === currentLocation);
+
+        if (countCardLabel) {
+            countCardLabel.textContent = `${isAll ? 'Full' : currentLocation} Count · ${items.length} item${items.length === 1 ? '' : 's'}`;
+        }
+        if (startCountBtn) {
+            startCountBtn.textContent = isAll ? 'Start Full Count' : `Start ${currentLocation} Count`;
+        }
+
+        if (!countPreviewList) return;
+        countPreviewList.innerHTML = '';
+
+        if (items.length === 0) {
+            countPreviewList.innerHTML = '<div class="count-preview-empty">No items in this location.</div>';
+            return;
+        }
+
+        // Group by location on "All", by sublocation otherwise
+        const groups = new Map();
+        items.forEach(item => {
+            const key = (isAll ? item.location : item.sublocation) || 'General';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(item);
+        });
+
+        const fragment = document.createDocumentFragment();
+
+        [...groups.keys()].sort().forEach(groupName => {
+            const heading = document.createElement('div');
+            heading.className = 'count-preview-group';
+            heading.textContent = `${groupName} · ${groups.get(groupName).length}`;
+            fragment.appendChild(heading);
+
+            groups.get(groupName)
+                .slice()
+                .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+                .forEach(item => {
+                    const current = Number(item.currentLevel) || 0;
+                    const target = Number(item.targetLevel) || 0;
+                    const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+
+                    // Same colour ramp and 5% minimum width as the Overview level bars
+                    const hue = Math.min(percentage, 100) * 1.2;
+                    const sat = percentage < 50 ? 80 : 55;
+                    const light = percentage < 50 ? 48 : 40;
+                    const width = percentage <= 5 ? 5 : percentage;
+
+                    const cell = document.createElement('div');
+                    cell.className = 'count-preview-item';
+                    cell.title = `${item.name} — ${current}/${target} ${item.unit || ''}`.trim();
+                    cell.innerHTML = `
+                        <div class="count-preview-name"></div>
+                        <div class="count-preview-bar">
+                            <div class="count-preview-bar-fill" style="width: ${width}%; background-color: hsl(${hue}, ${sat}%, ${light}%);"></div>
+                        </div>
+                    `;
+                    // textContent, not innerHTML: item names are free text typed in the DB editor
+                    cell.querySelector('.count-preview-name').textContent = item.name;
+                    fragment.appendChild(cell);
+                });
+        });
+
+        countPreviewList.appendChild(fragment);
+        sizeCountPreviewList();
+    }
+
+    // Let the list fill the space down to the bottom of the screen, but no further:
+    // it scrolls internally so the page itself never grows with the item count
+    function sizeCountPreviewList() {
+        if (!countPreviewList) return;
+        const listTop = countPreviewList.getBoundingClientRect().top + window.scrollY;
+        const cardBottomPadding = 34;
+        const available = window.innerHeight - listTop - cardBottomPadding;
+        countPreviewList.style.maxHeight = Math.max(150, Math.min(available, 560)) + 'px';
+    }
+
+    window.addEventListener('resize', sizeCountPreviewList);
+
     // Update low stock list
     function updateLowStockList() {
+        if (lowStockTitle) {
+            lowStockTitle.textContent = currentLocation === 'All'
+                ? 'Low Stock Items'
+                : `Low Stock · ${currentLocation}`;
+        }
+
         if (!lowStockContainer) return;
-        
+
         lowStockContainer.innerHTML = '';
         
         // Filter items that are below 50% of target and match current location
@@ -1222,14 +1119,67 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update stats on dashboard
     function updateStats() {
         if (!totalItemsElement || !itemsBelowFiftyElement) return;
-        
+
         // Total items
         totalItemsElement.textContent = window.icItems.length;
-        
+
         // Items below 50% of target
         const belowFifty = window.icItems.filter(item => item.currentLevel < item.targetLevel * 0.5).length;
         itemsBelowFiftyElement.textContent = belowFifty;
+
+        updateLastInventoryStat();
     }
+
+    // "Last full inventory" = the OLDEST item check across the whole set. The inventory
+    // is only as up-to-date as its stalest item, so this is the date since which
+    // everything has been counted. A full count refreshes every item and moves it to
+    // today; a single edit or a partial (per-location) count leaves older items untouched,
+    // so it never falsely resets. Purely derived from existing data — no DB writes.
+    // Pure (no DOM/clock side effects) so it can be unit-tested; exposed as
+    // window.__icComputeLastInventory below.
+    function computeLastInventoryDisplay(items, nowMs) {
+        const dated = (items || [])
+            .map(it => ({ t: Date.parse(it.lastCheckedTime), by: it.lastCheckedBy }))
+            .filter(x => !isNaN(x.t));
+
+        if (dated.length === 0) {
+            return { rel: 'Never', sub: '', cls: 'is-stale' };
+        }
+
+        const oldest = dated.reduce((a, b) => (b.t < a.t ? b : a));
+        const days = Math.floor((nowMs - oldest.t) / 86400000);
+
+        let rel;
+        if (days <= 0) rel = 'Today';
+        else if (days === 1) rel = 'Yesterday';
+        else if (days <= 7) rel = `${days} days ago`;
+        else if (days < 14) rel = 'Over a week ago';
+        else rel = `Over ${Math.floor(days / 7)} weeks ago`;
+
+        const abs = new Date(oldest.t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const sub = oldest.by ? `${abs} · by ${oldest.by}` : abs;
+
+        // Weekly cadence: fresh within a week, aging up to ~10 days, stale beyond
+        const cls = days <= 7 ? 'is-fresh' : days <= 10 ? 'is-aging' : 'is-stale';
+
+        return { rel, sub, cls };
+    }
+
+    function updateLastInventoryStat() {
+        const dateEl = document.getElementById('last-inventory-date');
+        const byEl = document.getElementById('last-inventory-by');
+        const cardEl = document.getElementById('last-inventory-card');
+        if (!dateEl || !byEl || !cardEl) return;
+
+        const { rel, sub, cls } = computeLastInventoryDisplay(window.icItems, Date.now());
+        dateEl.textContent = rel;
+        byEl.textContent = sub;
+        cardEl.classList.remove('is-fresh', 'is-aging', 'is-stale');
+        cardEl.classList.add(cls);
+    }
+
+    // Exposed for tests: pure, read-only, no side effects.
+    window.__icComputeLastInventory = computeLastInventoryDisplay;
     
     // Set up event listeners for navigation
     function setupNavigation() {
@@ -1321,10 +1271,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Refresh data when switching to specific sections
         if (sectionId === 'inventory') {
-            updateInventoryTables();
         } else if (sectionId === 'dashboard') {
             updateStats();
-            updateLowStockList();
+            updateDashboardLists();
         } else if (sectionId === 'history') {
             loadAndDisplayHistory();
         } else if (sectionId === 'overview') {
@@ -1350,23 +1299,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Set up search functionality
+    // Set up the Overview toolbar (search + add item). Focus styling is CSS-only.
     function setupSearch() {
         const searchInput = document.getElementById('overview-search');
         if (searchInput) {
-            // Add input event listener for real-time search
             searchInput.addEventListener('input', () => {
                 updateOverviewTable();
             });
-            
-            // Add focus styles
-            searchInput.addEventListener('focus', () => {
-                searchInput.style.borderColor = 'var(--primary-dark)';
-            });
-            
-            searchInput.addEventListener('blur', () => {
-                searchInput.style.borderColor = 'var(--border-light)';
-            });
+        }
+
+        const addItemBtn = document.getElementById('overview-add-item-btn');
+        if (addItemBtn) {
+            addItemBtn.addEventListener('click', showAddNewItemModal);
         }
     }
     
@@ -1382,8 +1326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Update UI
                 updateLocationFilters();
-                updateInventoryTables();
-                updateLowStockList();
+                updateDashboardLists();
                 updateStats();
                 
                 // Update Overview table if Overview section is active
@@ -1732,8 +1675,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countInterface) countInterface.style.display = 'none';
         
         // Update UI
-        updateInventoryTables();
-        updateLowStockList();
+        updateDashboardLists();
         updateStats();
         
         // Show success message
@@ -1808,9 +1750,9 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button id="modal-cancel" style="flex: 1; padding: 10px; background: #f1f1f1; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-                <button id="modal-edit-details" style="flex: 1; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Edit Details</button>
-                <button id="modal-save" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Save</button>
+                <button id="modal-cancel" class="btn btn--secondary">Cancel</button>
+                <button id="modal-edit-details" class="btn btn--info">Edit Details</button>
+                <button id="modal-save" class="btn btn--primary">Save</button>
             </div>
         `;
         
@@ -1904,8 +1846,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         
                         // Update UI
-                        updateInventoryTables();
-                        updateLowStockList();
+                        updateDashboardLists();
                         updateStats();
                         
                         // Update Overview table if it's active
@@ -1951,27 +1892,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create modal backdrop
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
-        modalBackdrop.style.position = 'fixed';
-        modalBackdrop.style.top = '0';
-        modalBackdrop.style.left = '0';
-        modalBackdrop.style.width = '100%';
-        modalBackdrop.style.height = '100%';
-        modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modalBackdrop.style.display = 'flex';
-        modalBackdrop.style.justifyContent = 'center';
-        modalBackdrop.style.alignItems = 'center';
-        modalBackdrop.style.zIndex = '1001';
 
-        // Create modal content
+        // Create modal content — layout comes from the shared .modal-box styles
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.style.backgroundColor = 'white';
-        modalContent.style.padding = '20px';
-        modalContent.style.borderRadius = '5px';
-        modalContent.style.width = '90%';
-        modalContent.style.maxWidth = '500px';
-        modalContent.style.maxHeight = '90vh';
-        modalContent.style.overflowY = 'auto';
+        modalContent.className = 'modal-box modal-box--wide';
 
         // Create modal header
         const modalHeader = document.createElement('div');
@@ -2429,8 +2353,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Extract locations and update UI
             extractLocationsAndSublocations();
             updateLocationFilters();
-            updateInventoryTables();
-            updateLowStockList();
+            updateDashboardLists();
             updateStats();
 
             // Show success message
@@ -2456,27 +2379,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create modal backdrop
         const modalBackdrop = document.createElement('div');
         modalBackdrop.className = 'modal-backdrop';
-        modalBackdrop.style.position = 'fixed';
-        modalBackdrop.style.top = '0';
-        modalBackdrop.style.left = '0';
-        modalBackdrop.style.width = '100%';
-        modalBackdrop.style.height = '100%';
-        modalBackdrop.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        modalBackdrop.style.display = 'flex';
-        modalBackdrop.style.justifyContent = 'center';
-        modalBackdrop.style.alignItems = 'center';
-        modalBackdrop.style.zIndex = '1001';
 
-        // Create modal content
+        // Create modal content — layout comes from the shared .modal-box styles
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.style.backgroundColor = 'white';
-        modalContent.style.padding = '20px';
-        modalContent.style.borderRadius = '5px';
-        modalContent.style.width = '90%';
-        modalContent.style.maxWidth = '500px';
-        modalContent.style.maxHeight = '90vh';
-        modalContent.style.overflowY = 'auto';
+        modalContent.className = 'modal-box modal-box--wide';
 
         // Create modal header
         const modalHeader = document.createElement('div');
@@ -2956,8 +2862,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Extract locations and update UI
                 extractLocationsAndSublocations();
                 updateLocationFilters();
-                updateInventoryTables();
-                updateLowStockList();
+                updateDashboardLists();
                 updateStats();
 
                 // Show success message
@@ -3000,8 +2905,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Extract locations and update UI
                     extractLocationsAndSublocations();
                     updateLocationFilters();
-                    updateInventoryTables();
-                    updateLowStockList();
+                    updateDashboardLists();
                     updateStats();
 
                     // Show success message
@@ -3069,8 +2973,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBackdrop.className = 'modal-backdrop';
 
         const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box';
-        modalContent.style.maxWidth = '500px';
+        modalContent.className = 'modal-box modal-box--wide';
 
         // Calculate date range for display
         const twoMonthsAgo = new Date();
@@ -3423,35 +3326,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show message toast
     function showMessage(message, type = "info") {
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.style.position = 'fixed';
-        toast.style.bottom = '20px';
-        toast.style.right = '20px';
-        toast.style.padding = '12px 20px';
-        toast.style.borderRadius = '4px';
-        toast.style.zIndex = '2000';
-        
-        // Set colors based on type
-        if (type === "success") {
-            toast.style.backgroundColor = '#4CAF50';
-            toast.style.color = 'white';
-        } else if (type === "error") {
-            toast.style.backgroundColor = '#f44336';
-            toast.style.color = 'white';
-        } else {
-            toast.style.backgroundColor = '#2196F3';
-            toast.style.color = 'white';
+        // Routed to the shared notification system (notifications.js) so I&C and
+        // Prep use one toast. type: success | error | warning | info.
+        var t = (type === "error" || type === "success" || type === "warning") ? type : "info";
+        if (typeof showNotification === "function") {
+            showNotification(message, "", t);
         }
-        
-        document.body.appendChild(toast);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            if (document.body.contains(toast)) {
-                document.body.removeChild(toast);
-            }
-        }, 3000);
     }
     
     // Initialize application

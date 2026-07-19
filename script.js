@@ -491,7 +491,7 @@ badgeStyles.textContent = `
     }
     .todo-tag.low {
         background-color: #fef9c3;
-        color: #ca8a04;
+        color: var(--warning-text);
     }
     .todo-tag.getting-low {
         background-color: #f1f5f9;
@@ -533,7 +533,7 @@ function showLoadingIndicator() {
     spinner.style.width = '50px';
     spinner.style.height = '50px';
     spinner.style.border = '5px solid #f3f3f3';
-    spinner.style.borderTop = '5px solid #3498db';
+    spinner.style.borderTop = '5px solid var(--info)';
     spinner.style.borderRadius = '50%';
     spinner.style.animation = 'spin 1s linear infinite';
     
@@ -729,7 +729,7 @@ function showQuickUpdateModal(item, context = 'default') {
         prepLabel.style.display = 'flex';
         prepLabel.style.alignItems = 'center';
         prepLabel.style.padding = '8px 12px';
-        prepLabel.style.border = '2px solid #4CAF50';
+        prepLabel.style.border = '2px solid var(--color-primary)';
         prepLabel.style.borderRadius = '4px';
         prepLabel.style.cursor = 'pointer';
         prepLabel.style.fontWeight = '500';
@@ -753,7 +753,7 @@ function showQuickUpdateModal(item, context = 'default') {
         countLabel.style.display = 'flex';
         countLabel.style.alignItems = 'center';
         countLabel.style.padding = '8px 12px';
-        countLabel.style.border = '2px solid #2196F3';
+        countLabel.style.border = '2px solid var(--info)';
         countLabel.style.borderRadius = '4px';
         countLabel.style.cursor = 'pointer';
         countLabel.style.fontWeight = '500';
@@ -1499,6 +1499,12 @@ function joinList(items) {
     return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
 }
 
+// Formate la quantite restante a prep : jamais negative, 1 decimale max ("2" et non "2.0")
+function formatNeed(qty) {
+    const q = Math.max(0, qty);
+    return Number(q.toFixed(1)).toString();
+}
+
 function renderPrepTodoItem(item) {
     const percentage = item.currentLevel / item.targetLevel;
     let badgeClass, badgeText;
@@ -1529,6 +1535,7 @@ function renderPrepTodoItem(item) {
             }
         } catch (e) {}
     }
+    const needQty = formatNeed(item.targetLevel - item.currentLevel);
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item';
     if (item.canPrep === false) {
@@ -1539,13 +1546,13 @@ function renderPrepTodoItem(item) {
     } else if (percentage <= 0.25) {
         todoItem.style.borderLeftColor = '#f97316';
     } else if (percentage <= 0.4) {
-        todoItem.style.borderLeftColor = '#ca8a04';
+        todoItem.style.borderLeftColor = 'var(--warning)';
     } else {
         todoItem.style.borderLeftColor = '#64748b';
     }
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
-        <div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${item.targetLevel - item.currentLevel} more</div>
+        ${needQty !== '0' ? `<div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${needQty} more</div>` : ''}
         ${item.canPrep === false ? `
             <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
                 <div style="font-weight: 600; color: #ef4444;">Can't Prep: ${item.cantPrepReason}</div>
@@ -1635,8 +1642,8 @@ function showTaskModal(task) {
             <div><strong>Last done:</strong> ${lastDoneText}</div>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button id="task-done-btn" style="flex: 1; padding: 14px; background-color: #80b244; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Mark as done &#10003;</button>
-            <button id="task-close-btn" style="padding: 14px 20px; background-color: #e5e7eb; color: #333; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Close</button>
+            <button id="task-done-btn" class="btn btn--primary">Mark as done &#10003;</button>
+            <button id="task-close-btn" class="btn btn--secondary">Close</button>
         </div>
     `;
     const infoDiv = document.createElement('div');
@@ -2365,11 +2372,11 @@ function showSingleItemUpdateModal() {
             statusColor = '#f97316';
             statusText = 'Critical';
         } else if (percentage < 50) {
-            statusColor = '#ca8a04';
+            statusColor = 'var(--warning)';
             statusText = 'Low';
         } else {
             // Change to green color for percentages above 50%
-            statusColor = '#4CAF50';
+            statusColor = 'var(--success)';
             statusText = `${percentage}%`;
         }
         

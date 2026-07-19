@@ -251,58 +251,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 color: white;
                 opacity: 1;
             }
-            .delete-confirmation {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-            }
-            .delete-confirmation-box {
-                background-color: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                max-width: 90%;
-                width: 400px;
-                text-align: center;
-            }
-            .delete-confirmation-box h3 {
-                margin-top: 0;
-                color: #333;
-            }
-            .delete-confirmation-box p {
-                margin-bottom: 20px;
-                color: #666;
-            }
-            .delete-confirmation-buttons {
-                display: flex;
-                justify-content: center;
-                gap: 10px;
-            }
-            .delete-confirm-btn {
-                background-color: #ff5252;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: 500;
-            }
-            .delete-cancel-btn {
-                background-color: #f1f1f1;
-                color: #333;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: 500;
-            }
         `;
         document.head.appendChild(style);
     }
@@ -326,58 +274,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show delete confirmation dialog
     function showDeleteConfirmation(logKey, logElement) {
-        // Create confirmation dialog
-        const confirmationDialog = document.createElement('div');
-        confirmationDialog.className = 'delete-confirmation';
-        
-        confirmationDialog.innerHTML = `
-            <div class="delete-confirmation-box">
-                <h3>Delete Log Entry</h3>
-                <p>Are you sure you want to delete this activity log? This action cannot be undone.</p>
-                <div class="delete-confirmation-buttons">
-                    <button class="delete-cancel-btn">Cancel</button>
-                    <button class="delete-confirm-btn">Delete</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(confirmationDialog);
-        
-        // Handle button clicks
-        const cancelBtn = confirmationDialog.querySelector('.delete-cancel-btn');
-        const confirmBtn = confirmationDialog.querySelector('.delete-confirm-btn');
-        
-        const handleDelete = () => {
-            deleteLogEntry(logKey, logElement);
-            document.body.removeChild(confirmationDialog);
-        };
-        
-        const handleCancel = () => {
-            document.body.removeChild(confirmationDialog);
-        };
-        
-        cancelBtn.addEventListener('click', handleCancel);
-        confirmBtn.addEventListener('click', handleDelete);
-        
-        // Add keyboard support
-        confirmationDialog.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleDelete();
-            } else if (e.key === 'Escape') {
-                handleCancel();
-            }
+        // Uses the shared branded confirm dialog (ui-helpers.js) instead of a
+        // bespoke box — one confirm UI across the app.
+        confirmDialog({
+            title: 'Delete log entry?',
+            message: 'This activity log will be permanently deleted. This cannot be undone.',
+            confirmText: 'Delete'
+        }).then(function (ok) {
+            if (ok) deleteLogEntry(logKey, logElement);
         });
-        
-        // Close when clicking outside the box
-        confirmationDialog.addEventListener('click', function(e) {
-            if (e.target === confirmationDialog) {
-                handleCancel();
-            }
-        });
-        
-        // Focus the dialog to enable keyboard events
-        confirmationDialog.setAttribute('tabindex', '-1');
-        confirmationDialog.focus();
     }
     
     // Delete a log entry from Firebase

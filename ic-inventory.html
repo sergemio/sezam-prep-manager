@@ -46,17 +46,13 @@
                         <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h6v6H1V1zm8 0h6v6H9V1zM1 9h6v6H1V9zm8 0h6v6H9V9z"/></svg>
                         Dashboard
                     </button>
-                    <button class="nav-button" data-section="inventory">
-                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h12v3H2V2zm0 4h12v8H2V6zm2 2v1h8V8H4zm0 2.5v1h5v-1H4z"/></svg>
-                        Inventory
+                    <button class="nav-button" data-section="overview">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v1H1V3zm0 3h14v1H1V6zm0 3h10v1H1V9zm0 3h12v1H1v-1z"/></svg>
+                        Inventory Overview
                     </button>
                     <button class="nav-button" data-section="history">
                         <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zM8.5 4H7v5l4 2.5.75-1.23-3.25-1.97V4z"/></svg>
                         History
-                    </button>
-                    <button class="nav-button" data-section="overview">
-                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 3h14v1H1V3zm0 3h14v1H1V6zm0 3h10v1H1V9zm0 3h12v1H1v-1z"/></svg>
-                        Overview
                     </button>
                 </div>
 
@@ -97,6 +93,11 @@
                             <div class="ic-stat-label">Total I&C Items</div>
                             <div class="ic-stat-value" id="total-items">0</div>
                         </div>
+                        <div class="ic-stat-card ic-stat-card--check" id="last-inventory-card">
+                            <div class="ic-stat-label">Last Full Inventory</div>
+                            <div class="ic-stat-value ic-stat-value--check" id="last-inventory-date">—</div>
+                            <div class="ic-stat-sub" id="last-inventory-by"></div>
+                        </div>
                     </div>
 
                     <div class="ic-card">
@@ -107,25 +108,15 @@
                     </div>
 
                     <div class="ic-card ic-action-card">
-                        <div class="ic-section-label" style="margin-bottom: 12px;">Start Full Count</div>
-                        <p style="color: var(--text-medium); font-size: 14px; margin: 0 0 16px 0;">Check and update all I&C items, organized by location.</p>
-                        <button class="btn btn--primary" id="start-count-btn" style="width: 100%;">Start Full Count</button>
-                    </div>
-                </div>
-                
-                <!-- Inventory section -->
-                <div class="content-section" id="inventory-section" style="display: none;">
-                    <h1 class="section-title">I&C Inventory</h1>
-
-                    <div class="ic-card" style="margin-top: 16px;">
-                        <div class="ic-section-label">Location Filter</div>
-                        <div class="location-filter" id="inventory-location-filter">
-                            <!-- Location buttons will be generated dynamically -->
+                        <div class="count-card-header">
+                            <div class="count-card-heading">
+                                <div class="ic-section-label" id="count-card-label">Start Full Count</div>
+                            </div>
+                            <button class="btn btn--primary" id="start-count-btn">Start Full Count</button>
                         </div>
-                    </div>
-                    
-                    <div id="inventory-content">
-                        <!-- Sublocations and inventory tables will be inserted here -->
+                        <div class="count-preview-list" id="count-preview-list">
+                            <!-- Items of the current location filter, inserted by JavaScript -->
+                        </div>
                     </div>
                 </div>
                 
@@ -157,7 +148,7 @@
 
                 <!-- Overview section -->
                 <div class="content-section" id="overview-section" style="display: none;">
-                    <h1 class="section-title">I&C Overview</h1>
+                    <h1 class="section-title">I&C Inventory Overview</h1>
                     
                     <div class="card">
                         <h2 class="card-title">Location Filter</h2>
@@ -168,22 +159,14 @@
                     
                     <div class="card">
                         <div class="overview-table-container">
-                            <!-- Search field -->
-                            <div class="search-container" style="margin-bottom: 20px;">
-                                <input 
-                                    type="text" 
-                                    id="overview-search" 
-                                    placeholder="Search items by name, sublocation, or location..." 
-                                    style="
-                                        width: 100%;
-                                        padding: 12px 16px;
-                                        border: 2px solid var(--border-light);
-                                        border-radius: 8px;
-                                        font-size: 16px;
-                                        transition: border-color 0.2s ease;
-                                        box-sizing: border-box;
-                                    "
+                            <!-- Search field + add item -->
+                            <div class="overview-toolbar">
+                                <input
+                                    type="text"
+                                    id="overview-search"
+                                    placeholder="Search items by name, sublocation, or location..."
                                 >
+                                <button class="btn btn--primary" id="overview-add-item-btn">+ Add New Item</button>
                             </div>
                             
                             <table class="overview-table">
@@ -274,7 +257,7 @@
             
             <!-- Right panel - Low stock list -->
             <div class="todo-panel">
-                <div class="todo-title">Low Stock Items</div>
+                <div class="todo-title" id="low-stock-title">Low Stock Items</div>
                 
                 <div id="low-stock-container">
                     <!-- Low stock items will be inserted here by JavaScript -->
@@ -290,6 +273,8 @@
     <script src="sounds.js"></script>
     <!-- Shared adaptive slider -->
     <script src="slider.js"></script>
+    <!-- Shared UI helpers (levelColor, confirmDialog) -->
+    <script src="ui-helpers.js"></script>
     <!-- Core application script (unified) -->
     <script src="ic-inventory-app.js"></script>
     <script src="pin-guard.js"></script>

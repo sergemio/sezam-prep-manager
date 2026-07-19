@@ -24,6 +24,32 @@
     --text-medium: #555555;
     --text-light: #777777;
     --border-light: #e0e7db;
+
+    /* ===== UNIFICATION TOKENS (2026-07-18) — additive; existing tokens above unchanged ===== */
+    /* semantic colour roles (green identity kept) */
+    --color-primary: #577c2b; --color-primary-hover: #496a24; --on-primary: #fff;
+    --accent-green: #80b244;
+    --success: var(--accent-green); --success-surface: #e8f5e9;
+    --danger: #ef4444; --danger-strong: #dc2626; --danger-surface: #fee2e2;
+    --warning: #f97316; --warning-text: #d97706; --warning-surface: #ffedd5;
+    --info: #3b82f6; --info-surface: #e3f2fd;
+    --brand-accent: #c2185b;
+    /* surfaces */
+    --bg-app: #e8e8e0; --surface: #ffffff; --surface-muted: #f5f5f0;
+    /* type scale (px); weights numeric only */
+    --fs-eyebrow: 12px; --fs-caption: 13px; --fs-body: 15px; --fs-body-lg: 16px;
+    --fs-title: 20px; --fs-modal: 22px; --fs-section: 28px; --fs-page: 32px;
+    --fs-stat: 42px; --fs-stat-lg: 48px;
+    --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-black: 800;
+    /* radius · shadow · spacing (4px grid) */
+    --r-control: 8px; --r-card: 16px; --r-pill: 9999px; --r-circle: 50%;
+    --shadow-card: 0 2px 8px rgba(0,0,0,.06);
+    --shadow-modal: 0 8px 24px rgba(0,0,0,.15); --scrim: rgba(0,0,0,.5);
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-7: 32px; --space-8: 40px;
+    /* z-index ladder */
+    --z-overlay: 100; --z-modal: 1000; --z-modal-stacked: 1100;
+    --z-dropdown: 1200; --z-toast: 1300; --z-gate: 2000;
 }
 
 body {
@@ -239,7 +265,7 @@ body {
     flex: 1;
     padding: 28px 32px;
     overflow-y: auto;
-    background-color: #f5f5ef;
+    background-color: var(--surface-muted);
 }
 
 /* DB Editor page: no todo panel, content takes remaining space */
@@ -359,9 +385,9 @@ body {
     justify-content: center;
     gap: 12px;
     padding: 16px 24px;
-    background: #2d6a1e;
+    background: var(--color-primary);
     color: white;
-    font-family: var(--font-main);
+    font-family: inherit;
     transform: translateY(-100%);
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -409,7 +435,7 @@ body {
 
 .card {
     background-color: white;
-    border-radius: 12px;
+    border-radius: var(--r-card);
     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
     padding: 24px;
     margin-bottom: 24px;
@@ -654,7 +680,7 @@ body {
 .action-button {
     border: none;
     padding: 14px 32px;
-    border-radius: 12px;
+    border-radius: var(--r-control);
     font-weight: 700;
     font-size: 14px;
     letter-spacing: 0.5px;
@@ -666,7 +692,7 @@ body {
 }
 
 .action-button--primary {
-    background-color: var(--primary-medium);
+    background-color: var(--color-primary);
     color: white;
     flex: 1;
     justify-content: center;
@@ -674,7 +700,7 @@ body {
 }
 
 .action-button--primary:hover {
-    background-color: var(--primary-dark);
+    background-color: var(--color-primary-hover);
     transform: translateY(-1px);
     box-shadow: 0 6px 16px rgba(128, 178, 68, 0.4);
 }
@@ -712,7 +738,7 @@ body {
 /* Right Panel - Todo List */
 .todo-panel {
     width: 22%;
-    background-color: #fafaf6;
+    background-color: var(--surface-muted);
     padding: 20px 16px;
     overflow-y: auto;
     border-left: 1px solid var(--border-light);
@@ -889,6 +915,7 @@ body {
 .todo-tag.urgent {
     background-color: var(--accent-red);
     color: white;
+    text-transform: uppercase;
     font-weight: 800;
 }
 
@@ -933,7 +960,7 @@ body {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: #84cc16;
+    background-color: var(--success);
     display: inline-block;
     margin-right: 6px;
     vertical-align: middle;
@@ -1004,7 +1031,7 @@ body {
 
 .summary-badge.task {
     background-color: #eff6ff;
-    color: #2563eb;
+    color: var(--info);
     border: 1px solid #bfdbfe;
 }
 
@@ -1048,7 +1075,7 @@ body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .display-toggle.on {
-    background: #4caf50;
+    background: var(--success);
 }
 .display-toggle.on::after {
     transform: translateX(20px);
@@ -1059,7 +1086,7 @@ body {
     width: 100%;
     margin: 15px 0;
     padding: 20px;
-    background-color: #fafaf6;
+    background-color: var(--surface-muted);
     border-radius: 16px;
     border: 1px solid var(--border-light);
 }
@@ -1248,7 +1275,7 @@ body {
 }
 
 .db-table thead tr {
-    background-color: #f8f8f4;
+    background-color: var(--surface-muted);
 }
 
 .db-table thead th {
@@ -1267,7 +1294,7 @@ body {
 }
 
 .db-table tbody tr:nth-child(even) {
-    background-color: #fafaf6;
+    background-color: var(--surface-muted);
 }
 
 .db-table tbody tr:hover {
@@ -1289,7 +1316,7 @@ body {
 .stock-critical { color: #dc2626; font-weight: 700; }
 .stock-low { color: #d97706; font-weight: 600; }
 .stock-ok { color: #555; }
-.stock-full { color: #16a34a; }
+.stock-full { color: var(--success); }
 
 .drag-cell {
     width: 40px;
@@ -1347,14 +1374,6 @@ tr.drag-placeholder td {
 }
 
 /* Staff selection modal styles */
-.modal-backdrop {
-    animation: modalFadeIn 0.3s ease-out;
-}
-
-.modal-content {
-    animation: modalSlideIn 0.3s ease-out;
-}
-
 .staff-select-button {
     animation: fadeIn 0.2s ease-out;
     animation-fill-mode: both;
@@ -1388,7 +1407,7 @@ tr.drag-placeholder td {
 /* Submit button styles */
 .submit-button {
     width: 100%;
-    background-color: var(--primary-medium);
+    background-color: var(--color-primary);
     color: white;
     border: none;
     padding: 12px;
@@ -1829,6 +1848,7 @@ tr.drag-placeholder td {
     justify-content: center;
     align-items: center;
     z-index: 9999;
+    animation: modalFadeIn 0.3s ease-out;
 }
 
 .modal-backdrop--stacked {
@@ -1845,6 +1865,19 @@ tr.drag-placeholder td {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    animation: modalSlideIn 0.25s ease-out;
+}
+
+/* Form-heavy modals (add item, edit details, purge) that need the extra width */
+.modal-box--wide {
+    max-width: 500px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-box,
+    .modal-backdrop {
+        animation: none;
+    }
 }
 
 .modal-header {
@@ -1858,14 +1891,15 @@ tr.drag-placeholder td {
 .btn {
     padding: 12px 24px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--r-control);
     cursor: pointer;
     font-weight: 600;
+    font-size: var(--fs-body-lg);
     flex: 1;
 }
 
 .btn--primary {
-    background-color: #4CAF50;
+    background-color: var(--color-primary);
     color: white;
 }
 
@@ -1875,12 +1909,17 @@ tr.drag-placeholder td {
 }
 
 .btn--secondary {
-    background-color: #f1f1f1;
+    background-color: var(--surface-muted);
     color: #333;
 }
 
 .btn--brand {
     background-color: var(--primary-medium);
+    color: white;
+}
+
+.btn--info {
+    background-color: var(--info);
     color: white;
 }
 
@@ -1906,11 +1945,163 @@ tr.drag-placeholder td {
 }
 
 .toast--success {
-    background-color: #4CAF50;
+    background-color: var(--success);
 }
 
 .toast--error {
     background-color: #ef4444;
+}
+
+/* ========================================
+   Unified Components (2026-07-18)
+   Defined here; wired page-by-page in Phase 3.
+   New/unused selectors — additive, no visual change until markup adopts them.
+   ======================================== */
+
+.btn--lg {
+    padding: 16px 34px;
+    font-size: var(--fs-body-lg);
+}
+
+.modal-box--narrow {
+    max-width: 340px;
+}
+
+.modal-title {
+    font-size: var(--fs-modal);
+    font-weight: var(--fw-bold);
+    color: var(--primary-dark);
+    margin: 0 0 var(--space-2);
+}
+
+/* One table treatment: uppercase sticky headers + zebra rows (Serge's choice) */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th {
+    font-size: var(--fs-eyebrow);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
+    background: var(--bg-medium);
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    position: sticky;
+    top: 0;
+}
+.data-table td {
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--fs-caption);
+    color: var(--text-dark);
+    border: 0;
+}
+.data-table tbody tr:nth-child(even) {
+    background: var(--surface-muted);
+}
+.data-table tbody tr:hover {
+    background: var(--bg-light);
+}
+
+/* One pill: colour-only modifiers */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-eyebrow);
+    font-weight: var(--fw-bold);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--r-pill);
+    line-height: 1.4;
+}
+.tag--provider { background: var(--accent-yellow); color: #6b5900; }
+.tag--location { background: var(--bg-medium); color: var(--primary-dark); }
+.tag--status-low { background: var(--danger-surface); color: var(--danger-strong); text-transform: uppercase; letter-spacing: .8px; }
+.tag--status-ok { background: var(--success-surface); color: var(--primary-dark); text-transform: uppercase; letter-spacing: .8px; }
+.tag--info { background: var(--info-surface); color: #1c66b0; }
+
+/* One section band */
+.group-header {
+    font-size: var(--fs-caption);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary-dark);
+    background: var(--bg-medium);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--r-control);
+    margin: var(--space-5) 0 var(--space-2);
+}
+
+/* PIN gate (pin-guard.js) — keypad styling as classes; key sizes preserved
+   (touch). Must sit above every other overlay, hence an explicit high z-index
+   (the --z-* ladder is aspirational and lower than the app's live values). */
+.pin-gate {
+    z-index: 20000;
+}
+.pin-gate--opaque {
+    background: rgba(30, 30, 30, 0.97);
+}
+.pin-box {
+    max-width: 320px;
+    padding: 24px;
+    text-align: center;
+}
+.pin-title {
+    margin: 0 0 16px;
+    color: var(--text-dark);
+}
+.pin-display {
+    font-size: 32px;
+    letter-spacing: 12px;
+    height: 48px;
+    line-height: 48px;
+    background: var(--surface-muted);
+    border-radius: var(--r-control);
+    margin-bottom: 16px;
+    font-weight: var(--fw-bold);
+    color: var(--text-dark);
+}
+.pin-error {
+    color: var(--danger-strong);
+    font-size: var(--fs-caption);
+    height: 20px;
+    margin-bottom: 8px;
+}
+.pin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.pin-key {
+    padding: 16px;
+    font-size: 22px;
+    font-weight: var(--fw-semibold);
+    border: 1px solid #ddd;
+    border-radius: var(--r-control);
+    background: #fff;
+    cursor: pointer;
+}
+.pin-key--clear {
+    font-size: 18px;
+    background: var(--surface-muted);
+    color: var(--text-light);
+}
+.pin-key--enter {
+    border: none;
+    background: var(--color-primary);
+    color: #fff;
+}
+.pin-back {
+    margin-top: 16px;
+    padding: 8px 16px;
+    font-size: var(--fs-body);
+    border: none;
+    background: none;
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 /* Day toggle buttons */
