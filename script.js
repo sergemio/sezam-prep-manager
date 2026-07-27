@@ -1538,21 +1538,26 @@ function renderPrepTodoItem(item) {
     const needQty = formatNeed(item.targetLevel - item.currentLevel);
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item';
+    // Left-border colour encodes urgency; the "to prep" number reuses it,
+    // except for can't-prep items (slate — prepping them is blocked anyway).
+    let edgeColor;
     if (item.canPrep === false) {
-        todoItem.style.borderLeftColor = '#ef4444';
+        edgeColor = '#ef4444';
         todoItem.style.opacity = '0.7';
     } else if (percentage === 0) {
-        todoItem.style.borderLeftColor = '#ef4444';
+        edgeColor = '#ef4444';
     } else if (percentage <= 0.25) {
-        todoItem.style.borderLeftColor = '#f97316';
+        edgeColor = '#f97316';
     } else if (percentage <= 0.4) {
-        todoItem.style.borderLeftColor = 'var(--warning)';
+        edgeColor = 'var(--warning)';
     } else {
-        todoItem.style.borderLeftColor = '#64748b';
+        edgeColor = '#64748b';
     }
+    todoItem.style.borderLeftColor = edgeColor;
+    const needColor = item.canPrep === false ? '#475569' : edgeColor;
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
-        ${needQty !== '0' ? `<div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${needQty} more</div>` : ''}
+        ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
         ${item.canPrep === false ? `
             <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
                 <div style="font-weight: 600; color: #ef4444;">Can't Prep: ${item.cantPrepReason}</div>

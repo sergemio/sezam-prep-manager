@@ -510,6 +510,19 @@ body {
     margin-bottom: 4px;
 }
 
+/* PREP STATUS: big count + "remaining" suffix on the same baseline */
+.stat-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stat-value-suffix {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-medium);
+}
+
 .stat-sub {
     font-size: 15px;
     color: var(--text-light);
@@ -901,6 +914,23 @@ body {
     font-size: 15px;
     color: var(--text-medium);
     margin-bottom: 4px;
+}
+
+/* LOW PREPS: quantity to prep as a prominent number */
+.todo-need {
+    margin: 2px 0 4px;
+}
+
+.todo-need-num {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.todo-need-lbl {
+    font-size: 14px;
+    color: var(--text-medium);
+    margin-left: 4px;
 }
 
 .todo-tag {
