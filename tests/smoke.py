@@ -153,6 +153,20 @@ def run_pm(browser):
         return bool(d) and d["cp"] is False and d["r"] == "Missing Ingredients"
     safe("PM/save-cant-prep", g_cantprep)
 
+    # H. task-appear chime: a NEW due task rings exactly once; a no-op re-render
+    # stays silent; already-due tasks at baseline never ring.
+    def g_taskbeep():
+        pg.evaluate("() => { window.__beeps=0; SoundFX.taskAppear=()=>{window.__beeps++;}; updateTodoList(); }")
+        base = pg.evaluate("() => window.__beeps")
+        pg.evaluate("""() => { tasks.push({id:'__smoke_task',name:'SMOKE',type:'recurring',
+            frequencyDays:1,active:true,forceDisplay:true}); updateTodoList(); }""")
+        after_new = pg.evaluate("() => window.__beeps")
+        pg.evaluate("() => updateTodoList()")
+        after_repeat = pg.evaluate("() => window.__beeps")
+        pg.evaluate("() => { tasks = tasks.filter(t => t.id !== '__smoke_task'); updateTodoList(); }")
+        return base == 0 and after_new == 1 and after_repeat == 1
+    safe("PM/task-appear-chime", g_taskbeep)
+
     rec("PM/no-native-dialogs", len(dialogs) == 0, str(dialogs))
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()

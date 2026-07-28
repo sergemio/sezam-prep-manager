@@ -66,6 +66,14 @@ const SoundFX = (() => {
             osc.stop(ac.currentTime + 0.12);
         },
 
+        // Gentle two-note bell — a new task just appeared in the due list.
+        // Rising perfect fourth (G5 -> C6) with a soft sustain: audible over
+        // kitchen noise but calm, not anxiogenic. Distinct from complete/filterOn.
+        taskAppear() {
+            playTone(784, 0.14, 'sine', 0.11, 0);       // G5
+            playTone(1047, 0.34, 'sine', 0.10, 0.12);   // C6 (soft ring-out)
+        },
+
         // Short rising blip — a filter/selection was engaged (confirms the action)
         filterOn() {
             playTone(660, 0.06, 'sine', 0.09, 0);

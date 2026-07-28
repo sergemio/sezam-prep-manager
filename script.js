@@ -1076,6 +1076,27 @@ function getTaskDaysOverdue(task) {
     return 0;
 }
 
+// Tracks which task ids were due at the previous render, so we can detect a
+// task that just popped into the due list and play a one-shot chime. Stays null
+// until the first render — so we never beep for tasks already due on page load.
+let _prevDueTaskIds = null;
+
+// Chime once when a NEW task appears in the due list. Compares the current due
+// task ids against the previous render: any id due now but not before is fresh.
+// Scope = tasks only (not preps). Rides whatever triggered this redraw — there
+// is no separate clock. Skipped while the tab is backgrounded (keeps the "new"
+// state so the chime can still fire on the next visible render).
+function notifyNewDueTasks(taskItems) {
+    if (document.hidden) return;
+    const currentIds = new Set(taskItems.map(e => e.data.id));
+    if (_prevDueTaskIds !== null) {
+        let hasNew = false;
+        currentIds.forEach(id => { if (!_prevDueTaskIds.has(id)) hasNew = true; });
+        if (hasNew && typeof SoundFX !== 'undefined') SoundFX.taskAppear();
+    }
+    _prevDueTaskIds = currentIds;
+}
+
 function updateTodoList() {
     const sortedItems = sortItemsByDisplayOrder(prepItems);
 
@@ -1119,6 +1140,10 @@ function updateTodoList() {
 
     const taskItems = todoItems.filter(e => e._type === 'task');
     const prepItemsList = todoItems.filter(e => e._type === 'prep');
+
+    // Bell if a task just appeared in the due list (before any early return so
+    // the tracked set stays consistent across every render).
+    notifyNewDueTasks(taskItems);
 
     // Update section labels
     const tasksLabel = document.getElementById('todo-tasks-label');
@@ -1275,12 +1300,6 @@ function applySummaryFilter() {
     const tasksLabel = document.getElementById('todo-tasks-label');
     if (prepsLabel) prepsLabel.style.display = anyVisible('#todo-list-container') ? 'flex' : 'none';
     if (tasksLabel) tasksLabel.style.display = anyVisible('#todo-tasks-container') ? 'flex' : 'none';
-}
-
-function joinList(items) {
-    if (items.length === 1) return items[0];
-    if (items.length === 2) return items[0] + ' and ' + items[1];
-    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
 }
 
 // Formate la quantite restante a prep : jamais negative, 1 decimale max ("2" et non "2.0")

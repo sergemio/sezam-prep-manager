@@ -257,17 +257,6 @@
 }
 
 /* Badge styles */
-.location-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: var(--r-pill);
-    font-size: 12px;
-    font-weight: 600;
-    margin-left: 8px;
-    background-color: var(--bg-medium);
-    color: var(--text-dark);
-}
-
 .provider-badge {
     display: inline-block;
     padding: 3px 10px;

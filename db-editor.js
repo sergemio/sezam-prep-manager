@@ -42,43 +42,6 @@ function sortPrepItems() {
     prepItems.sort(byDisplayOrder);
 }
 
-// Move a prep item up or down in display order
-function moveItem(itemId, direction) {
-    const currentIndex = prepItems.findIndex(item => item.id === itemId);
-    const swapIndex = currentIndex + direction; // -1 for up, +1 for down
-
-    if (currentIndex < 0 || swapIndex < 0 || swapIndex >= prepItems.length) return;
-
-    const currentItem = prepItems[currentIndex];
-    const swapItem = prepItems[swapIndex];
-
-    if (currentItem.displayOrder === undefined) currentItem.displayOrder = currentItem.id;
-    if (swapItem.displayOrder === undefined) swapItem.displayOrder = swapItem.id;
-
-    // Swap displayOrder values
-    const temp = currentItem.displayOrder;
-    currentItem.displayOrder = swapItem.displayOrder;
-    swapItem.displayOrder = temp;
-
-    const dirLabel = direction === -1 ? 'up' : 'down';
-
-    if (window.firebaseDb) {
-        window.firebaseDb.saveAllItems([currentItem, swapItem])
-            .then(() => {
-                sortPrepItems();
-                renderItemsTable();
-                showSuccessMessage(`Item moved ${dirLabel} in order.`);
-            })
-            .catch(error => {
-                console.error('Error saving items:', error);
-                showErrorMessage('Failed to change item order.');
-            });
-    } else {
-        sortPrepItems();
-        renderItemsTable();
-    }
-}
-
 // Initialize the tab navigation system
 function initTabNavigation() {
     const tabButtons = document.querySelectorAll('.tab-button');

@@ -1,5 +1,6 @@
 // Firebase Configuration & Database Wrapper
 // Single source of truth — loaded by all pages
+// Formes des données (prepItem / icItem / task / log) documentées dans ARCHITECTURE.md
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, get, update, remove, query, orderByKey, startAt, endBefore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";

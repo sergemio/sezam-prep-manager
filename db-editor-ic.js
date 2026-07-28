@@ -32,53 +32,6 @@ function sortIcItems() {
     });
 }
 
-// Move an I&C item up or down within its location/sublocation
-function moveIcItem(itemId, direction) {
-    const currentIndex = icItems.findIndex(item => item.id === itemId);
-    if (currentIndex < 0) return;
-
-    const currentItem = icItems[currentIndex];
-
-    // Find the neighbor in the same location/sublocation
-    let swapIndex = -1;
-    const step = direction; // -1 for up, +1 for down
-    for (let i = currentIndex + step; i >= 0 && i < icItems.length; i += step) {
-        if (icItems[i].location === currentItem.location &&
-            (icItems[i].sublocation || '') === (currentItem.sublocation || '')) {
-            swapIndex = i;
-            break;
-        }
-    }
-    if (swapIndex === -1) return;
-
-    const swapItem = icItems[swapIndex];
-
-    if (currentItem.displayOrder === undefined) currentItem.displayOrder = currentItem.id;
-    if (swapItem.displayOrder === undefined) swapItem.displayOrder = swapItem.id;
-
-    const temp = currentItem.displayOrder;
-    currentItem.displayOrder = swapItem.displayOrder;
-    swapItem.displayOrder = temp;
-
-    const dirLabel = direction === -1 ? 'up' : 'down';
-
-    if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-        window.firebaseDb.saveAllIcItems([currentItem, swapItem])
-            .then(() => {
-                sortIcItems();
-                renderIcItemsTable();
-                showSuccessMessage(`I&C item moved ${dirLabel} in order.`);
-            })
-            .catch(error => {
-                console.error('Error saving I&C items:', error);
-                showErrorMessage('Failed to change I&C item order.');
-            });
-    } else {
-        sortIcItems();
-        renderIcItemsTable();
-    }
-}
-
 // Initialize I&C items management
 // --- Smart dropdown helpers ---
 

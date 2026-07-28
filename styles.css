@@ -952,14 +952,6 @@ body {
     font-weight: 800;
 }
 
-.todo-tag--outline {
-    background-color: transparent;
-    border: 1.5px solid #999;
-    color: #777;
-    font-weight: 600;
-    font-size: 12px;
-}
-
 /* Timestamp as plain meta text, not a bordered pill (avoids a false "tappable" signifier) */
 .todo-updated {
     color: var(--text-light);
@@ -1046,45 +1038,7 @@ body {
 
 .summary-counter.is-dimmed { opacity: .45; }
 
-.summary-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0;
-    vertical-align: middle;
-}
-
-.summary-badge.overdue {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-.summary-badge.empty {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-.summary-badge.critical {
-    background-color: #fff7ed;
-    color: #d97706;
-    border: 1px solid #fed7aa;
-}
-
-.summary-badge.task {
-    background-color: #eff6ff;
-    color: var(--info);
-    border: 1px solid #bfdbfe;
-}
-
-.summary-badge.cant-prep {
-    background-color: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-}/* Display toggle switch (iOS style) */
+/* Display toggle switch (iOS style) */
 .display-toggle {
     position: relative;
     width: 44px;
@@ -1412,33 +1366,6 @@ tr.dragging {
     .todo-item {
         padding: 12px;
     }
-}
-
-/* Submit button styles */
-.submit-button {
-    width: 100%;
-    background-color: var(--color-primary);
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-bottom: 16px;
-    transition: background-color 0.2s, transform 0.1s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-left: 0;
-    margin-right: 0;
-    box-sizing: border-box;
-}
-
-.submit-button:hover {
-    background-color: var(--primary-dark);
-    transform: translateY(-2px);
-}
-
-.submit-button:active {
-    transform: translateY(1px);
 }
 
 /* Tab Navigation Styles */
@@ -1904,11 +1831,6 @@ tr.dragging {
 .btn--secondary {
     background-color: var(--surface-muted);
     color: #333;
-}
-
-.btn--brand {
-    background-color: var(--primary-medium);
-    color: white;
 }
 
 .btn--info {
