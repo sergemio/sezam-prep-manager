@@ -37,14 +37,9 @@ let cancelStaffEditButton;
 let deleteStaffButton;
 let addNewStaffButton;
 
-// Shared sort function for prep items
+// Shared sort function for prep items (shared displayOrder comparator)
 function sortPrepItems() {
-    prepItems.sort((a, b) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-            return a.displayOrder - b.displayOrder;
-        }
-        return a.id - b.id;
-    });
+    prepItems.sort(byDisplayOrder);
 }
 
 // Move a prep item up or down in display order
@@ -209,19 +204,17 @@ function loadItemsFromFirebase() {
     }
 }
 
-// Format date for display
+// Format date for display: recent times are relative ("Just now" / "Nh ago"),
+// older ones delegate to the shared formatDate ("9 Mar, 14:30").
 function formatCheckDate(isoString) {
     if (!isoString) return '<span class="text-muted">Never</span>';
     try {
         const d = new Date(isoString);
         if (isNaN(d.getTime())) return isoString;
-        const now = new Date();
-        const diffH = Math.floor((now - d) / 3600000);
+        const diffH = Math.floor((new Date() - d) / 3600000);
         if (diffH < 1) return 'Just now';
         if (diffH < 24) return diffH + 'h ago';
-        const day = d.getDate();
-        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return day + ' ' + months[d.getMonth()] + ', ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+        return formatDate(isoString);
     } catch(e) { return isoString; }
 }
 
@@ -546,9 +539,11 @@ function loadStaffFromFirebase() {
                     renderStaffTable();
                 } else {
                     
-                    // Create initial staff from the hardcoded list in index.html
+                    // Create initial staff. id 1 MUST be the canonical "Serge M"
+                    // (matches UserSession.DEFAULT_STAFF); "Serge Men" was a stale
+                    // spelling that broke identity matching if the DB got reseeded.
                     const initialStaff = [
-                        { id: 1, name: "Serge Men", active: true },
+                        { id: 1, name: "Serge M", active: true },
                         { id: 2, name: "Tatiana", active: true },
                         { id: 3, name: "Nadine", active: true },
                         { id: 4, name: "Nicolas", active: true },
@@ -957,7 +952,8 @@ function toggleTaskForceDisplay(taskId, newValue) {
             timestamp: new Date().toISOString(),
             itemName: task.title || task.name,
             actionType: newValue ? 'force-display-on' : 'force-display-off',
-            user: window.currentUser || 'admin'
+            // The last user of PM/I&C (shared localStorage), not a constant 'admin'.
+            user: localStorage.getItem('currentStaff') || 'admin'
         });
     });
 }

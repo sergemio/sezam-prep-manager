@@ -9,34 +9,7 @@ const initialPrepItems = [
     { id: 5, name: 'Sauce Base', currentLevel: 1, targetLevel: 5, unit: 'liters', lastCheckedBy: 'John', lastCheckedTime: '2025-03-08 20:15', updateType: 'count' }
 ];
 
-// Helper function to format dates consistently
-function formatDate(dateString) {
-    // Parse the date from string
-    const date = new Date(dateString);
-    
-    // Check if the date is valid
-    if (isNaN(date.getTime())) {
-        // Return original string if parsing fails
-        return dateString;
-    }
-    
-    // Define month names
-    const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    
-    // Get date components
-    const day = date.getDate();
-    const month = monthNames[date.getMonth()];
-    
-    // Format hours and minutes with leading zeros if needed
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    // Return formatted date string
-    return `${day} ${month}, ${hours}:${minutes}`;
-}
+// formatDate is now the shared helper in ui-helpers.js ("9 Mar, 14:30").
 
 // Creates a fuchsia user button for modals (reuses existing style + toggleModalUserDropdown)
 function createModalUserPicker() {
@@ -55,124 +28,44 @@ function createModalUserPicker() {
 // App state
 let prepItems = [...initialPrepItems];
 let currentStaff = '';
+// Keep this local mirror in sync with the shared session (single source of
+// truth). UserSession.set/restore/clear now drive currentStaff everywhere.
+if (window.UserSession) UserSession.subscribe(function (n) { currentStaff = n; });
 let currentItemIndex = 0;
-
-// Toast notification for user switch
-function showUserSwitchToast(name) {
-    const existing = document.querySelector('.user-switch-toast');
-    if (existing) existing.remove();
-
-    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase();
-    const toast = document.createElement('div');
-    toast.className = 'user-switch-toast';
-    toast.innerHTML = `<span class="toast-initials">${initials}</span><span class="toast-name">${name}</span>`;
-    document.body.appendChild(toast);
-
-    requestAnimationFrame(() => toast.classList.add('show'));
-
-    setTimeout(() => {
-        toast.classList.add('hide');
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 1500);
-}
+// The user-switch toast now lives entirely in UserSession.showSwitchToast (user.js);
+// every identity change routes through UserSession.set which fires it.
 let isChecking = false;
 let tasks = [];
 
 // Function to load staff members dynamically
+// Renders the staff-picker buttons. Loading + Firebase/fallback now live in the
+// shared UserSession.loadStaff(); clicking routes through UserSession.set()
+// (persists, updates labels, toast, mirrors currentStaff via the subscriber).
 function loadStaffMembers() {
-    // Clear existing staff buttons
     const staffGrid = document.querySelector('.staff-grid');
     if (!staffGrid) {
         console.error('Staff grid not found');
         return;
     }
-    
-    staffGrid.innerHTML = '';
-    
-    // Show loading indicator
     staffGrid.innerHTML = '<div class="loading-staff">Loading staff members...</div>';
-    
-    // Check if Firebase is available
-    if (window.firebaseDb && window.firebaseDb.loadStaffMembers) {
-        // Load staff from Firebase
-        window.firebaseDb.loadStaffMembers()
-            .then(staffMembers => {
-                window.staffMembers = staffMembers;
-                if (staffMembers && staffMembers.length > 0) {
 
-                    // Clear loading indicator
-                    staffGrid.innerHTML = '';
-                    
-                    // Filter to only show active staff members
-                    const activeStaff = staffMembers.filter(staff => staff.active);
-                    
-                    // Create button for each active staff member
-                    activeStaff.forEach(staff => {
-                        const button = document.createElement('button');
-                        button.className = 'staff-button';
-                        button.setAttribute('data-staff', staff.name);
-                        button.textContent = staff.name;
-                        
-                        // Add click event
-                        button.addEventListener('click', () => {
-                            currentStaff = staff.name;
-                            localStorage.setItem('currentStaff', staff.name);
-                            showUserSwitchToast(staff.name);
-                            showMainInterface();
-                        });
-                        
-                        staffGrid.appendChild(button);
-                    });
-                    
-                    // If no active staff, show message
-                    if (activeStaff.length === 0) {
-                        staffGrid.innerHTML = '<div class="loading-staff">No active staff members found. Please contact your administrator.</div>';
-                    }
-                } else {
-                    // Fallback to hardcoded staff
-                    createDefaultStaffButtons();
-                }
-            })
-            .catch(error => {
-                console.error('Error loading staff members:', error);
-                // Fallback to hardcoded staff
-                createDefaultStaffButtons();
+    UserSession.loadStaff().then(names => {
+        staffGrid.innerHTML = '';
+        if (!names.length) {
+            staffGrid.innerHTML = '<div class="loading-staff">No active staff members found. Please contact your administrator.</div>';
+            return;
+        }
+        names.forEach(name => {
+            const button = document.createElement('button');
+            button.className = 'staff-button';
+            button.setAttribute('data-staff', name);
+            button.textContent = name;
+            button.addEventListener('click', () => {
+                UserSession.set(name);
+                showMainInterface();
             });
-    } else {
-        // Fallback to hardcoded staff
-        createDefaultStaffButtons();
-    }
-}
-
-// Function to create default staff buttons as fallback
-function createDefaultStaffButtons() {
-    const staffGrid = document.querySelector('.staff-grid');
-    if (!staffGrid) return;
-    
-    // Clear existing content
-    staffGrid.innerHTML = '';
-    
-    // Default staff list
-    const defaultStaff = [
-        "Serge Men", "Tatiana", "Nadine", "Nicolas", "Omar"
-    ];
-    
-    // Create button for each staff member
-    defaultStaff.forEach(staffName => {
-        const button = document.createElement('button');
-        button.className = 'staff-button';
-        button.setAttribute('data-staff', staffName);
-        button.textContent = staffName;
-        
-        // Add click event
-        button.addEventListener('click', () => {
-            currentStaff = staffName;
-            localStorage.setItem('currentStaff', staffName);
-            showMainInterface();
+            staffGrid.appendChild(button);
         });
-        
-        staffGrid.appendChild(button);
     });
 }
 
@@ -215,72 +108,20 @@ const cancelCheckButton = document.getElementById('cancel-check-btn');
 const headerUserNameElement = document.getElementById('header-user-name');
 const userLoginButton = document.getElementById('user-login-btn');
 
-//SaveData function to ensure Firebase saves are completed properly
-// Pass the modified item to write only that item — a full-array write from one
-// device silently overwrites concurrent edits made on other devices
-function saveData(item) {
-
-        // Always save to local storage as backup
-    localStorage.setItem('prepItems', JSON.stringify(prepItems));
-
-    if (item && window.firebaseDb && window.firebaseDb.saveItem) {
-        window.firebaseDb.saveItem(item)
-            .catch(error => {
-                console.error(`Error saving item ${item.id}:`, error);
-                showErrorNotification("Failed to save data to server. Please check your connection.");
-            });
-        return;
+// saveData is built from the shared makeSaver (ui-helpers.js). Writes only the
+// changed item when passed one (concurrent-safe); falls back to a full-array
+// write otherwise.
+const saveData = makeSaver({
+    key: 'prepItems',
+    getItems: function () { return prepItems; },
+    one: 'saveItem',
+    all: 'saveAllItems',
+    // Route errors through the shared notification system (notifications.js),
+    // same as I&C's showMessage — one toast implementation for both modules.
+    onError: function (msg) {
+        if (typeof showNotification === 'function') showNotification(msg, '', 'error');
     }
-
-    // Save to Firebase if available - now using batch updates for better consistency
-    if (window.firebaseDb && window.firebaseDb.saveAllItems) {
-        // Use batch update instead of individual items
-        window.firebaseDb.saveAllItems(prepItems)
-            .then(() => {
-            })
-            .catch(error => {
-                console.error("Error saving to Firebase:", error);
-                // Show an error notification
-                showErrorNotification("Failed to save data to server. Please check your connection.");
-            });
-    } else if (window.firebaseDb && window.firebaseDb.saveItem) {
-        // Fallback to individual updates if batch not available
-        // Save each item individually with proper error handling
-        const savePromises = prepItems.map(item => 
-            window.firebaseDb.saveItem(item)
-                .then(() => {})
-                .catch(error => {
-                    console.error(`Error saving item ${item.id}:`, error);
-                    throw error; // Re-throw to be caught in Promise.all
-                })
-        );
-        
-        // Handle all promises together
-        Promise.all(savePromises)
-            .then(() => {
-            })
-            .catch(error => {
-                console.error("Some items failed to save:", error);
-                showErrorNotification("Some changes may not have been saved to the server.");
-            });
-    }
-}
-
-
-// Add a function to show error notifications
-function showErrorNotification(message) {
-    const notification = document.createElement('div');
-    notification.className = 'toast toast--error';
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        if (document.body.contains(notification)) {
-            document.body.removeChild(notification);
-        }
-    }, 5000);
-}
+});
 
 
 // Modify the loadLocalData function to be more robust
@@ -290,19 +131,8 @@ function loadLocalData() {
         if (saved) {
             prepItems = JSON.parse(saved);
             
-            // Sort by displayOrder after loading
-            prepItems.sort((a, b) => {
-                if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                    return a.displayOrder - b.displayOrder;
-                }
-                if (a.displayOrder !== undefined && b.displayOrder === undefined) {
-                    return -1;
-                }
-                if (a.displayOrder === undefined && b.displayOrder !== undefined) {
-                    return 1;
-                }
-                return a.id - b.id;
-            });
+            // Sort by displayOrder after loading (shared comparator)
+            prepItems.sort(byDisplayOrder);
             
             updateInventoryTable();
             updateTodoList();
@@ -338,8 +168,10 @@ function initApp() {
         dateBadge.textContent = days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()];
     }
 
-    // Restore last user from localStorage, or default to Serge Men
-    currentStaff = localStorage.getItem('currentStaff') || 'Serge Men';
+    // Restore last user from the shared session (no toast on boot); default to
+    // 'Serge M' if none is persisted yet. The subscriber mirrors into currentStaff.
+    UserSession.restore();
+    if (!UserSession.get()) UserSession.set('Serge M', { toast: false });
 
     // Show main interface directly
     showMainInterface();
@@ -348,7 +180,7 @@ function initApp() {
     loadStaffMembers();
 
     switchUserButton.addEventListener('click', () => {
-        currentStaff = '';
+        UserSession.clear();
         showStaffSelection();
     });
 
@@ -637,12 +469,11 @@ function showQuickUpdateModal(item, context = 'default') {
         console.warn('Warning: currentLevel is undefined or null');
     }
 
-    // Create modal elements
-    const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'modal-backdrop';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-box';
+    // Slider cleanup centralised in onClose so every close path (buttons,
+    // backdrop-click, Escape) destroys the slider. modalSlider is assigned below.
+    const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({
+        onClose: () => { if (modalSlider) modalSlider.destroy(); }
+    });
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
@@ -843,11 +674,7 @@ function showQuickUpdateModal(item, context = 'default') {
         modalContent.appendChild(updateTypeContainer);
     }
     modalContent.appendChild(buttonGroup);
-    modalBackdrop.appendChild(modalContent);
-    
-    // Add modal to document
-    document.body.appendChild(modalBackdrop);
-    
+
     // Create a variable to hold the slider instance
     let modalSlider;
     
@@ -880,15 +707,6 @@ function showQuickUpdateModal(item, context = 'default') {
             modalSlider.setValue(initialValue);
         }
     }, 100);
-    
-    // Function to close modal and clean up
-    function closeModal() {
-        // Destroy slider to clean up event listeners
-        if (modalSlider) {
-            modalSlider.destroy();
-        }
-        document.body.removeChild(modalBackdrop);
-    }
     
     // Add event listeners
     cancelButton.addEventListener('click', closeModal);
@@ -961,40 +779,21 @@ function showQuickUpdateModal(item, context = 'default') {
             
             SoundFX.complete();
 
-            // Show success message
-            const successMessage = document.createElement('div');
-            successMessage.textContent = `${item.name} updated to ${newValue} ${item.unit}`;
-            successMessage.className = 'toast toast--success';
-            document.body.appendChild(successMessage);
-            
-            setTimeout(() => {
-                if (document.body.contains(successMessage)) {
-                    document.body.removeChild(successMessage);
-                }
-            }, 3000);
+            showNotification(`${item.name} updated to ${newValue} ${item.unit}`, '', 'success');
         }
         
         // Close modal
         closeModal();
     });
     
-    // Close modal if backdrop is clicked
-    modalBackdrop.addEventListener('click', (event) => {
-        if (event.target === modalBackdrop) {
-            closeModal();
-        }
-    });
 }
 
     // Function to show the Can't Prep reason selection modal
 function showCantPrepReasonModal(item, afterSelectionCallback) {
     SoundFX.pop();
-    // Create modal backdrop (stacked on top of prep check modal)
-    const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'modal-backdrop modal-backdrop--stacked cant-prep-modal-backdrop';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-box cant-prep-modal-content';
+    // Stacked on top of the prep-check modal — extra backdrop classes added after.
+    const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'cant-prep-modal-content' });
+    modalBackdrop.classList.add('modal-backdrop--stacked', 'cant-prep-modal-backdrop');
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
@@ -1083,15 +882,6 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(reasonsContainer);
     modalContent.appendChild(buttonGroup);
-    modalBackdrop.appendChild(modalContent);
-
-    // Add modal to document
-    document.body.appendChild(modalBackdrop);
-
-    // Function to close modal
-    function closeModal() {
-        document.body.removeChild(modalBackdrop);
-    }
 
     // Event listeners for styling the radio options
     const radioInputs = document.querySelectorAll('input[name="cant-prep-reason"]');
@@ -1157,12 +947,6 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
     });
 
     
-    // Close modal if backdrop is clicked
-    modalBackdrop.addEventListener('click', (event) => {
-        if (event.target === modalBackdrop) {
-            closeModal();
-        }
-    });
 }
 
 // Function to mark an item as "Can't Prep"
@@ -1196,17 +980,7 @@ function markItemAsCantPrep(item, reason, reasonText = null) {
         updateTodoList();
         updateStats();
         
-        // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.textContent = `${item.name} marked as "Can't Prep" - ${reason}`;
-        successMessage.className = 'toast toast--error';
-        document.body.appendChild(successMessage);
-        
-        setTimeout(() => {
-            if (document.body.contains(successMessage)) {
-                document.body.removeChild(successMessage);
-            }
-        }, 3000);
+        showNotification(`${item.name} marked as "Can't Prep" - ${reason}`, '', 'error');
     }
 }
 
@@ -1245,17 +1019,7 @@ function markItemAsCanPrepAgain(item) {
         updateStats();
         SoundFX.complete();
 
-        // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.textContent = `${item.name} can now be prepped again`;
-        successMessage.className = 'toast toast--success';
-        document.body.appendChild(successMessage);
-        
-        setTimeout(() => {
-            if (document.body.contains(successMessage)) {
-                document.body.removeChild(successMessage);
-            }
-        }, 3000);
+        showNotification(`${item.name} can now be prepped again`, '', 'success');
     }
 }
 
@@ -1416,81 +1180,101 @@ function updateTodoList() {
     generateStatusSummary(todoItems);
 }
 
+let summaryFilter = null; // active status filter set by clicking a summary counter
+let summaryFilterTimer = null; // auto-clears the filter after a few seconds
+
+// STATUS SUMMARY = a scannable row of "label + count" counters (out / low /
+// blocked / overdue / tasks), leading with the number. The detail lives in the
+// right rail; clicking a counter filters that rail to the matching status.
 function generateStatusSummary(todoItems) {
     const container = document.getElementById('status-summary');
     const content = document.getElementById('summary-content');
     if (!container || !content) return;
 
-    const overdueTasks = [];
-    const pendingTasks = [];
-    const emptyPreps = [];
-    const criticalPreps = [];
-    const cantPrepPreps = [];
-
+    let out = 0, low = 0, blocked = 0, overdue = 0, pending = 0;
     todoItems.forEach(entry => {
-        const name = entry.data.name || entry.data.title || entry.data.id || 'Unknown';
         if (entry._type === 'task') {
-            if (entry.missed > 0 || entry.overdue > 0) {
-                overdueTasks.push({ name: name, days: entry.overdue });
-            } else {
-                pendingTasks.push(name);
-            }
+            if (entry.missed > 0 || entry.overdue > 0) overdue++;
+            else pending++;
         } else {
             const item = entry.data;
-            if (item.canPrep === false) {
-                cantPrepPreps.push({ name: name, reason: item.cantPrepReason || 'Unknown' });
-            } else if (item.currentLevel === 0) {
-                emptyPreps.push(name);
-            } else if (item.currentLevel / item.targetLevel <= 0.25) {
-                criticalPreps.push(name);
-            }
+            if (item.canPrep === false) blocked++;
+            else if (item.currentLevel === 0) out++;
+            else low++;
         }
     });
 
-    const lines = [];
+    // Only render non-zero counters. Colour = severity (red problem, amber attention, slate neutral).
+    const counters = [
+        { key: 'out',     label: 'OUT',     n: out,     color: '#c0392b', dot: '🔴' },
+        { key: 'blocked', label: "Can't prep", n: blocked, color: '#c0392b', dot: '⛔' },
+        { key: 'low',     label: 'LOW',     n: low,     color: '#8a6100', dot: '🟡' },
+        { key: 'overdue', label: 'OVERDUE', n: overdue, color: '#c0392b', dot: '⏰' },
+        { key: 'pending', label: 'TASKS',   n: pending, color: '#334155', dot: '📋' }
+    ].filter(c => c.n > 0);
 
-    if (overdueTasks.length > 0) {
-        const tags = overdueTasks.map(t =>
-            `<span class="summary-badge overdue">${t.name}</span> ${t.days} day${t.days > 1 ? 's' : ''} late`
-        );
-        lines.push(`<p class="summary-line urgent">${joinList(tags)} — overdue ⚠️</p>`);
-    }
-
-    if (emptyPreps.length > 0) {
-        const tags = emptyPreps.map(n => `<span class="summary-badge empty">${n}</span>`).join(' ');
-        lines.push(`<p class="summary-line urgent">${tags} completely empty</p>`);
-    }
-
-    if (criticalPreps.length > 0) {
-        const tags = criticalPreps.map(n => `<span class="summary-badge critical">${n}</span>`).join(' ');
-        lines.push(`<p class="summary-line warning">${tags} critically low</p>`);
-    }
-
-    if (pendingTasks.length > 0) {
-        const tags = pendingTasks.map(n => `<span class="summary-badge task">${n}</span>`).join(' ');
-        lines.push(`<p class="summary-line info">${tags} still pending</p>`);
-    }
-
-    if (cantPrepPreps.length > 0) {
-        const grouped = {};
-        cantPrepPreps.forEach(t => {
-            if (!grouped[t.reason]) grouped[t.reason] = [];
-            grouped[t.reason].push(t.name);
-        });
-        const parts = Object.entries(grouped).map(([reason, names]) => {
-            const tags = names.map(n => `<span class="summary-badge cant-prep">${n}</span>`).join(' ');
-            return `${reason} — ${tags}`;
-        });
-        lines.push(`<p class="summary-line muted">Can't prep: ${parts.join(', ')}</p>`);
-    }
-
-    if (lines.length === 0) {
+    if (counters.length === 0) {
         container.style.display = 'none';
+        summaryFilter = null;
         return;
     }
+    // Drop a stale filter if that category is now empty.
+    if (summaryFilter && !counters.some(c => c.key === summaryFilter)) summaryFilter = null;
 
-    content.innerHTML = lines.join('');
+    content.innerHTML = counters.map(c =>
+        `<button type="button" class="summary-counter" data-filter="${c.key}" style="--cc:${c.color}">` +
+            `<span class="sc-dot">${c.dot}</span>` +
+            `<span class="sc-n">${c.n}</span>` +
+            `<span class="sc-label">${c.label}</span>` +
+        `</button>`
+    ).join('');
     container.style.display = 'block';
+
+    content.querySelectorAll('.summary-counter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const f = btn.getAttribute('data-filter');
+            summaryFilter = (summaryFilter === f) ? null : f;
+            applySummaryFilter();
+            // Audio + light haptic cue so the tap registers as a deliberate action.
+            if (typeof SoundFX !== 'undefined') (summaryFilter ? SoundFX.filterOn() : SoundFX.filterOff());
+            if (navigator.vibrate) navigator.vibrate(8);
+            // Auto-clear after 5s: a filter left on must never make the next person
+            // at the tablet think there's no work left (other cards would be hidden).
+            clearTimeout(summaryFilterTimer);
+            if (summaryFilter) {
+                summaryFilterTimer = setTimeout(function () {
+                    summaryFilter = null;
+                    applySummaryFilter();
+                    // Inverse cue: the app reset the filter on its own — make it noticeable.
+                    if (typeof SoundFX !== 'undefined') SoundFX.filterOff();
+                }, 5000);
+            }
+        });
+    });
+    applySummaryFilter();
+}
+
+// Show/hide the rail cards to match the active summary filter (null = show all).
+function applySummaryFilter() {
+    document.querySelectorAll('.summary-counter').forEach(btn => {
+        const f = btn.getAttribute('data-filter');
+        btn.classList.toggle('is-active', summaryFilter === f);
+        btn.classList.toggle('is-dimmed', !!summaryFilter && summaryFilter !== f);
+    });
+
+    document.querySelectorAll('#todo-list-container .todo-item, #todo-tasks-container .todo-item')
+        .forEach(card => {
+            const match = !summaryFilter || card.dataset.status === summaryFilter;
+            card.style.display = match ? '' : 'none';
+        });
+
+    // Keep a section label only while it still has a visible card.
+    const anyVisible = sel => Array.prototype.some.call(
+        document.querySelectorAll(sel + ' .todo-item'), c => c.style.display !== 'none');
+    const prepsLabel = document.getElementById('todo-preps-label');
+    const tasksLabel = document.getElementById('todo-tasks-label');
+    if (prepsLabel) prepsLabel.style.display = anyVisible('#todo-list-container') ? 'flex' : 'none';
+    if (tasksLabel) tasksLabel.style.display = anyVisible('#todo-tasks-container') ? 'flex' : 'none';
 }
 
 function joinList(items) {
@@ -1507,23 +1291,9 @@ function formatNeed(qty) {
 
 function renderPrepTodoItem(item) {
     const percentage = item.currentLevel / item.targetLevel;
-    let badgeClass, badgeText;
-    if (item.canPrep === false) {
-        badgeClass = 'cant-prep';
-        badgeText = "Can't Prep";
-    } else if (item.currentLevel === 0) {
-        badgeClass = 'empty';
-        badgeText = 'EMPTY';
-    } else if (percentage <= 0.25) {
-        badgeClass = 'critical';
-        badgeText = 'CRITICAL';
-    } else if (percentage <= 0.4) {
-        badgeClass = 'low';
-        badgeText = 'LOW';
-    } else {
-        badgeClass = 'getting-low';
-        badgeText = 'GETTING LOW';
-    }
+    // Unified status vocabulary (Batch 2): OUT / LOW / Blocked, shared with I&C.
+    const statusKind = item.canPrep === false ? 'blocked'
+        : item.currentLevel === 0 ? 'out' : 'low';
     let timeDisplay = '';
     if (item.lastCheckedTime) {
         try {
@@ -1538,6 +1308,7 @@ function renderPrepTodoItem(item) {
     const needQty = formatNeed(item.targetLevel - item.currentLevel);
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item';
+    todoItem.dataset.status = statusKind; // out | low | blocked — used by the summary counters to filter the rail
     // Left-border colour encodes urgency; the "to prep" number reuses it,
     // except for can't-prep items (slate — prepping them is blocked anyway).
     let edgeColor;
@@ -1569,8 +1340,8 @@ function renderPrepTodoItem(item) {
             </div>
         ` : ''}
         <div class="todo-footer">
-            <span class="todo-tag ${badgeClass}">${badgeText}</span>
-            <span class="todo-tag todo-tag--outline">Last updated ${timeDisplay}</span>
+            ${statusBadgeHTML(statusKind)}
+            <span class="todo-updated">Updated ${timeDisplay}</span>
         </div>
     `;
     todoItem.addEventListener('click', () => {
@@ -1591,6 +1362,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
     }
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item todo-item-task';
+    todoItem.dataset.status = isOverdue ? 'overdue' : 'pending';
     todoItem.style.borderLeftColor = isOverdue ? '#ef4444' : '#3b82f6';
     todoItem.innerHTML = `
         <div class="todo-item-name">${task.title}</div>
@@ -1607,11 +1379,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
 
 function showTaskModal(task) {
     SoundFX.pop();
-    const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'modal-backdrop';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-box';
+    const { box: modalContent, close: closeModal } = openModal({});
 
     let freqText = '';
     if (task.type === 'recurring') {
@@ -1655,21 +1423,11 @@ function showTaskModal(task) {
     infoDiv.innerHTML = infoHtml;
     modalContent.appendChild(infoDiv);
 
-    modalBackdrop.appendChild(modalContent);
-    document.body.appendChild(modalBackdrop);
-
-    modalBackdrop.addEventListener('click', function(e) {
-        if (e.target === modalBackdrop) {
-            document.body.removeChild(modalBackdrop);
-        }
-    });
-    modalContent.querySelector('#task-close-btn').addEventListener('click', function() {
-        document.body.removeChild(modalBackdrop);
-    });
+    modalContent.querySelector('#task-close-btn').addEventListener('click', closeModal);
     modalContent.querySelector('#task-done-btn').addEventListener('click', function() {
         completeTask(task);
         SoundFX.complete();
-        document.body.removeChild(modalBackdrop);
+        closeModal();
     });
 }
 
@@ -1694,6 +1452,13 @@ function completeTask(task) {
 function showCurrentPrepItem() {
     const item = prepItems[currentItemIndex];
     checkProgressElement.textContent = `Item ${currentItemIndex + 1} of ${prepItems.length}`;
+
+    // Fill the progress bar to mirror "Item X of N" so staff see their position.
+    const progressFill = document.getElementById('prep-check-progress-fill');
+    if (progressFill) {
+        const pct = prepItems.length ? ((currentItemIndex + 1) / prepItems.length) * 100 : 0;
+        progressFill.style.width = pct + '%';
+    }
 
     const userBadge = document.getElementById('check-user-badge');
     if (userBadge) userBadge.textContent = currentStaff;
@@ -1771,12 +1536,11 @@ function updateStats() {
 
 // Function to show staff selection modal before starting prep check
 function showPrepCheckStaffModal() {
-    // Create modal backdrop
-    const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'modal-backdrop';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-box';
+    // resolveFn captured from the returned Promise below; backdrop-click/Escape
+    // settle false via onClose, confirm settles true (settle is idempotent).
+    let settled = false, resolveFn;
+    const settle = (v) => { if (!settled) { settled = true; resolveFn(v); } };
+    const { box: modalContent, close: closeModal } = openModal({ onClose: () => settle(false) });
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
@@ -1810,11 +1574,7 @@ function showPrepCheckStaffModal() {
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(staffContainer);
     modalContent.appendChild(buttonGroup);
-    modalBackdrop.appendChild(modalContent);
-    
-    // Add modal to document
-    document.body.appendChild(modalBackdrop);
-    
+
     // Store the selected staff name
     let selectedStaffName = null;
 
@@ -1835,155 +1595,50 @@ function showPrepCheckStaffModal() {
     }
     
     // Function to close the modal
-    function closeModal() {
-        document.body.removeChild(modalBackdrop);
-    }
-    
-    // Function to load staff members
+    // Loads the prep-check staff picker. Names come from the shared loader
+    // (Firebase active staff, else DEFAULT_STAFF); rendering is identical either
+    // way, so the old Firebase/fallback twin functions collapse into one.
     function loadStaffForSelection() {
-        // Clear existing content
         staffContainer.innerHTML = '';
-        
-        if (window.firebaseDb && window.firebaseDb.loadStaffMembers) {
-            window.firebaseDb.loadStaffMembers()
-                .then(staffMembers => {
-                    if (staffMembers && staffMembers.length > 0) {
-                        // Filter to only show active staff members
-                        const activeStaff = staffMembers.filter(staff => staff.active);
-                        
-                        if (activeStaff.length > 0) {
-                            // Create buttons for each active staff member
-                            activeStaff.forEach(staff => {
-                                const staffButton = document.createElement('div');
-                                const isCurrentUser = staff.name === currentStaff;
-                                staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
-                                staffButton.setAttribute('data-staff', staff.name);
-                                const initials = staff.name.split(' ').map(w => w[0]).join('').toUpperCase();
-                                staffButton.innerHTML = `
-                                    <span class="staff-initial">${initials}</span>
-                                    <span class="staff-name">${staff.name}</span>
-                                    <span class="staff-check">✓</span>
-                                `;
-                                
-                                // Add click event
-                                staffButton.addEventListener('click', () => {
-                                    selectStaffMember(staff.name);
-                                });
-                                
-                                staffContainer.appendChild(staffButton);
-                                
-                                // If this is the current user, pre-select them
-                                if (isCurrentUser) {
-                                    selectStaffMember(staff.name);
-                                }
-                            });
-                        } else {
-                            staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">No active staff members found.</div>';
-                        }
-                    } else {
-                        // Fallback to hardcoded staff
-                        createDefaultStaffButtons();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading staff members:', error);
-                    // Fallback to hardcoded staff
-                    createDefaultStaffButtons();
-                });
-        } else {
-            // Fallback to hardcoded staff
-            createDefaultStaffButtons();
-        }
-    }
-    
-    // Create default staff buttons as fallback
-    function createDefaultStaffButtons() {
-        // Clear existing content
-        staffContainer.innerHTML = '';
-        
-        // Default staff list
-        const defaultStaff = [
-            "Serge Men", "Tatiana", "Nadine", "Nicolas", "Omar"
-        ];
-        
-        // Create button for each staff member
-        defaultStaff.forEach(staffName => {
-            const staffButton = document.createElement('div');
-            const isCurrentUser = staffName === currentStaff;
-            staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
-            staffButton.setAttribute('data-staff', staffName);
-            const initials = staffName.split(' ').map(w => w[0]).join('').toUpperCase();
-            staffButton.innerHTML = `
-                <span class="staff-initial">${initials}</span>
-                <span class="staff-name">${staffName}</span>
-                <span class="staff-check">✓</span>
-            `;
-            
-            // Add click event
-            staffButton.addEventListener('click', () => {
-                selectStaffMember(staffName);
-            });
-            
-            staffContainer.appendChild(staffButton);
-            
-            // If this is the current user, pre-select them
-            if (isCurrentUser) {
-                selectStaffMember(staffName);
+        UserSession.loadStaff().then(names => {
+            if (!names.length) {
+                staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">No active staff members found.</div>';
+                return;
             }
+            names.forEach(name => {
+                const staffButton = document.createElement('div');
+                const isCurrentUser = name === currentStaff;
+                staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
+                staffButton.setAttribute('data-staff', name);
+                staffButton.innerHTML = `
+                    <span class="staff-initial">${initials(name)}</span>
+                    <span class="staff-name">${name}</span>
+                    <span class="staff-check">✓</span>
+                `;
+                staffButton.addEventListener('click', () => selectStaffMember(name));
+                staffContainer.appendChild(staffButton);
+                if (isCurrentUser) selectStaffMember(name); // pre-select current user
+            });
         });
     }
-    
+
     // Add event listeners
     cancelButton.addEventListener('click', closeModal);
     
     confirmButton.addEventListener('click', () => {
         if (selectedStaffName) {
-            // Update the current staff with the selected one
-            currentStaff = selectedStaffName;
-            localStorage.setItem('currentStaff', selectedStaffName);
-
-            // Update UI to show selected staff
-            if (currentUserElement) {
-                currentUserElement.textContent = currentStaff;
-            }
-            if (headerUserNameElement) {
-                headerUserNameElement.textContent = currentStaff;
-            }
-            
-            // Close the modal
+            // One call: persist + update the name labels + switch toast + mirror.
+            UserSession.set(selectedStaffName);
+            settle(true);
             closeModal();
-            
-            // Start the prep check with the selected staff
             startPrepCheckProcess();
         }
     });
-    
-    // Close modal if backdrop is clicked
-    modalBackdrop.addEventListener('click', (event) => {
-        if (event.target === modalBackdrop) {
-            closeModal();
-        }
-    });
-    
+
     // Load staff members
     loadStaffForSelection();
-    
-    return new Promise((resolve) => {
-        // Resolve the promise when the modal is closed
-        confirmButton.addEventListener('click', () => {
-            resolve(true);
-        });
-        
-        cancelButton.addEventListener('click', () => {
-            resolve(false);
-        });
-        
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) {
-                resolve(false);
-            }
-        });
-    });
+
+    return new Promise((resolve) => { resolveFn = resolve; });
 }
 
 // Update existing startPrepCheck function to show staff selection first
@@ -2016,25 +1671,9 @@ function startPrepCheckProcess() {
     initTouchInput();
 }
 
-// Add this helper function to your code
+// Returns a new array sorted by the shared displayOrder comparator (ui-helpers).
 function sortItemsByDisplayOrder(items) {
-    return [...items].sort((a, b) => {
-        // First by displayOrder if both items have it
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-            return a.displayOrder - b.displayOrder;
-        }
-        
-        // If one has displayOrder and the other doesn't, prioritize the one with displayOrder
-        if (a.displayOrder !== undefined && b.displayOrder === undefined) {
-            return -1;
-        }
-        if (a.displayOrder === undefined && b.displayOrder !== undefined) {
-            return 1;
-        }
-        
-        // Fallback to ID as the default order
-        return a.id - b.id;
-    });
+    return [...items].sort(byDisplayOrder);
 }
 
 function completePrepCheck() {
@@ -2079,6 +1718,24 @@ function showStaffSelection() {
     staffSelectionScreen.style.display = 'flex';
 }
 
+// Fills a user dropdown with one row per active staff member. Picking routes
+// through UserSession.set (persist + labels + toast + currentStaff mirror);
+// onPick handles the container-specific after-effects (close, relabel button).
+function appendStaffItems(dropdown, onPick) {
+    (window.staffMembers || []).forEach(member => {
+        if (!member.active) return;
+        const item = document.createElement('div');
+        item.textContent = member.name;
+        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            UserSession.set(member.name);
+            onPick(member.name);
+        });
+        dropdown.appendChild(item);
+    });
+}
+
 function toggleUserDropdown() {
     const existing = document.getElementById('user-dropdown');
     if (existing) { existing.remove(); return; }
@@ -2091,21 +1748,9 @@ function toggleUserDropdown() {
     dropdown.style.top = (rect.bottom + 6) + 'px';
     dropdown.style.left = rect.left + 'px';
 
-    const staffList = window.staffMembers || [];
-    staffList.forEach(member => {
-        if (!member.active) return;
-        const item = document.createElement('div');
-        item.textContent = member.name;
-        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            currentStaff = member.name;
-            localStorage.setItem('currentStaff', member.name);
-            showUserSwitchToast(member.name);
-            showMainInterface();
-            dropdown.remove();
-        });
-        dropdown.appendChild(item);
+    appendStaffItems(dropdown, () => {
+        showMainInterface();
+        dropdown.remove();
     });
 
     document.body.appendChild(dropdown);
@@ -2127,21 +1772,9 @@ function toggleModalUserDropdown(btn) {
         opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
     `;
 
-    const staffList = window.staffMembers || [];
-    staffList.forEach(member => {
-        if (!member.active) return;
-        const item = document.createElement('div');
-        item.textContent = member.name;
-        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            currentStaff = member.name;
-            localStorage.setItem('currentStaff', member.name);
-            showUserSwitchToast(member.name);
-            btn.innerHTML = `${member.name} <span style="font-size: 12px;">▼</span>`;
-            dropdown.remove();
-        });
-        dropdown.appendChild(item);
+    appendStaffItems(dropdown, (name) => {
+        btn.innerHTML = `${name} <span style="font-size: 12px;">▼</span>`;
+        dropdown.remove();
     });
 
     document.body.appendChild(dropdown);
@@ -2161,24 +1794,13 @@ function toggleModalUserDropdown(btn) {
 }
 
 function switchSection(sectionId, buttonElement) {
-    SoundFX.tap();
-    // Update active nav button
-    navButtons.forEach(btn => btn.classList.remove('active'));
-    buttonElement.classList.add('active');
-    
-    // Show selected section, hide others
-    contentSections.forEach(section => {
-        section.style.display = 'none';
+    activateSection(sectionId, buttonElement, {
+        navButtons, contentSections,
+        onSection: (id) => {
+            if (id === 'inventory') updateInventoryTable();
+            else if (id === 'dashboard') { updateStats(); updateTodoList(); }
+        }
     });
-    document.getElementById(`${sectionId}-section`).style.display = 'block';
-    
-    // Refresh data when switching to specific sections
-    if (sectionId === 'inventory') {
-        updateInventoryTable();
-    } else if (sectionId === 'dashboard') {
-        updateStats();
-        updateTodoList();
-    }
 }
 
 function updateInventoryTable() {
@@ -2312,12 +1934,7 @@ document.head.appendChild(statsGridStyle);
 // Add the function to show the single item update modal
 function showSingleItemUpdateModal() {
     SoundFX.pop();
-    // Create modal backdrop
-    const modalBackdrop = document.createElement('div');
-    modalBackdrop.className = 'modal-backdrop';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'modal-box';
+    const { box: modalContent, close: closeModal } = openModal({});
     modalContent.style.maxWidth = '500px';
 
     const modalHeader = document.createElement('div');
@@ -2409,7 +2026,7 @@ function showSingleItemUpdateModal() {
         
         // Add click event
         itemButton.addEventListener('click', () => {
-            document.body.removeChild(modalBackdrop);
+            closeModal();
             showQuickUpdateModal(item, 'single-item-update');
         });
         
@@ -2427,24 +2044,11 @@ function showSingleItemUpdateModal() {
     cancelButton.style.flex = 'none';
     
     // Add cancel button event
-    cancelButton.addEventListener('click', () => {
-        document.body.removeChild(modalBackdrop);
-    });
-    
+    cancelButton.addEventListener('click', closeModal);
+
     // Assemble modal
     buttonContainer.appendChild(cancelButton);
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(itemsContainer);
     modalContent.appendChild(buttonContainer);
-    modalBackdrop.appendChild(modalContent);
-    
-    // Add modal to document
-    document.body.appendChild(modalBackdrop);
-    
-    // Close modal when clicking on backdrop
-    modalBackdrop.addEventListener('click', (event) => {
-        if (event.target === modalBackdrop) {
-            document.body.removeChild(modalBackdrop);
-        }
-    });
 }

@@ -79,7 +79,7 @@
                     </a>
                     <div class="user-info">
                         <div class="user-label">USER:</div>
-                        <div class="user-name" id="current-user">Serge Men</div>
+                        <div class="user-name" id="current-user">Serge M</div>
                         <button class="switch-user-btn" id="switch-user">SWITCH</button>
                     </div>
                 </div>
@@ -93,7 +93,7 @@
                         <h1 class="section-title">Overview</h1>
                         <div class="header-right">
                             <button class="user-login-btn" id="user-login-btn">
-                                <span id="header-user-name">Serge Men</span> ▾
+                                <span id="header-user-name">Serge M</span> ▾
                             </button>
                             <div class="date-badge" id="date-badge"></div>
                         </div>
@@ -183,6 +183,9 @@
 <!-- Prep check interface (hidden initially) -->
 <div id="prep-check-interface" style="display: none;">
     <div class="card prep-check-card">
+        <div class="prep-check-progress" aria-hidden="true">
+            <div class="prep-check-progress-fill" id="prep-check-progress-fill"></div>
+        </div>
         <div class="prep-check-top">
             <span class="prep-check-badge" id="check-progress">Item 1 of 5</span>
             <span class="prep-check-user" id="check-user-badge"></span>
@@ -242,6 +245,8 @@
     <script src="slider.js"></script>
     <!-- Shared UI helpers (levelColor, confirmDialog) -->
     <script src="ui-helpers.js"></script>
+    <!-- Shared user/staff session (single source of truth for "who is logged in") -->
+    <script src="user.js"></script>
     <!-- Main application script -->
     <script src="script.js"></script>
     <script src="history.js"></script>

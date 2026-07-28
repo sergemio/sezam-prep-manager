@@ -26,9 +26,12 @@
     --border-light: #e0e7db;
 
     /* ===== UNIFICATION TOKENS (2026-07-18) — additive; existing tokens above unchanged ===== */
-    /* semantic colour roles (green identity kept) */
-    --color-primary: #577c2b; --color-primary-hover: #496a24; --on-primary: #fff;
-    --accent-green: #80b244;
+    /* semantic colour roles (green identity kept). --color-primary / --accent-green
+       are the same greens as the historical --primary-dark / --primary-medium, so
+       they ALIAS them: one place defines each hex (single source of truth), and
+       both name families keep working with zero usage changes. */
+    --color-primary: var(--primary-dark); --color-primary-hover: #496a24; --on-primary: #fff;
+    --accent-green: var(--primary-medium);
     --success: var(--accent-green); --success-surface: #e8f5e9;
     --danger: #ef4444; --danger-strong: #dc2626; --danger-surface: #fee2e2;
     --warning: #f97316; --warning-text: #d97706; --warning-surface: #ffedd5;
@@ -295,6 +298,9 @@ body {
 }
 
 .user-login-btn {
+    /* Magenta on purpose: user identity ("who is logged in / who did what") is
+       the single most critical thing in this multi-user kitchen tool, so it gets
+       a unique accent detached from the rest of the palette. Kept by design. */
     background-color: #c2185b;
     color: white;
     border: none;
@@ -374,42 +380,46 @@ body {
 }
 
 /* User switch toast */
+/* Centered pill dropping from the top — NOT a full-width bar, and magenta
+   (= user-identity colour, same as the user pill) so it never blends into the
+   green nav or hides the header content behind it. */
 .user-switch-toast {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 16px;
+    left: 50%;
     z-index: 99999;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 12px;
-    padding: 16px 24px;
-    background: var(--color-primary);
+    padding: 14px 30px 14px 16px;
+    background: #c2185b;
     color: white;
     font-family: inherit;
-    transform: translateY(-100%);
+    border-radius: 9999px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    white-space: nowrap;
+    transform: translate(-50%, -180%);
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .user-switch-toast.show {
-    transform: translateY(0);
+    transform: translate(-50%, 0);
 }
 
 .user-switch-toast.hide {
-    transform: translateY(-100%);
+    transform: translate(-50%, -180%);
     transition: transform 0.25s ease-in;
 }
 
 .user-switch-toast .toast-initials {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: rgba(255,255,255,0.25);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
 }
 
@@ -447,15 +457,7 @@ body {
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--primary-dark);
-}
-
-.card-desc {
-    margin-bottom: 16px;
-    color: var(--text-medium);
-    line-height: 1.5;
-}
-
-.stats-grid {
+}.stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
@@ -527,14 +529,7 @@ body {
     font-size: 15px;
     color: var(--text-light);
     font-weight: 500;
-}
-
-.stat-sub-text {
-    font-size: 13px;
-    letter-spacing: 0.5px;
-}
-
-.stat-progress {
+}.stat-progress {
     margin-top: 12px;
     height: 6px;
     background-color: rgba(0,0,0,0.08);
@@ -547,14 +542,7 @@ body {
     background-color: var(--primary-light);
     border-radius: 3px;
     transition: width 0.5s ease;
-}
-
-.placeholder-text {
-    color: var(--text-light);
-    font-style: italic;
-}
-
-/* Inventory Table (base) */
+}/* Inventory Table (base) */
 .inventory-table {
     width: 100%;
     border-collapse: separate;
@@ -590,6 +578,24 @@ body {
 .prep-check-card {
     max-width: 600px;
     margin: 0 auto;
+}
+
+/* Progress bar filling as the check advances (Item X of N) so staff see where
+   they are in the run. Fill width is set in showCurrentPrepItem(). */
+.prep-check-progress {
+    height: 8px;
+    background-color: var(--bg-medium);
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.prep-check-progress-fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--primary-medium);
+    border-radius: 9999px;
+    transition: width 0.3s ease;
 }
 
 .prep-check-top {
@@ -661,24 +667,7 @@ body {
     color: var(--text-dark);
     margin-bottom: 8px;
     font-weight: 500;
-}
-
-.input-field {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    font-size: 18px;
-    transition: border-color 0.2s;
-}
-
-.input-field:focus {
-    border-color: var(--primary-medium);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(128, 178, 68, 0.2);
-}
-
-.button-group {
+}.button-group {
     display: flex;
     gap: 16px;
     margin-top: 12px;
@@ -942,13 +931,6 @@ body {
     font-weight: 800;
 }
 
-.todo-tag.urgent {
-    background-color: var(--accent-red);
-    color: white;
-    text-transform: uppercase;
-    font-weight: 800;
-}
-
 .todo-tag.low {
     background-color: var(--accent-orange);
     color: white;
@@ -976,6 +958,14 @@ body {
     color: #777;
     font-weight: 600;
     font-size: 12px;
+}
+
+/* Timestamp as plain meta text, not a bordered pill (avoids a false "tappable" signifier) */
+.todo-updated {
+    color: var(--text-light);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 /* Status Summary */
@@ -1010,26 +1000,51 @@ body {
     margin-top: 12px;
 }
 
-.summary-line {
-    margin-bottom: 4px;
+/* STATUS SUMMARY as scannable "label + count" counters; click filters the rail */
+#summary-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.summary-line.urgent {
-    color: #dc2626;
+.summary-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1.5px solid var(--border-light);
+    border-radius: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color .15s ease, opacity .15s ease, box-shadow .15s ease;
 }
 
-.summary-line.warning {
-    color: #d97706;
+.summary-counter .sc-dot { font-size: 12px; line-height: 1; }
+
+.summary-counter .sc-n {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--cc);
 }
 
-.summary-line.info {
-    color: #334155;
+.summary-counter .sc-label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--text-medium);
 }
 
-.summary-line.muted {
-    color: #94a3b8;
-    font-size: 14px;
+.summary-counter:hover { border-color: var(--cc); }
+
+.summary-counter.is-active {
+    border-color: var(--cc);
+    box-shadow: 0 0 0 1px var(--cc);
 }
+
+.summary-counter.is-dimmed { opacity: .45; }
 
 .summary-badge {
     display: inline-block;
@@ -1069,17 +1084,7 @@ body {
     background-color: #f1f5f9;
     color: #64748b;
     border: 1px solid #e2e8f0;
-}
-
-/* Modal header with user picker */
-.modal-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-/* Display toggle switch (iOS style) */
+}/* Display toggle switch (iOS style) */
 .display-toggle {
     position: relative;
     width: 44px;
@@ -1217,8 +1222,8 @@ body {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     background-color: var(--primary-dark);
     border-radius: 50%;
     border: 3px solid white;
@@ -1252,10 +1257,13 @@ body {
     position: absolute;
     transform: translateX(-50%);
     text-align: center;
-    font-size: 12px;
-    color: var(--text-medium);
-    top: 15px;
-    font-weight: 500;
+    /* Read at arm's length on a tablet: bigger, darker, bolder than before
+       (was 12px/medium/500 — barely legible). Shared by every slider. */
+    font-size: 14px;
+    color: var(--text-dark);
+    top: 16px;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 /* Animations for better feedback */
@@ -1278,22 +1286,6 @@ body {
 @keyframes modalSlideIn {
     from { transform: translateY(-30px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
-}
-
-/* DB Editor utility classes */
-.move-button {
-    width: 36px;
-    height: 36px;
-    background-color: var(--primary-medium);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* Modern table style (shared across pages) */
@@ -1371,18 +1363,6 @@ body {
 tr.dragging {
     opacity: 0.5;
     background-color: var(--accent-yellow) !important;
-}
-
-tr.drag-placeholder td {
-    height: 40px;
-    background-color: var(--bg-medium);
-    border: 2px dashed var(--primary-light);
-}
-
-.actions-cell {
-    display: flex;
-    gap: 5px;
-    justify-content: flex-end;
 }
 
 .empty-state-cell {
@@ -1709,22 +1689,24 @@ tr.drag-placeholder td {
 
 #prep-check-interface .slider-container {
     margin: 15px 0;
-    height: 40px;
+    height: 48px;
 }
 
 #prep-check-interface .slider-handle {
-    width: 28px;
-    height: 28px;
+    width: 40px;
+    height: 40px;
 }
 
 #prep-check-interface .tick-marks {
-    height: 28px;
-    bottom: -28px;
+    height: 34px;
+    bottom: -34px;
 }
 
+/* Prep check runs on the tablet at arm's length → labels must be clearly
+   readable (was 10px, nearly invisible). Inherits dark/bold from base. */
 #prep-check-interface .tick-label {
-    top: 16px;
-    font-size: 10px;
+    top: 18px;
+    font-size: 15px;
 }
 
 /* General Log Item Styling (if any adjustments are needed globally) */
@@ -1772,26 +1754,7 @@ tr.drag-placeholder td {
     justify-content: space-between;
     align-items: center;
     margin-top: 8px;
-}
-
-.cant-prep-badge {
-    background-color: var(--accent-red); /* Use the app's red */
-    color: white;
-    border-radius: 50%; /* Make it circular */
-    padding: 2px 6px; /* Adjust padding to make it look like a dot with a number */
-    font-size: 12px; /* Smaller font size for the number in the badge */
-    font-weight: bold;
-    margin-left: 8px; /* Space between title text and badge */
-    min-width: 20px; /* Ensure a minimum width to maintain circle shape for single digit */
-    height: 20px; /* Ensure a consistent height */
-    display: inline-flex; /* Use flex to center content if needed */
-    align-items: center;
-    justify-content: center;
-    line-height: 1; /* Adjust line-height for better vertical centering of text */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-/* ========================================
+}/* ========================================
    Staff Selection Modal
    ======================================== */
 
@@ -1960,39 +1923,6 @@ tr.drag-placeholder td {
     gap: 12px;
 }
 
-/* ========================================
-   Shared Toast Styles
-   ======================================== */
-
-.toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 12px 16px;
-    color: white;
-    border-radius: 5px;
-    z-index: 10001;
-}
-
-.toast--success {
-    background-color: var(--success);
-}
-
-.toast--error {
-    background-color: #ef4444;
-}
-
-/* ========================================
-   Unified Components (2026-07-18)
-   Defined here; wired page-by-page in Phase 3.
-   New/unused selectors — additive, no visual change until markup adopts them.
-   ======================================== */
-
-.btn--lg {
-    padding: 16px 34px;
-    font-size: var(--fs-body-lg);
-}
-
 .modal-box--narrow {
     max-width: 340px;
 }
@@ -2002,66 +1932,6 @@ tr.drag-placeholder td {
     font-weight: var(--fw-bold);
     color: var(--primary-dark);
     margin: 0 0 var(--space-2);
-}
-
-/* One table treatment: uppercase sticky headers + zebra rows (Serge's choice) */
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.data-table th {
-    font-size: var(--fs-eyebrow);
-    font-weight: var(--fw-bold);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-light);
-    background: var(--bg-medium);
-    text-align: left;
-    padding: var(--space-3) var(--space-4);
-    position: sticky;
-    top: 0;
-}
-.data-table td {
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--fs-caption);
-    color: var(--text-dark);
-    border: 0;
-}
-.data-table tbody tr:nth-child(even) {
-    background: var(--surface-muted);
-}
-.data-table tbody tr:hover {
-    background: var(--bg-light);
-}
-
-/* One pill: colour-only modifiers */
-.tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: var(--fs-eyebrow);
-    font-weight: var(--fw-bold);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--r-pill);
-    line-height: 1.4;
-}
-.tag--provider { background: var(--accent-yellow); color: #6b5900; }
-.tag--location { background: var(--bg-medium); color: var(--primary-dark); }
-.tag--status-low { background: var(--danger-surface); color: var(--danger-strong); text-transform: uppercase; letter-spacing: .8px; }
-.tag--status-ok { background: var(--success-surface); color: var(--primary-dark); text-transform: uppercase; letter-spacing: .8px; }
-.tag--info { background: var(--info-surface); color: #1c66b0; }
-
-/* One section band */
-.group-header {
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-bold);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--primary-dark);
-    background: var(--bg-medium);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--r-control);
-    margin: var(--space-5) 0 var(--space-2);
 }
 
 /* PIN gate (pin-guard.js) — keypad styling as classes; key sizes preserved

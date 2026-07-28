@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM fully loaded - initializing I&C Manager");
     
     // Core UI elements
     const staffSelection = document.getElementById('staff-selection');
@@ -36,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Application state
     let currentStaff = '';
+    // Keep this local mirror in sync with the shared session (single source of truth).
+    if (window.UserSession) UserSession.subscribe(function (n) { currentStaff = n; });
     let currentLocation = 'All';
     let allLocations = new Set(['All']);
     let allSublocations = new Map();
@@ -50,46 +51,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSortDirection = null; // 'asc', 'desc', or null for original order
     let originalItemOrder = []; // Store original order for reset
     
-    // Load staff members from Firebase, fallback to defaults if needed
+    // Renders the staff-picker buttons. Loading + Firebase/fallback now live in
+    // the shared UserSession.loadStaff(); createStaffButton wires each click.
     function loadStaffMembers() {
-        console.log("Loading staff members");
-        
-        if (staffGrid) {
-            staffGrid.innerHTML = '<div style="text-align: center; padding: 15px;">Loading staff...</div>';
-            
-            // Try to load from Firebase
-            if (window.firebaseDb && window.firebaseDb.loadStaffMembers) {
-                window.firebaseDb.loadStaffMembers()
-                    .then(staffMembers => {
-                        window.staffMembers = staffMembers;
-                        if (staffMembers && staffMembers.length > 0) {
-                            // Filter to only active staff members
-                            const activeStaff = staffMembers.filter(staff => staff.active);
-                            
-                            if (activeStaff.length > 0) {
-                                staffGrid.innerHTML = '';
-                                
-                                // Create button for each staff member
-                                activeStaff.forEach(staff => {
-                                    createStaffButton(staff.name);
-                                });
-                            } else {
-                                createDefaultStaffButtons();
-                            }
-                        } else {
-                            createDefaultStaffButtons();
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error loading staff:", error);
-                        createDefaultStaffButtons();
-                    });
-            } else {
-                createDefaultStaffButtons();
-            }
-        }
+        if (!staffGrid) return;
+        staffGrid.innerHTML = '<div style="text-align: center; padding: 15px;">Loading staff...</div>';
+        UserSession.loadStaff().then(function (names) {
+            staffGrid.innerHTML = '';
+            names.forEach(createStaffButton);
+        });
     }
-    
+
     // Create staff button
     function createStaffButton(name) {
         const button = document.createElement('button');
@@ -104,41 +76,26 @@ document.addEventListener('DOMContentLoaded', function() {
         staffGrid.appendChild(button);
     }
     
-    // Create default staff buttons if Firebase fails
-    function createDefaultStaffButtons() {
-        console.log("Creating default staff buttons");
-        staffGrid.innerHTML = '';
-        
-        const defaultStaff = ["Serge Men", "Tatiana", "Nadine", "Nicolas", "Omar"];
-        defaultStaff.forEach(name => {
-            createStaffButton(name);
-        });
-    }
-    
     // Select staff and show main interface
     function selectStaff(name) {
-        currentStaff = name;
-        
-        // Update UI
-        if (currentUserElement) currentUserElement.textContent = name;
-        if (headerUserName) headerUserName.textContent = name;
-        
+        // Route through the shared session: persists, updates the name labels, and
+        // shows the switch toast (previously I&C did none of this).
+        if (window.UserSession) UserSession.set(name); else currentStaff = name;
+
         // Show main interface
         if (staffSelection) staffSelection.style.display = 'none';
         if (mainInterface) mainInterface.style.display = 'flex';
-        
+
         // Load items
         loadItems();
     }
     
     // Load inventory items from Firebase
     function loadItems() {
-        console.log("Loading inventory items");
         
         if (window.firebaseDb && window.firebaseDb.loadIcItems) {
             window.firebaseDb.loadIcItems()
                 .then(items => {
-                    console.log("Items loaded:", items.length);
                     window.icItems = items;
                     
                     // Extract locations and sublocations
@@ -184,7 +141,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        console.log('Locations:', [...allLocations]);
     }
     
     // Update location filter buttons — every filter row is built identically,
@@ -242,25 +198,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Format date nicely
-    function formatDate(dateString) {
-        if (!dateString || dateString === 'Never') return 'Never';
-        
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return dateString;
-            
-            // Format as "Jan 15, 14:30"
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const month = months[date.getMonth()];
-            const day = date.getDate();
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            return `${month} ${day}, ${hours}:${minutes}`;
-        } catch (e) {
-            console.error("Error formatting date:", e);
-            return dateString;
-        }
+    // formatDate is now the shared helper in ui-helpers.js ("9 Mar, 14:30").
+
+    // Display helpers (Batch 1 harmonisation).
+    // fmtQty: drop a trailing ".0" on whole counts ("8.0" -> "8"), keep real
+    // fractions ("1.1" stays "1.1"). pluralizeUnit: countable containers get an
+    // "s" ("bucket" -> "buckets", "box" -> "boxes"); mass units stay invariant.
+    function fmtQty(n) {
+        return Number((Number(n) || 0).toFixed(1)).toString();
+    }
+    function pluralizeUnit(unit, n) {
+        const u = (unit || '').trim();
+        if (!u || Number(n) === 1) return u;
+        if (['kg', 'g', 'l', 'ml', 'cl', 'L'].indexOf(u) !== -1) return u;
+        if (/(s|x|z|ch|sh)$/i.test(u)) return u + 'es';
+        return u + 's';
     }
 
     // Log activity changes to Firebase
@@ -286,30 +238,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Unified save function for all IC data
-    // Pass the modified item to write only that item — a full-array write from one
-    // device silently overwrites concurrent edits made on other devices
-    function saveData(specificItem) {
-        // Always save to localStorage as backup
-        localStorage.setItem('icItems', JSON.stringify(window.icItems));
+    // saveData is built from the shared makeSaver (ui-helpers.js). Writes only
+    // the changed item when passed one (concurrent-safe); else the whole array.
+    const saveData = makeSaver({
+        key: 'icItems',
+        getItems: function () { return window.icItems; },
+        one: 'saveIcItem',
+        all: 'saveAllIcItems',
+        onError: function (msg) {
+            if (typeof showMessage === 'function') showMessage(msg, 'error');
+        }
+    });
 
-        // Save to Firebase if available
-        if (specificItem && window.firebaseDb && window.firebaseDb.saveIcItem) {
-            window.firebaseDb.saveIcItem(specificItem)
-                .catch(error => {
-                    console.error("Error saving item:", error);
-                    if (typeof showMessage === 'function') {
-                        showMessage("Failed to save item to server.", "error");
-                    }
+    // Active category (badge) filters for the overview list
+    let activeCategoryFilters = new Set();
+
+    // Render the clickable category-filter chips above the overview table.
+    function renderCategoryFilterBar() {
+        const bar = document.getElementById('category-filter-bar');
+        if (!bar) return;
+        bar.innerHTML = '';
+        ['nature', 'etat', 'nonalim'].forEach(grp => {
+            IC_CATEGORIES[grp].forEach(cat => {
+                const on = activeCategoryFilters.has(cat);
+                const chip = document.createElement('span');
+                chip.textContent = cat;
+                // Touch target >=44px (padding + min-height override categoryStyle's compact base)
+                chip.style.cssText = categoryStyle(cat, on) + 'cursor:pointer;min-height:44px;padding:7px 15px;font-size:14px;';
+                chip.addEventListener('click', () => {
+                    if (activeCategoryFilters.has(cat)) activeCategoryFilters.delete(cat);
+                    else activeCategoryFilters.add(cat);
+                    updateOverviewTable();
                 });
-        } else if (window.firebaseDb && window.firebaseDb.saveAllIcItems) {
-            window.firebaseDb.saveAllIcItems(window.icItems)
-                .catch(error => {
-                    console.error("Error saving to Firebase:", error);
-                    if (typeof showMessage === 'function') {
-                        showMessage("Failed to save data to server.", "error");
-                    }
-                });
+                bar.appendChild(chip);
+            });
+        });
+        if (activeCategoryFilters.size > 0) {
+            const clear = document.createElement('span');
+            clear.textContent = '✕ clear all';
+            clear.style.cssText = 'cursor:pointer;color:#c0392b;font-size:13px;margin-left:6px;padding:10px 8px;display:inline-flex;align-items:center;min-height:44px;';
+            clear.addEventListener('click', () => { activeCategoryFilters.clear(); updateOverviewTable(); });
+            bar.appendChild(clear);
         }
     }
 
@@ -326,20 +295,28 @@ document.addEventListener('DOMContentLoaded', function() {
             currentLocation === 'All' || item.location === currentLocation
         );
         
-        // Apply search filter if search term exists
-        const searchTerm = document.getElementById('overview-search')?.value?.toLowerCase().trim();
+        // Apply search filter if search term exists (accent-insensitive)
+        const searchTerm = deburr(document.getElementById('overview-search')?.value || '').trim();
         if (searchTerm) {
             filteredItems = filteredItems.filter(item => {
-                const itemName = (item.name || '').toLowerCase();
-                const sublocation = (item.sublocation || '').toLowerCase();
-                const location = (item.location || '').toLowerCase();
-                
-                return itemName.includes(searchTerm) || 
-                       sublocation.includes(searchTerm) || 
+                const itemName = deburr(item.name || '');
+                const categories = deburr((item.categories || []).join(' '));
+                const location = deburr(item.location || '');
+
+                return itemName.includes(searchTerm) ||
+                       categories.includes(searchTerm) ||
                        location.includes(searchTerm);
             });
         }
-        
+
+        // Apply category (badge) filter — item matches if it carries ANY active tag
+        renderCategoryFilterBar();
+        if (activeCategoryFilters.size > 0) {
+            filteredItems = filteredItems.filter(item =>
+                (item.categories || []).some(c => activeCategoryFilters.has(c))
+            );
+        }
+
         // Apply sorting if active
         if (currentSortColumn && currentSortDirection) {
             filteredItems = sortItems(filteredItems, currentSortColumn, currentSortDirection);
@@ -367,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const percentage = Math.min((item.currentLevel / item.targetLevel) * 100, 100);
             
             // Debug logging
-            console.log(`Item: ${item.name}, Current: ${item.currentLevel} (${typeof item.currentLevel}), Target: ${item.targetLevel} (${typeof item.targetLevel}), Percentage: ${percentage}%`);
             
             // Check for data issues
             if (isNaN(item.currentLevel) || isNaN(item.targetLevel)) {
@@ -380,12 +356,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayPercentage = 5; // Show 5% minimum for 0-5% items
             }
             
-            // Smooth color: red(0%) → orange(25%) → yellow(50%) → green(100%)
-            const hue = Math.min(percentage, 100) * 1.2; // 0=red, 60=yellow, 120=green
-            const sat = percentage < 50 ? 80 : 55;
-            const light = percentage < 50 ? 48 : 40;
-            const levelBarColor = `hsl(${hue}, ${sat}%, ${light}%)`;
-            const levelBarTextColor = percentage > 55 ? 'white' : '#333';
+            // Smooth level colour + matching text colour (shared ui-helpers).
+            const levelBarColor = levelColor(percentage);
+            const levelBarTextColor = levelTextColor(percentage);
             
             row.innerHTML = `
                 <td class="item-name" style="cursor: pointer;" title="Double-click to edit item details">${item.name}</td>
@@ -397,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </td>
                 <td class="target-value">${item.targetLevel}</td>
-                <td class="sublocation-value">${item.sublocation || 'N/A'}</td>
+                <td class="categories-value">${categoryBadgesHTML(item.categories) || '<span style="color:#999">—</span>'}</td>
                 <td class="last-modified">${formatDate(item.lastCheckedTime)}</td>
             `;
             
@@ -407,22 +380,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Debug: Check if styles were applied
                 if (item.name === 'Viande Meat [Ground beef] Frozen 1KG') {
-                    console.log('Debug - After nuclear approach:');
-                    console.log('  - Inline width:', levelBarFill.style.width);
-                    console.log('  - Inline backgroundColor:', levelBarFill.style.backgroundColor);
-                    console.log('  - Computed width:', window.getComputedStyle(levelBarFill).width);
-                    console.log('  - Computed backgroundColor:', window.getComputedStyle(levelBarFill).backgroundColor);
-                    console.log('  - getAttribute style:', levelBarFill.getAttribute('style'));
                     
                     // Check if there are any CSS rules affecting this element
                     const computedStyle = window.getComputedStyle(levelBarFill);
-                    console.log('  - All computed styles that might affect width:');
-                    console.log('    - width:', computedStyle.width);
-                    console.log('    - maxWidth:', computedStyle.maxWidth);
-                    console.log('    - minWidth:', computedStyle.minWidth);
-                    console.log('    - boxSizing:', computedStyle.boxSizing);
-                    console.log('    - display:', computedStyle.display);
-                    console.log('    - position:', computedStyle.position);
                 }
             }
             
@@ -474,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         console.error('showQuickUpdateModal function not found');
                         // Show user-friendly error message
-                        alert('Update functionality not available. Please refresh the page and try again.');
+                        showMessage('Update functionality not available. Please refresh the page and try again.', 'error');
                     }
                     
                     // Reset visual feedback after a short delay
@@ -495,21 +455,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Debug: Add a test row to verify level bar works
             if (item.name === 'Viande Meat [Ground beef] Frozen 1KG') {
-                console.log('Debug - Viande Meat row HTML:', row.innerHTML);
-                console.log('Debug - Viande Meat percentage:', percentage);
-                console.log('Debug - Viande Meat levelBarColor:', levelBarColor);
-                console.log('Debug - Viande Meat inline style:', row.querySelector('.level-bar-fill').getAttribute('style'));
                 
                 // Test: Add a simple test to verify the level bar element exists
                 setTimeout(() => {
                     const testFill = row.querySelector('.level-bar-fill');
                     if (testFill) {
-                        console.log('Debug - Found level bar fill element:', testFill);
-                        console.log('Debug - Computed width:', window.getComputedStyle(testFill).width);
-                        console.log('Debug - Computed background-color:', window.getComputedStyle(testFill).backgroundColor);
-                        console.log('Debug - Inline style attribute:', testFill.getAttribute('style'));
                     } else {
-                        console.log('Debug - Level bar fill element NOT found!');
                     }
                 }, 100);
             }
@@ -521,11 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show edit item modal for double-clicked item names
     function showEditItemModal(item) {
         SoundFX.pop();
-        const modalBackdrop = document.createElement('div');
-        modalBackdrop.className = 'modal-backdrop';
-
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box modal-box--wide';
+        const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
         const modalHeader = document.createElement('div');
         modalHeader.className = 'modal-header';
@@ -608,40 +555,23 @@ document.addEventListener('DOMContentLoaded', function() {
         targetGroup.appendChild(targetLabel);
         targetGroup.appendChild(targetInput);
         
-        // Sublocation field
+        // Categories field (multi-badge)
         const sublocationGroup = document.createElement('div');
         sublocationGroup.style.display = 'flex';
         sublocationGroup.style.flexDirection = 'column';
         sublocationGroup.style.gap = '8px';
-        
+
         const sublocationLabel = document.createElement('label');
-        sublocationLabel.htmlFor = 'edit-sublocation';
-        sublocationLabel.textContent = 'Sublocation';
+        sublocationLabel.textContent = 'Categories';
         sublocationLabel.style.fontWeight = '600';
         sublocationLabel.style.color = 'var(--text-dark)';
-        
-        const sublocationInput = document.createElement('input');
-        sublocationInput.type = 'text';
-        sublocationInput.id = 'edit-sublocation';
-        sublocationInput.value = item.sublocation || '';
-        sublocationInput.placeholder = 'Enter sublocation (optional)';
-        sublocationInput.style.padding = '12px';
-        sublocationInput.style.borderRadius = '6px';
-        sublocationInput.style.border = '2px solid var(--border-light)';
-        sublocationInput.style.fontSize = '16px';
-        sublocationInput.style.transition = 'border-color 0.2s ease';
-        
-        sublocationInput.addEventListener('focus', () => {
-            sublocationInput.style.borderColor = 'var(--primary-dark)';
-        });
-        
-        sublocationInput.addEventListener('blur', () => {
-            sublocationInput.style.borderColor = 'var(--border-light)';
-        });
-        
+
+        const categoriesBox = document.createElement('div');
+        const catEditor = buildCategoryChipEditor(categoriesBox, item.categories || []);
+
         sublocationGroup.appendChild(sublocationLabel);
-        sublocationGroup.appendChild(sublocationInput);
-        
+        sublocationGroup.appendChild(categoriesBox);
+
         // Add fields to form
         formFields.appendChild(nameGroup);
         formFields.appendChild(targetGroup);
@@ -699,43 +629,28 @@ document.addEventListener('DOMContentLoaded', function() {
         modalContent.appendChild(modalHeader);
         modalContent.appendChild(formFields);
         modalContent.appendChild(buttonGroup);
-        modalBackdrop.appendChild(modalContent);
-        
-        // Add modal to document
-        document.body.appendChild(modalBackdrop);
-        
+
         // Focus on name input
         setTimeout(() => {
             nameInput.focus();
             nameInput.select();
         }, 100);
         
-        // Function to close modal and clean up
-        function closeModal() {
-            console.log('closeModal function called');
-            if (document.body.contains(modalBackdrop)) {
-                document.body.removeChild(modalBackdrop);
-                console.log('Modal backdrop removed from DOM');
-            } else {
-                console.log('Modal backdrop not found in DOM');
-            }
-        }
-        
         // Save function
         function saveChanges() {
             const newName = nameInput.value.trim();
             const newTarget = parseFloat(targetInput.value);
-            const newSublocation = sublocationInput.value.trim();
+            const newCategories = catEditor.get();
             
             // Validation
             if (!newName) {
-                alert('Item name cannot be empty');
+                showMessage('Item name cannot be empty', 'error');
                 nameInput.focus();
                 return;
             }
             
             if (isNaN(newTarget) || newTarget < 0) {
-                alert('Target level must be a valid positive number');
+                showMessage('Target level must be a valid positive number', 'error');
                 targetInput.focus();
                 return;
             }
@@ -743,7 +658,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check for duplicate names (excluding current item)
             const duplicateName = icItems.find(i => i.id !== item.id && i.name.toLowerCase() === newName.toLowerCase());
             if (duplicateName) {
-                alert(`An item with the name "${newName}" already exists`);
+                showMessage(`An item with the name "${newName}" already exists`, 'error');
                 nameInput.focus();
                 return;
             }
@@ -753,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (itemIndex !== -1) {
                 icItems[itemIndex].name = newName;
                 icItems[itemIndex].targetLevel = newTarget;
-                icItems[itemIndex].sublocation = newSublocation || null; // Set to null if empty
+                icItems[itemIndex].categories = newCategories;
                 icItems[itemIndex].lastCheckedTime = new Date().toISOString();
                 
                 // Save to local storage
@@ -764,7 +679,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.firebaseDb && window.firebaseDb.saveIcItem) {
                     window.firebaseDb.saveIcItem(icItems[itemIndex])
                         .then(() => {
-                            console.log("Item updated in Firebase successfully");
                         })
                         .catch(error => {
                             console.error("Error saving to Firebase:", error);
@@ -783,25 +697,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close modal
                 closeModal();
                 
-                console.log('Modal should be closed now');
             }
         }
         
         // Add event listeners
         cancelButton.addEventListener('click', () => {
-            console.log('Cancel button clicked');
             closeModal();
         });
         saveButton.addEventListener('click', () => {
-            console.log('Save button clicked');
             saveChanges();
-        });
-        
-        // Close on backdrop click
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) {
-                closeModal();
-            }
         });
         
         // Handle Enter key on inputs - all save directly
@@ -812,12 +716,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         targetInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                saveChanges();
-            }
-        });
-        
-        sublocationInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 saveChanges();
             }
@@ -855,15 +753,6 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'target':
                 sortedItems.sort((a, b) => {
                     const result = a.targetLevel - b.targetLevel;
-                    return direction === 'asc' ? result : -result;
-                });
-                break;
-                
-            case 'sublocation':
-                sortedItems.sort((a, b) => {
-                    const sublocationA = (a.sublocation || 'N/A').toLowerCase();
-                    const sublocationB = (b.sublocation || 'N/A').toLowerCase();
-                    const result = sublocationA.localeCompare(sublocationB);
                     return direction === 'asc' ? result : -result;
                 });
                 break;
@@ -970,10 +859,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Group by location on "All", by sublocation otherwise
+        // Group by location (physical zone). Categories are a filter facet, not
+        // a grouping axis (multi-valued), so they are not used to group here.
         const groups = new Map();
         items.forEach(item => {
-            const key = (isAll ? item.location : item.sublocation) || 'General';
+            const key = item.location || 'General';
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push(item);
         });
@@ -995,9 +885,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
 
                     // Same colour ramp and 5% minimum width as the Overview level bars
-                    const hue = Math.min(percentage, 100) * 1.2;
-                    const sat = percentage < 50 ? 80 : 55;
-                    const light = percentage < 50 ? 48 : 40;
                     const width = percentage <= 5 ? 5 : percentage;
 
                     const cell = document.createElement('div');
@@ -1006,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     cell.innerHTML = `
                         <div class="count-preview-name"></div>
                         <div class="count-preview-bar">
-                            <div class="count-preview-bar-fill" style="width: ${width}%; background-color: hsl(${hue}, ${sat}%, ${light}%);"></div>
+                            <div class="count-preview-bar-fill" style="width: ${width}%; background-color: ${levelColor(percentage)};"></div>
                         </div>
                     `;
                     // textContent, not innerHTML: item names are free text typed in the DB editor
@@ -1033,16 +920,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update low stock list
     function updateLowStockList() {
-        if (lowStockTitle) {
-            lowStockTitle.textContent = currentLocation === 'All'
-                ? 'Low Stock Items'
-                : `Low Stock · ${currentLocation}`;
-        }
-
         if (!lowStockContainer) return;
 
         lowStockContainer.innerHTML = '';
-        
+
         // Filter items that are below 50% of target and match current location
         const lowStockItems = window.icItems.filter(item => {
             const isLowStock = item.currentLevel < item.targetLevel * 0.5;
@@ -1053,6 +934,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const percentB = b.currentLevel / b.targetLevel;
             return percentA - percentB;
         });
+
+        // Title with a live count badge (matches the Prep Manager "LOW PREPS 4" pattern)
+        if (lowStockTitle) {
+            const base = currentLocation === 'All' ? 'Low Stock Items' : `Low Stock · ${currentLocation}`;
+            lowStockTitle.innerHTML = `${base} <span class="todo-count-badge">${lowStockItems.length}</span>`;
+        }
         
         if (lowStockItems.length === 0) {
             lowStockContainer.innerHTML = '<div class="todo-empty">All items are at good levels!</div>';
@@ -1090,20 +977,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
+            const _need = item.targetLevel - item.currentLevel;
+            const _needColor = item.currentLevel === 0 ? '#dc2626' : '#b45309';
             todoItem.innerHTML = `
                 <div class="todo-item-name">${item.name}</div>
                 <div class="todo-item-detail">
                     <span style="color: var(--text-medium); font-weight: 500;">${item.location}</span>
-                    ${item.sublocation ? `<span style="color: var(--text-light); font-size: 12px;"> › ${item.sublocation}</span>` : ''}
                 </div>
-                <div class="todo-item-detail">Current: ${item.currentLevel} ${item.unit}</div>
-                <div class="todo-item-detail"><span style="font-weight: 700;">Need:</span> ${(item.targetLevel - item.currentLevel).toFixed(1)} ${item.unit} more</div>
+                ${item.categories && item.categories.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">${categoryBadgesHTML(item.categories)}</div>` : ''}
+                <div class="todo-item-detail" style="color:var(--text-light);font-size:13px;">Current: ${fmtQty(item.currentLevel)} ${pluralizeUnit(item.unit, item.currentLevel)}</div>
+                <div class="todo-need"><span class="todo-need-num" style="color:${_needColor};">${fmtQty(_need)}</span><span class="todo-need-lbl">${pluralizeUnit(item.unit, _need)} to order</span></div>
                 ${providersHtml}
                 <div class="todo-footer">
-                    <span class="todo-tag ${item.currentLevel === 0 ? 'urgent' : 'low'}">
-                        ${item.currentLevel === 0 ? 'Out of Stock' : 'Low Stock'}
-                    </span>
-                    <span class="todo-item-detail todo-timestamp">${timeDisplay}</span>
+                    ${statusBadgeHTML(item.currentLevel === 0 ? 'out' : 'low')}
+                    <span class="todo-updated">Updated ${timeDisplay}</span>
                 </div>
             `;
             
@@ -1123,9 +1010,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Total items
         totalItemsElement.textContent = window.icItems.length;
 
-        // Items below 50% of target
+        // Items below 50% of target — colour the count amber when actionable (>0)
+        // so it stands out from the neutral totals next to it.
         const belowFifty = window.icItems.filter(item => item.currentLevel < item.targetLevel * 0.5).length;
         itemsBelowFiftyElement.textContent = belowFifty;
+        itemsBelowFiftyElement.style.color = belowFifty > 0 ? '#b45309' : '';
 
         updateLastInventoryStat();
     }
@@ -1186,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Switch user
         if (switchUserBtn) {
             switchUserBtn.addEventListener('click', () => {
-                currentStaff = '';
+                if (window.UserSession) UserSession.clear(); else currentStaff = '';
                 if (staffSelection) staffSelection.style.display = 'flex';
                 if (mainInterface) mainInterface.style.display = 'none';
             });
@@ -1217,9 +1106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
                     item.addEventListener('click', (ev) => {
                         ev.stopPropagation();
-                        currentStaff = member.name;
-                        headerUserName.textContent = member.name;
-                        document.getElementById('current-user').textContent = member.name;
+                        if (window.UserSession) UserSession.set(member.name); else currentStaff = member.name;
                         dropdown.remove();
                     });
                     dropdown.appendChild(item);
@@ -1258,31 +1145,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Switch between content sections
     function switchSection(sectionId, buttonElement) {
-        SoundFX.tap();
-        // Update active nav button
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        buttonElement.classList.add('active');
-        
-        // Show selected section, hide others
-        contentSections.forEach(section => {
-            section.style.display = 'none';
-        });
-        document.getElementById(`${sectionId}-section`).style.display = 'block';
-        
-        // Refresh data when switching to specific sections
-        if (sectionId === 'inventory') {
-        } else if (sectionId === 'dashboard') {
-            updateStats();
-            updateDashboardLists();
-        } else if (sectionId === 'history') {
-            loadAndDisplayHistory();
-        } else if (sectionId === 'overview') {
-            // Store original order when first loading Overview
-            if (originalItemOrder.length === 0 && window.icItems && window.icItems.length > 0) {
-                originalItemOrder = [...window.icItems];
+        activateSection(sectionId, buttonElement, {
+            navButtons, contentSections,
+            onSection: (id) => {
+                if (id === 'dashboard') { updateStats(); updateDashboardLists(); }
+                else if (id === 'history') loadAndDisplayHistory();
+                else if (id === 'overview') {
+                    // Store original order when first loading Overview
+                    if (originalItemOrder.length === 0 && window.icItems && window.icItems.length > 0) {
+                        originalItemOrder = [...window.icItems];
+                    }
+                    updateOverviewTable();
+                }
             }
-            updateOverviewTable();
-        }
+        });
     }
     
     // Set up sortable table headers
@@ -1302,9 +1178,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up the Overview toolbar (search + add item). Focus styling is CSS-only.
     function setupSearch() {
         const searchInput = document.getElementById('overview-search');
+        const clearBtn = document.getElementById('overview-search-clear');
+        const toggleClear = () => {
+            if (clearBtn) clearBtn.style.display = (searchInput && searchInput.value) ? 'block' : 'none';
+        };
         if (searchInput) {
             searchInput.addEventListener('input', () => {
+                toggleClear();
                 updateOverviewTable();
+            });
+        }
+        if (clearBtn && searchInput) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                toggleClear();
+                updateOverviewTable();
+                searchInput.focus();
             });
         }
 
@@ -1318,7 +1207,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupRealtimeUpdates() {
         if (window.firebaseDb && window.firebaseDb.onIcItemsChange) {
             window.firebaseDb.onIcItemsChange((updatedItems) => {
-                console.log("Real-time update received:", updatedItems.length);
                 window.icItems = updatedItems;
                 
                 // Extract locations and sublocations
@@ -1361,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start the full count process
     function startFullCount() {
         if (!window.icItems || window.icItems.length === 0) {
-            alert("No items to count. Please add items first.");
+            showMessage("No items to count. Please add items first.", 'error');
             return;
         }
         
@@ -1369,9 +1257,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!currentStaff) {
             showStaffSelectionModal().then(staff => {
                 if (staff) {
-                    currentStaff = staff;
-                    if (currentUserElement) currentUserElement.textContent = staff;
-                    if (headerUserName) headerUserName.textContent = staff;
+                    if (window.UserSession) UserSession.set(staff); else currentStaff = staff;
                     startFullCountProcess();
                 }
             });
@@ -1383,11 +1269,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show staff selection modal
     function showStaffSelectionModal() {
         return new Promise((resolve) => {
-            const modal = document.createElement('div');
-            modal.className = 'modal-backdrop';
-
-            const content = document.createElement('div');
-            content.className = 'modal-box';
+            // Backdrop-click / Escape resolve null (settle guards against a double
+            // resolve when a button already settled with a name).
+            let settled = false;
+            const settle = (result) => { if (settled) return; settled = true; resolve(result); };
+            const { box: content, close } = openModal({ onClose: () => settle(null) });
+            const finish = (result) => { settle(result); close(); };
 
             const title = document.createElement('h3');
             title.textContent = 'Select Staff for Count';
@@ -1397,29 +1284,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Staff container
             const staffContainer = document.createElement('div');
             
-            // Load staff members
-            if (window.firebaseDb && window.firebaseDb.loadStaffMembers) {
-                window.firebaseDb.loadStaffMembers()
-                    .then(staffMembers => {
-                        // Filter active staff
-                        const activeStaff = staffMembers.filter(staff => staff.active);
-                        
-                        if (activeStaff.length > 0) {
-                            activeStaff.forEach(staff => {
-                                addStaffButton(staff.name);
-                            });
-                        } else {
-                            addDefaultStaffButtons();
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error loading staff:", error);
-                        addDefaultStaffButtons();
-                    });
-            } else {
-                addDefaultStaffButtons();
-            }
-            
+            // Shared loader: Firebase active staff, else DEFAULT_STAFF fallback.
+            UserSession.loadStaff().then(names => names.forEach(addStaffButton));
+
             // Function to add staff button
             function addStaffButton(name) {
                 const btn = document.createElement('button');
@@ -1434,20 +1301,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.style.color = 'white';
                 btn.style.cursor = 'pointer';
                 
-                btn.onclick = function() {
-                    document.body.removeChild(modal);
-                    resolve(name);
-                };
-                
+                btn.onclick = function() { finish(name); };
+
                 staffContainer.appendChild(btn);
-            }
-            
-            // Add default staff buttons
-            function addDefaultStaffButtons() {
-                const defaultStaff = ["Serge Men", "Tatiana", "Nadine", "Nicolas", "Omar"];
-                defaultStaff.forEach(name => {
-                    addStaffButton(name);
-                });
             }
             
             // Cancel button
@@ -1463,43 +1319,26 @@ document.addEventListener('DOMContentLoaded', function() {
             cancelBtn.style.color = '#333';
             cancelBtn.style.cursor = 'pointer';
             
-            cancelBtn.onclick = function() {
-                document.body.removeChild(modal);
-                resolve(null);
-            };
-            
-            // Assemble modal
+            cancelBtn.onclick = function() { finish(null); };
+
+            // Assemble modal (backdrop mount + close paths handled by openModal)
             content.appendChild(title);
             content.appendChild(staffContainer);
             content.appendChild(cancelBtn);
-            modal.appendChild(content);
-            
-            // Close on outside click
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    document.body.removeChild(modal);
-                    resolve(null);
-                }
-            });
-            
-            // Add to document
-            document.body.appendChild(modal);
         });
     }
     
     // Function to continue with full count process
     function startFullCountProcess() {
-        console.log("Starting full count process with", window.icItems.length, "items");
         
         // Filter by current location if not "All"
         countQueue = currentLocation !== 'All' 
             ? window.icItems.filter(item => item.location === currentLocation)
             : [...window.icItems];
             
-        console.log("Items to count after filtering:", countQueue.length);
         
         if (countQueue.length === 0) {
-            alert('No items to count in the selected location.');
+            showMessage('No items to count in the selected location.', 'error');
             return;
         }
         
@@ -1553,7 +1392,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const item = countQueue[currentItemIndex];
-        console.log("Showing item:", item);
         
         // Update location header
         if (currentLocationElement) {
@@ -1611,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const numValue = parseFloat(value);
         
         if (isNaN(numValue)) {
-            alert("Please enter a valid number");
+            showMessage("Please enter a valid number", 'error');
             return;
         }
         
@@ -1648,13 +1486,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         };
                         
                         window.firebaseDb.saveIcActivityLog(activity)
-                            .then(() => console.log("Activity logged"))
                             .catch(error => console.error("Error logging activity:", error));
                     }
                 })
                 .catch(error => {
                     console.error("Error saving item:", error);
-                    alert("Error saving item. Please try again.");
+                    showMessage("Error saving item. Please try again.", 'error');
                 });
         }
         
@@ -1710,12 +1547,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
         SoundFX.pop();
-        const modal = document.createElement('div');
-        modal.className = 'modal-backdrop';
+        // Slider cleanup centralised in onClose so EVERY close path (buttons,
+        // backdrop-click, Escape) destroys the slider — no leaks.
+        const { backdrop: modal, box: content, close: closeModal } = openModal({
+            onClose: () => { if (modalSlider && typeof modalSlider.destroy === 'function') modalSlider.destroy(); }
+        });
 
-        const content = document.createElement('div');
-        content.className = 'modal-box';
-        
         // Item details
         content.innerHTML = `
             <div style="margin-bottom: 15px;">
@@ -1756,9 +1593,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Add modal to document
-        document.body.appendChild(modal);
-        
         // Set up event handlers
         const cancelBtn = content.querySelector('#modal-cancel');
         const saveBtn = content.querySelector('#modal-save');
@@ -1783,22 +1617,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 0);
         
         // Cancel button
-        cancelBtn.addEventListener('click', () => {
-            // Clean up slider if it exists
-            if (modalSlider && typeof modalSlider.destroy === 'function') {
-                modalSlider.destroy();
-            }
-            document.body.removeChild(modal);
-        });
+        cancelBtn.addEventListener('click', () => closeModal());
 
         // Edit Details button
         const editDetailsBtn = content.querySelector('#modal-edit-details');
         if (editDetailsBtn) {
             editDetailsBtn.addEventListener('click', () => {
-                if (modalSlider && typeof modalSlider.destroy === 'function') {
-                    modalSlider.destroy();
-                }
-                document.body.removeChild(modal);
+                closeModal();
                 showEditItemDetailsModal(item);
             });
         }
@@ -1809,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const newValue = parseFloat(valueInput.value);
             
             if (isNaN(newValue)) {
-                alert("Please enter a valid number");
+                showMessage("Please enter a valid number", 'error');
                 return;
             }
             
@@ -1869,33 +1694,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Close modal
-            document.body.removeChild(modal);
+            closeModal();
         });
-        
-        // Close on backdrop click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                // Clean up slider if it exists
-                if (modalSlider && typeof modalSlider.destroy === 'function') {
-                    modalSlider.destroy();
-                }
-                document.body.removeChild(modal);
-            }
-        });
-        
-        // Add content to modal
-        modal.appendChild(content);
     }
     
     // Show the modal for adding a new item
     function showAddNewItemModal() {
-        // Create modal backdrop
-        const modalBackdrop = document.createElement('div');
-        modalBackdrop.className = 'modal-backdrop';
-
-        // Create modal content — layout comes from the shared .modal-box styles
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box modal-box--wide';
+        const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
         // Create modal header
         const modalHeader = document.createElement('div');
@@ -2056,15 +1861,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (locationSelect.value === 'new') {
                 newLocationInput.style.display = 'block';
                 newLocationInput.required = true;
-
-                // Also update sublocation options
-                updateSublocationSelect(null);
             } else {
                 newLocationInput.style.display = 'none';
                 newLocationInput.required = false;
-
-                // Update sublocation options for the selected location
-                updateSublocationSelect(locationSelect.value);
             }
         });
 
@@ -2074,87 +1873,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         formFields.appendChild(locationGroup);
 
-        // Sublocation field - with both dropdown of existing and option to create new
+        // Categories field (multi-badge, closed vocabulary)
         const sublocationGroup = document.createElement('div');
         sublocationGroup.style.display = 'flex';
         sublocationGroup.style.flexDirection = 'column';
         sublocationGroup.style.gap = '5px';
 
         const sublocationLabel = document.createElement('label');
-        sublocationLabel.htmlFor = 'new-item-sublocation';
-        sublocationLabel.textContent = 'Sublocation';
+        sublocationLabel.textContent = 'Categories';
         sublocationLabel.style.fontWeight = '500';
 
-        const sublocationSelect = document.createElement('select');
-        sublocationSelect.id = 'new-item-sublocation';
-        sublocationSelect.style.padding = '10px';
-        sublocationSelect.style.borderRadius = '4px';
-        sublocationSelect.style.border = '1px solid var(--border-light)';
-
-        // Function to update sublocation options based on selected location
-        function updateSublocationSelect(location) {
-            sublocationSelect.innerHTML = '';
-
-            // First option is for no sublocation
-            const noSublocationOption = document.createElement('option');
-            noSublocationOption.value = '';
-            noSublocationOption.textContent = 'General (No Sublocation)';
-            sublocationSelect.appendChild(noSublocationOption);
-
-            // Next option is to create a new sublocation
-            const newSublocationOption = document.createElement('option');
-            newSublocationOption.value = 'new';
-            newSublocationOption.textContent = '+ Add New Sublocation';
-            sublocationSelect.appendChild(newSublocationOption);
-
-            // Add existing sublocations for selected location
-            if (location && allSublocations.has(location)) {
-                [...allSublocations.get(location)].sort().forEach(sublocation => {
-                    const option = document.createElement('option');
-                    option.value = sublocation;
-                    option.textContent = sublocation;
-                    sublocationSelect.appendChild(option);
-                });
-            }
-
-            // Update the display of new sublocation input
-            if (sublocationSelect.value === 'new') {
-                newSublocationInput.style.display = 'block';
-            } else {
-                newSublocationInput.style.display = 'none';
-            }
-        }
-
-        // New sublocation input (hidden initially)
-        const newSublocationInput = document.createElement('input');
-        newSublocationInput.type = 'text';
-        newSublocationInput.id = 'new-sublocation-input';
-        newSublocationInput.placeholder = 'Enter new sublocation name';
-        newSublocationInput.style.padding = '10px';
-        newSublocationInput.style.borderRadius = '4px';
-        newSublocationInput.style.border = '1px solid var(--border-light)';
-        newSublocationInput.style.marginTop = '8px';
-        newSublocationInput.style.display = 'none';
-
-        // Show/hide new sublocation input based on selection
-        sublocationSelect.addEventListener('change', () => {
-            if (sublocationSelect.value === 'new') {
-                newSublocationInput.style.display = 'block';
-                newSublocationInput.required = true;
-            } else {
-                newSublocationInput.style.display = 'none';
-                newSublocationInput.required = false;
-            }
-        });
+        const categoriesBox = document.createElement('div');
+        const catEditorAdd = buildCategoryChipEditor(categoriesBox, []);
 
         sublocationGroup.appendChild(sublocationLabel);
-        sublocationGroup.appendChild(sublocationSelect);
-        sublocationGroup.appendChild(newSublocationInput);
+        sublocationGroup.appendChild(categoriesBox);
 
         formFields.appendChild(sublocationGroup);
-
-        // Initialize sublocation options
-        updateSublocationSelect(currentLocation !== 'All' ? currentLocation : null);
 
         // Providers section
         const providersGroup = document.createElement('div');
@@ -2266,15 +2001,6 @@ document.addEventListener('DOMContentLoaded', function() {
         modalContent.appendChild(modalHeader);
         modalContent.appendChild(formFields);
         modalContent.appendChild(buttonGroup);
-        modalBackdrop.appendChild(modalContent);
-
-        // Add to document
-        document.body.appendChild(modalBackdrop);
-
-        // Function to close modal
-        function closeModal() {
-            document.body.removeChild(modalBackdrop);
-        }
 
         // Save button event
         saveButton.addEventListener('click', () => {
@@ -2292,37 +2018,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 location = locationSelect.value;
             }
 
-            // Get sublocation
-            let sublocation = '';
-            if (sublocationSelect.value === 'new') {
-                sublocation = newSublocationInput.value.trim();
-            } else if (sublocationSelect.value !== '') {
-                sublocation = sublocationSelect.value;
-            }
+            // Get categories (multi-badge)
+            const categories = catEditorAdd.get();
 
             // Validation
             if (!name) {
-                alert('Please enter an item name');
+                showMessage('Please enter an item name', 'error');
                 return;
             }
 
             if (isNaN(currentLevel) || currentLevel < 0) {
-                alert('Current level must be a valid number (0 or greater)');
+                showMessage('Current level must be a valid number (0 or greater)', 'error');
                 return;
             }
 
             if (isNaN(targetLevel) || targetLevel <= 0) {
-                alert('Target level must be a valid number (greater than 0)');
+                showMessage('Target level must be a valid number (greater than 0)', 'error');
                 return;
             }
 
             if (!unit) {
-                alert('Please enter a unit');
+                showMessage('Please enter a unit', 'error');
                 return;
             }
 
             if (!location) {
-                alert('Please select or enter a location');
+                showMessage('Please select or enter a location', 'error');
                 return;
             }
 
@@ -2334,7 +2055,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 targetLevel: targetLevel,
                 unit: unit,
                 location: location,
-                sublocation: sublocation,
+                categories: categories,
                 providers: providers,
                 lastCheckedTime: new Date().toISOString(),
                 lastCheckedBy: currentStaff,
@@ -2365,24 +2086,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Cancel button event
         cancelButton.addEventListener('click', closeModal);
-
-        // Close on backdrop click
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) {
-                closeModal();
-            }
-        });
     }
 
     // Show edit item details modal (full edit: name, levels, unit, location, sublocation, providers, delete)
     function showEditItemDetailsModal(item) {
-        // Create modal backdrop
-        const modalBackdrop = document.createElement('div');
-        modalBackdrop.className = 'modal-backdrop';
-
-        // Create modal content — layout comes from the shared .modal-box styles
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box modal-box--wide';
+        const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
         // Create modal header
         const modalHeader = document.createElement('div');
@@ -2541,15 +2249,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (locationSelect.value === 'new') {
                 newLocationInput.style.display = 'block';
                 newLocationInput.required = true;
-
-                // Also update sublocation options
-                updateSublocationSelect(null);
             } else {
                 newLocationInput.style.display = 'none';
                 newLocationInput.required = false;
-
-                // Update sublocation options for the selected location
-                updateSublocationSelect(locationSelect.value);
             }
         });
 
@@ -2559,93 +2261,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         formFields.appendChild(locationGroup);
 
-        // Sublocation field - with both dropdown of existing and option to create new
+        // Categories field (multi-badge, closed vocabulary)
         const sublocationGroup = document.createElement('div');
         sublocationGroup.style.display = 'flex';
         sublocationGroup.style.flexDirection = 'column';
         sublocationGroup.style.gap = '5px';
 
         const sublocationLabel = document.createElement('label');
-        sublocationLabel.htmlFor = 'edit-item-sublocation';
-        sublocationLabel.textContent = 'Sublocation';
+        sublocationLabel.textContent = 'Categories';
         sublocationLabel.style.fontWeight = '500';
 
-        const sublocationSelect = document.createElement('select');
-        sublocationSelect.id = 'edit-item-sublocation';
-        sublocationSelect.style.padding = '10px';
-        sublocationSelect.style.borderRadius = '4px';
-        sublocationSelect.style.border = '1px solid var(--border-light)';
-
-        // Function to update sublocation options based on selected location
-        function updateSublocationSelect(location) {
-            sublocationSelect.innerHTML = '';
-
-            // First option is for no sublocation
-            const noSublocationOption = document.createElement('option');
-            noSublocationOption.value = '';
-            noSublocationOption.textContent = 'General (No Sublocation)';
-            sublocationSelect.appendChild(noSublocationOption);
-
-            // Next option is to create a new sublocation
-            const newSublocationOption = document.createElement('option');
-            newSublocationOption.value = 'new';
-            newSublocationOption.textContent = '+ Add New Sublocation';
-            sublocationSelect.appendChild(newSublocationOption);
-
-            // Add existing sublocations for selected location
-            if (location && allSublocations.has(location)) {
-                [...allSublocations.get(location)].sort().forEach(sublocation => {
-                    const option = document.createElement('option');
-                    option.value = sublocation;
-                    option.textContent = sublocation;
-
-                    // Preselect current sublocation
-                    if (sublocation === item.sublocation) {
-                        option.selected = true;
-                    }
-
-                    sublocationSelect.appendChild(option);
-                });
-            }
-
-            // Update the display of new sublocation input
-            if (sublocationSelect.value === 'new') {
-                newSublocationInput.style.display = 'block';
-            } else {
-                newSublocationInput.style.display = 'none';
-            }
-        }
-
-        // New sublocation input (hidden initially)
-        const newSublocationInput = document.createElement('input');
-        newSublocationInput.type = 'text';
-        newSublocationInput.id = 'edit-sublocation-input';
-        newSublocationInput.placeholder = 'Enter new sublocation name';
-        newSublocationInput.style.padding = '10px';
-        newSublocationInput.style.borderRadius = '4px';
-        newSublocationInput.style.border = '1px solid var(--border-light)';
-        newSublocationInput.style.marginTop = '8px';
-        newSublocationInput.style.display = 'none';
-
-        // Show/hide new sublocation input based on selection
-        sublocationSelect.addEventListener('change', () => {
-            if (sublocationSelect.value === 'new') {
-                newSublocationInput.style.display = 'block';
-                newSublocationInput.required = true;
-            } else {
-                newSublocationInput.style.display = 'none';
-                newSublocationInput.required = false;
-            }
-        });
+        const categoriesBox = document.createElement('div');
+        const catEditorEdit = buildCategoryChipEditor(categoriesBox, item.categories || []);
 
         sublocationGroup.appendChild(sublocationLabel);
-        sublocationGroup.appendChild(sublocationSelect);
-        sublocationGroup.appendChild(newSublocationInput);
+        sublocationGroup.appendChild(categoriesBox);
 
         formFields.appendChild(sublocationGroup);
-
-        // Initialize sublocation options
-        updateSublocationSelect(item.location);
 
         // Providers section
         const providersGroup = document.createElement('div');
@@ -2772,15 +2404,6 @@ document.addEventListener('DOMContentLoaded', function() {
         modalContent.appendChild(modalHeader);
         modalContent.appendChild(formFields);
         modalContent.appendChild(buttonGroup);
-        modalBackdrop.appendChild(modalContent);
-
-        // Add to document
-        document.body.appendChild(modalBackdrop);
-
-        // Function to close modal
-        function closeModal() {
-            document.body.removeChild(modalBackdrop);
-        }
 
         // Save button event handler
         saveButton.addEventListener('click', () => {
@@ -2799,37 +2422,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 location = locationSelect.value;
             }
 
-            // Get sublocation
-            let sublocation = '';
-            if (sublocationSelect.value === 'new') {
-                sublocation = newSublocationInput.value.trim();
-            } else if (sublocationSelect.value !== '') {
-                sublocation = sublocationSelect.value;
-            }
+            // Get categories (multi-badge)
+            const categories = catEditorEdit.get();
 
             // Validation
             if (!name) {
-                alert('Please enter an item name');
+                showMessage('Please enter an item name', 'error');
                 return;
             }
 
             if (isNaN(currentLevel) || currentLevel < 0) {
-                alert('Current level must be a valid number (0 or greater)');
+                showMessage('Current level must be a valid number (0 or greater)', 'error');
                 return;
             }
 
             if (isNaN(targetLevel) || targetLevel <= 0) {
-                alert('Target level must be a valid number (greater than 0)');
+                showMessage('Target level must be a valid number (greater than 0)', 'error');
                 return;
             }
 
             if (!unit) {
-                alert('Please enter a unit');
+                showMessage('Please enter a unit', 'error');
                 return;
             }
 
             if (!location) {
-                alert('Please select or enter a location');
+                showMessage('Please select or enter a location', 'error');
                 return;
             }
 
@@ -2845,7 +2463,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.icItems[itemIndex].targetLevel = targetLevel;
                 window.icItems[itemIndex].unit = unit;
                 window.icItems[itemIndex].location = location;
-                window.icItems[itemIndex].sublocation = sublocation;
+                window.icItems[itemIndex].categories = categories;
                 window.icItems[itemIndex].providers = providers;
                 window.icItems[itemIndex].displayOrder = displayOrder;
                 window.icItems[itemIndex].lastCheckedBy = currentStaff;
@@ -2875,7 +2493,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Delete button event handler
         deleteButton.addEventListener('click', () => {
-            if (confirm(`Are you sure you want to delete "${item.name}"? This cannot be undone.`)) {
+            confirmDialog({
+                title: 'Delete item?',
+                message: `Delete "${item.name}"? This cannot be undone.`,
+                confirmText: 'Delete',
+                danger: true
+            }).then(ok => {
+                if (!ok) return;
                 // Find the item in the icItems array
                 const itemIndex = window.icItems.findIndex(i => i.id === item.id);
                 if (itemIndex !== -1) {
@@ -2914,18 +2538,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Close modal
                 closeModal();
-            }
+            });
         });
 
         // Cancel button event handler
         cancelButton.addEventListener('click', closeModal);
-
-        // Close on backdrop click
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) {
-                closeModal();
-            }
-        });
     }
 
     // Check and purge old I&C activity logs (older than 2 months)
@@ -2937,7 +2554,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check if Firebase is available
         if (!window.firebaseDb || !window.firebaseDb.loadIcActivityLogs) {
-            console.log('Firebase not available for purge check');
             return;
         }
         
@@ -2969,12 +2585,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Show purge confirmation modal
     function showPurgeModal(oldLogs) {
-        const modalBackdrop = document.createElement('div');
-        modalBackdrop.className = 'modal-backdrop';
-
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-box modal-box--wide';
-
         // Calculate date range for display
         const twoMonthsAgo = new Date();
         twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -3024,37 +2634,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         buttonGroup.appendChild(skipButton);
         buttonGroup.appendChild(purgeButton);
-        
-        // Add all elements to modal
-        modalContent.appendChild(modalHeader);
-        modalContent.appendChild(infoSection);
-        modalContent.appendChild(buttonGroup);
-        modalBackdrop.appendChild(modalContent);
-        
-        // Add modal to document
-        document.body.appendChild(modalBackdrop);
-        
-        // Function to close modal and clean up
-        function closeModal() {
-            document.body.removeChild(modalBackdrop);
-        }
-        
-        // Skip button - just close modal
-        skipButton.addEventListener('click', () => {
-            closeModal();
-        });
-        
-        // Purge button - delete old records
+
+        // Shared modal scaffold: backdrop + box + close paths (backdrop-click, Escape)
+        const { box, close } = openModal({ boxClass: 'modal-box--wide' });
+        box.appendChild(modalHeader);
+        box.appendChild(infoSection);
+        box.appendChild(buttonGroup);
+
+        skipButton.addEventListener('click', close);
         purgeButton.addEventListener('click', () => {
             purgeOldRecords(oldLogs);
-            closeModal();
-        });
-        
-        // Close on backdrop click
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) {
-                closeModal();
-            }
+            close();
         });
     }
     
@@ -3065,8 +2655,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log('Starting purge of', oldLogs.length, 'old records');
-        console.log('Sample log structure:', oldLogs[0]);
         
         // Show loading state
         const loadingMessage = showMessage('Cleaning up old records...', 'info');
@@ -3075,7 +2663,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const deletePromises = oldLogs.map(log => {
             // The log should have a key property from Firebase
             if (log.key) {
-                console.log('Deleting log with key:', log.key);
                 return window.firebaseDb.deleteIcActivityLogs(log.key);
             } else {
                 console.warn('Log missing key:', log);
@@ -3083,11 +2670,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        console.log('Created', deletePromises.length, 'delete promises');
         
         Promise.all(deletePromises)
             .then(() => {
-                console.log('All delete operations completed successfully');
                 
                 // Remove loading message
                 if (loadingMessage) {
@@ -3336,12 +2921,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize application
     function init() {
-        // Load staff members
+        // Restore a persisted user (shared with Prep Manager via localStorage
+        // 'currentStaff') and skip the gate — I&C no longer re-asks "who are you?"
+        // on every reload, and counts are attributed to the right person.
+        var restoredStaff = window.UserSession ? UserSession.restore() : '';
+        if (restoredStaff) {
+            if (staffSelection) staffSelection.style.display = 'none';
+            if (mainInterface) mainInterface.style.display = 'flex';
+            loadItems();
+        }
+
+        // Load staff members (populates the gate grid for a later "switch user")
         loadStaffMembers();
-        
+
         // Set up navigation
         setupNavigation();
-        
+
         // Set up full count
         setupFullCount();
     }

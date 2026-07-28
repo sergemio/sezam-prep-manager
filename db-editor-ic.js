@@ -15,7 +15,7 @@ let icCurrentInput;
 let icTargetInput;
 let icUnitInput;
 let icLocationInput;
-let icSublocationInput;
+let selectedCategories = [];
 let icDisplayOrderInput;
 let icProvidersInput;
 let saveIcButton;
@@ -28,10 +28,7 @@ function sortIcItems() {
     icItems.sort((a, b) => {
         if (a.location !== b.location) return a.location.localeCompare(b.location);
         if ((a.sublocation || '') !== (b.sublocation || '')) return (a.sublocation || '').localeCompare(b.sublocation || '');
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) return a.displayOrder - b.displayOrder;
-        if (a.displayOrder !== undefined) return -1;
-        if (b.displayOrder !== undefined) return 1;
-        return a.id - b.id;
+        return byDisplayOrder(a, b); // shared tie-breaker
     });
 }
 
@@ -225,6 +222,37 @@ function renderProviderChips() {
     if (hidden) hidden.value = selectedProviders.join(', ');
 }
 
+// ---- Categories (fixed vocabulary, multi-toggle) -------------------------
+// Renders every tag from the closed IC_CATEGORIES list as a togglable chip.
+function renderCategoryChips(current) {
+    selectedCategories = (current || []).filter(function (c) { return IC_CATEGORIES.all.indexOf(c) !== -1; });
+    var box = document.getElementById('ic-categories-chips');
+    if (!box) return;
+    box.innerHTML = '';
+    ['nature', 'etat', 'nonalim'].forEach(function (grp) {
+        IC_CATEGORIES[grp].forEach(function (cat) {
+            var on = selectedCategories.indexOf(cat) !== -1;
+            var chip = document.createElement('span');
+            chip.textContent = cat;
+            chip.style.cssText = categoryStyle(cat, on);
+            chip.addEventListener('click', function () { toggleCategory(cat); });
+            box.appendChild(chip);
+        });
+    });
+    syncCategoriesHidden();
+}
+
+function toggleCategory(cat) {
+    var i = selectedCategories.indexOf(cat);
+    if (i === -1) selectedCategories.push(cat); else selectedCategories.splice(i, 1);
+    renderCategoryChips(selectedCategories);
+}
+
+function syncCategoriesHidden() {
+    var hidden = document.getElementById('ic-categories');
+    if (hidden) hidden.value = selectedCategories.join(', ');
+}
+
 function initIcItemsManagement() {
     
     // Get DOM elements
@@ -237,7 +265,6 @@ function initIcItemsManagement() {
     icTargetInput = document.getElementById('ic-target');
     icUnitInput = document.getElementById('ic-unit');
     icLocationInput = document.getElementById('ic-location');
-    icSublocationInput = document.getElementById('ic-sublocation');
     icDisplayOrderInput = document.getElementById('ic-display-order');
     icProvidersInput = document.getElementById('ic-providers');
     saveIcButton = document.getElementById('save-ic');
@@ -257,7 +284,6 @@ loadIcItemsFromFirebase();
     // Smart dropdown setup
     setupSmartDropdown('ic-unit', 'ic-unit-new', () => [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort());
     setupSmartDropdown('ic-location', 'ic-location-new', () => [...new Set(icItems.map(i => i.location).filter(Boolean))].sort());
-    setupSmartDropdown('ic-sublocation', 'ic-sublocation-new', () => [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), true);
     setupProvidersDropdown();
 
     // Set up event listeners
@@ -361,9 +387,9 @@ function showAddNewIcForm() {
     icNameInput.value = '';
     icCurrentInput.value = '0';
     icTargetInput.value = '1';
-    populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), 'units');
+    populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), 'unit');
     populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), '');
-    populateDropdown('ic-sublocation', 'ic-sublocation-new', [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), '', true);
+    renderCategoryChips([]);
     icDisplayOrderInput.value = newId;
     populateProvidersDropdown([]);
     
@@ -397,7 +423,7 @@ return;
     icTargetInput.value = item.targetLevel;
     populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), item.unit);
     populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), item.location || '');
-    populateDropdown('ic-sublocation', 'ic-sublocation-new', [...new Set(icItems.map(i => i.sublocation).filter(Boolean))].sort(), item.sublocation || '', true);
+    renderCategoryChips(item.categories ? [...item.categories] : []);
     icDisplayOrderInput.value = item.displayOrder || item.id;
     populateProvidersDropdown(item.providers ? [...item.providers] : []);
     
@@ -427,12 +453,19 @@ currentLevel: parseFloat(icCurrentInput.value),
 targetLevel: parseFloat(icTargetInput.value),
 unit: getDropdownValue('ic-unit', 'ic-unit-new'),
 location: getDropdownValue('ic-location', 'ic-location-new'),
-sublocation: getDropdownValue('ic-sublocation', 'ic-sublocation-new') || null,
+categories: [...selectedCategories],
 displayOrder: parseInt(icDisplayOrderInput.value),
 providers: providers,
 lastCheckedTime: new Date().toISOString(),
 lastCheckedBy: 'Admin (DB Editor)'
     };
+
+    // Preserve the dormant `sublocation` value (kept for rollback safety until
+    // it is fully retired) so editing an item never silently drops it.
+    const _existingIc = icItems.find(i => i.id === updatedItem.id);
+    if (_existingIc && _existingIc.sublocation != null) {
+        updatedItem.sublocation = _existingIc.sublocation;
+    }
     
     let actionType = 'edit';
     let oldItem = null;

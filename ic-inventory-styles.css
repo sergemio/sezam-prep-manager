@@ -138,15 +138,7 @@
 
 .count-card-header .ic-section-label {
     margin-bottom: 5px;
-}
-
-.count-card-desc {
-    margin: 0;
-    font-size: 13px;
-    color: var(--text-medium);
-}
-
-.count-card-header #start-count-btn {
+}.count-card-header #start-count-btn {
     flex-shrink: 0;
     white-space: nowrap;
     padding: 13px 30px;
@@ -244,7 +236,10 @@
     background-color: #f5f5f0;
     color: var(--text-dark);
     border: none;
-    padding: 8px 18px;
+    padding: 10px 18px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     border-radius: 9999px;
     cursor: pointer;
     font-weight: 600;
@@ -302,13 +297,17 @@
 
 .overview-table {
     width: 100%;
+    /* Real minimum so the 6 columns keep their width: the container
+       (overflow-x:auto) then scrolls on tablet instead of clipping the
+       last column ("Categories"). */
+    min-width: 880px;
     border-collapse: collapse;
     margin-top: 10px;
 }
 
 .overview-table th,
 .overview-table td {
-    padding: 12px 16px;
+    padding: 15px 16px;
     text-align: left;
     border-bottom: 1px solid var(--border-light);
 }
@@ -355,7 +354,9 @@
 
 .overview-table .current-value {
     font-weight: 600;
-    color: var(--primary-dark);
+    /* Dark neutral, not green: max legibility at arm's length and keeps green
+       for semantic use only. */
+    color: var(--text-dark);
     text-align: center;
     min-width: 60px;
 }
@@ -384,7 +385,6 @@
     display: block; /* Ensure element is visible */
     position: relative; /* Ensure proper positioning */
 }
-
 
 /* Make level bars clickable with hover effects */
 .overview-table .level-bar-container {
@@ -418,14 +418,6 @@
     color: var(--text-medium);
     text-align: center;
     min-width: 60px;
-}
-
-.overview-table .sublocation-value {
-    font-weight: 500;
-    color: var(--text-medium);
-    text-align: center;
-    min-width: 100px;
-    font-size: 13px;
 }
 
 .overview-table .last-modified {
@@ -472,5 +464,4 @@
     content: "↕";
     color: var(--text-light);
 }
-
 

@@ -151,24 +151,32 @@
                     <h1 class="section-title">I&C Inventory Overview</h1>
                     
                     <div class="card">
-                        <h2 class="card-title">Location Filter</h2>
+                        <h2 class="card-title">Filters</h2>
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:10px;">Location</div>
                         <div class="location-filter" id="overview-location-filter">
                             <!-- Location buttons will be generated dynamically -->
                         </div>
+                        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin:18px 0 10px;">Category</div>
+                        <!-- Category filter chips (click to filter the list) -->
+                        <div id="category-filter-bar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
                     </div>
                     
                     <div class="card">
                         <div class="overview-table-container">
                             <!-- Search field + add item -->
                             <div class="overview-toolbar">
-                                <input
-                                    type="text"
-                                    id="overview-search"
-                                    placeholder="Search items by name, sublocation, or location..."
-                                >
+                                <div class="search-wrap" style="position:relative;flex:1;min-width:0;display:flex;">
+                                    <input
+                                        type="text"
+                                        id="overview-search"
+                                        placeholder="Search by name, category (e.g. frozen, meat) or location..."
+                                        style="padding-right:40px;"
+                                    >
+                                    <span id="overview-search-clear" title="Effacer" style="display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;color:#8a97a6;font-size:24px;line-height:1;user-select:none;">&times;</span>
+                                </div>
                                 <button class="btn btn--primary" id="overview-add-item-btn">+ Add New Item</button>
                             </div>
-                            
+
                             <table class="overview-table">
                                 <thead>
                                     <tr>
@@ -180,13 +188,13 @@
                                         </th>
                                         <th class="sortable" data-sort="level">
                                             Level <span class="sort-arrow"></span>
-                                            <span style="font-size: 12px; color: var(--text-light); font-weight: normal; display: block; margin-top: 2px;">(Click to update)</span>
+                                            <span style="font-size: 12px; color: var(--text-light); font-weight: normal; display: block; margin-top: 2px;">(Tap to update)</span>
                                         </th>
                                         <th class="sortable" data-sort="target">
                                             Target <span class="sort-arrow"></span>
                                         </th>
-                                        <th class="sortable" data-sort="sublocation">
-                                            Sublocation <span class="sort-arrow"></span>
+                                        <th data-sort="categories">
+                                            Categories
                                         </th>
                                         <th class="sortable" data-sort="modified">
                                             Last Modified <span class="sort-arrow"></span>
@@ -275,6 +283,8 @@
     <script src="slider.js"></script>
     <!-- Shared UI helpers (levelColor, confirmDialog) -->
     <script src="ui-helpers.js"></script>
+    <!-- Shared user/staff session (single source of truth for "who is logged in") -->
+    <script src="user.js"></script>
     <!-- Core application script (unified) -->
     <script src="ic-inventory-app.js"></script>
     <script src="pin-guard.js"></script>

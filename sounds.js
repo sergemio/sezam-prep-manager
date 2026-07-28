@@ -64,6 +64,19 @@ const SoundFX = (() => {
             gain.connect(ac.destination);
             osc.start(ac.currentTime);
             osc.stop(ac.currentTime + 0.12);
+        },
+
+        // Short rising blip — a filter/selection was engaged (confirms the action)
+        filterOn() {
+            playTone(660, 0.06, 'sine', 0.09, 0);
+            playTone(880, 0.10, 'sine', 0.08, 0.055);
+        },
+
+        // Short falling blip — inverse of filterOn: a filter was released,
+        // including the automatic 5s reset (so it's noticed even hands-off).
+        filterOff() {
+            playTone(660, 0.06, 'sine', 0.08, 0);
+            playTone(440, 0.11, 'sine', 0.07, 0.055);
         }
     };
 })();
