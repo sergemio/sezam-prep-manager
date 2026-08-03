@@ -51,6 +51,13 @@
       ".read": true,
       ".write": true
     },
+    "deliveryIssues": {
+      ".read": true,
+      ".write": true,
+      "$issueId": {
+        ".validate": "newData.hasChildren(['id', 'itemName', 'missingQty', 'reportedAt'])"
+      }
+    },
     "teamMessages": {
       ".read": true,
       ".write": true,

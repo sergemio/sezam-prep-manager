@@ -119,6 +119,7 @@ const activityLogs = createLogHelpers('activityLogs', 'log');
 const icActivityLogs = createLogHelpers('icActivityLogs', 'iclog');
 const tasks = createCrudHelpers('tasks');
 const teamMessages = createCrudHelpers('teamMessages');
+const deliveryIssues = createCrudHelpers('deliveryIssues');
 
 // Global Firebase API — same interface as before, nothing breaks
 window.firebaseDb = {
@@ -175,7 +176,13 @@ window.firebaseDb = {
     saveTeamMessage: teamMessages.save,
     loadTeamMessages: teamMessages.load,
     deleteTeamMessage: teamMessages.delete,
-    onTeamMessagesChange: teamMessages.onChange
+    onTeamMessagesChange: teamMessages.onChange,
+
+    // Delivery issues — ordered but never delivered. Feeds the supplier claim list.
+    saveDeliveryIssue: deliveryIssues.save,
+    loadDeliveryIssues: deliveryIssues.load,
+    deleteDeliveryIssue: deliveryIssues.delete,
+    onDeliveryIssuesChange: deliveryIssues.onChange
 };
 
 // Dispatch event so pages know Firebase is ready
