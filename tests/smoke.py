@@ -34,9 +34,13 @@ STUB = """() => {
   const db = window.firebaseDb || {};
   ['saveItem','saveAllItems','saveIcItem','saveAllIcItems','saveIcActivityLog',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
-   'saveActivityLog','saveTeamMessage','deleteTeamMessage'].forEach(function (fn) {
+   'saveActivityLog','saveTeamMessage','deleteTeamMessage',
+   'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () { rec(fn, [].slice.call(arguments)); return Promise.resolve(); };
   });
+  // Claims are READ from prod (harmless), but tests need a deterministic list.
+  if (typeof db.loadDeliveryIssues === 'function')
+    db.loadDeliveryIssues = function () { return Promise.resolve(window.__fakeClaims || []); };
   if (window.historySystem) {
     ['logQuantityChange','logItemModification','logActivity'].forEach(function (fn) {
       if (typeof window.historySystem[fn] === 'function')
@@ -133,6 +137,133 @@ def run_pm(browser):
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
         return ok and mcount(pg) == 0
     safe("PM/modal-prepcheck-staff", prep_staff)
+
+    # Le zebrage vit dans le socle commun (styles.css) et non plus en double.
+    # Ce check echoue si quelqu'un le redeplace dans une feuille chargee AVANT
+    # le survol : a specificite egale, c'est l'ordre source qui tranche.
+    def zebra_shared():
+        d = pg.evaluate("""() => {
+            const t = document.createElement('table');
+            t.className = 'db-table';
+            t.innerHTML = '<tbody><tr><td>a</td></tr><tr><td>b</td></tr></tbody>';
+            document.body.appendChild(t);
+            const rows = t.querySelectorAll('tbody tr');
+            const bg = e => getComputedStyle(e).backgroundColor;
+            const r = { odd: bg(rows[0]), even: bg(rows[1]),
+                        muted: getComputedStyle(document.documentElement)
+                                 .getPropertyValue('--surface-muted').trim() };
+            t.remove(); return r; }""")
+        # #f5f5f0 -> rgb(245, 245, 240)
+        return d["even"] == "rgb(245, 245, 240)" and d["odd"] != d["even"]
+    safe("shared/table-zebra", zebra_shared)
+
+    # History wording is shared (describeLog). The I&C renderer had its own copy
+    # and printed an order as "modified · 0 → 1 bag" — an arrow, i.e. the grammar
+    # of a stock move, for an action that never touches the stock.
+    def describe_log():
+        d = pg.evaluate("""() => {
+            const u='bag';
+            const order  = describeLog({actionType:'order',  oldValue:0, newValue:1, unit:u, stock:4});
+            const cancel = describeLog({actionType:'order',  oldValue:1, newValue:0, unit:u, stock:4});
+            const recv   = describeLog({actionType:'receive', oldValue:4, newValue:7, unit:u, receivedQty:3});
+            const miss   = describeLog({actionType:'not-delivered', oldValue:3, newValue:2, unit:u, missingQty:1});
+            const count  = describeLog({actionType:'count', oldValue:1, newValue:2, unit:u});
+            const prep   = describeLog({actionType:'prep',  oldValue:1, newValue:2, unit:u});
+            return {order, cancel, recv, miss, count,
+                    countPM: describeLog({actionType:'count', oldValue:1, newValue:2, unit:u}, {count:'checked'}),
+                    prepIsNull: prep === null}; }""")
+        arrow = lambda x: "→" in x["change"]
+        return (d["order"]["label"] == "ordered" and not arrow(d["order"])
+                and "stays 4" in d["order"]["change"]
+                and d["cancel"]["label"] == "order cancelled" and not arrow(d["cancel"])
+                and d["recv"]["label"] == "received" and arrow(d["recv"])      # stock DID move
+                and d["miss"]["label"] == "not delivered" and not arrow(d["miss"])
+                and d["count"]["label"] == "counted" and d["countPM"]["label"] == "checked"
+                and d["prepIsNull"])                                          # prep stays module-local
+    safe("shared/describeLog-semantics", describe_log)
+
+    # Shared staff picker (UserSession.pick): one tap on a name sets the session
+    # and resolves it — no separate confirm step, no per-module copy.
+    def picker_one_tap():
+        clear_modals(pg)
+        pg.evaluate("() => { window.__picked = null; UserSession.pick({title:'T'}).then(n => window.__picked = n); }")
+        pg.wait_for_timeout(700)
+        shape = pg.evaluate("""() => ({
+            n: document.querySelectorAll('.staff-select-button').length,
+            marked: document.querySelectorAll('.staff-select-button.selected').length,
+            avatar: !!document.querySelector('.staff-select-button .staff-initial'),
+            inline: [...document.querySelectorAll('.staff-select-button')].some(b => b.getAttribute('style')),
+            buttons: [...document.querySelectorAll('.btn-group button')].map(b => b.textContent.trim()) })""")
+        pg.evaluate("""() => { const b=[...document.querySelectorAll('.staff-select-button')]
+            .find(x => x.getAttribute('data-staff') !== UserSession.get()); if (b) b.click(); }""")
+        pg.wait_for_timeout(500)
+        picked = pg.evaluate("() => window.__picked")
+        closed = mcount(pg) == 0
+        session = pg.evaluate("() => UserSession.get()")
+        pg.evaluate("() => UserSession.set('Serge M', {toast:false})")
+        clear_modals(pg)
+        return (shape["n"] > 1 and shape["avatar"] and not shape["inline"]
+                and shape["buttons"] == ["Cancel"]          # no "Continue" step left
+                and bool(picked) and picked == session and closed)
+    safe("shared/staff-picker-one-tap", picker_one_tap)
+
+    # The user dropdown must still list everyone when Firebase is unreachable.
+    # The three old copies read window.staffMembers directly, which is only set
+    # when Firebase answers — an outage left the menu empty and you could no
+    # longer switch user at all.
+    def dropdown_survives_outage():
+        pg.evaluate("() => { const d=document.getElementById('user-dropdown'); if(d) d.remove(); }")
+        names = pg.evaluate("""() => { const saved = window.staffMembers;
+            window.staffMembers = undefined;                 // simulate the outage
+            const n = UserSession.staffNames().length;
+            window.staffMembers = saved; return n; }""")
+        opened = pg.evaluate("""() => {
+            const b = document.getElementById('user-login-btn') || document.querySelector('.nav-button');
+            const m = UserSession.dropdown(b);
+            const rows = m ? m.querySelectorAll('.dropdown-item').length : 0;
+            const inline = m ? !!m.getAttribute('style') && m.getAttribute('style').indexOf('box-shadow') !== -1 : true;
+            if (m) m.remove();
+            return { rows, inline }; }""")
+        return names > 0 and opened["rows"] > 0 and not opened["inline"]
+    safe("shared/dropdown-survives-firebase-outage", dropdown_survives_outage)
+
+    # Opening twice must toggle, not stack a second panel on the page.
+    def dropdown_toggles():
+        pg.evaluate("() => { const d=document.getElementById('user-dropdown'); if(d) d.remove(); }")
+        d = pg.evaluate("""() => {
+            const b = document.getElementById('user-login-btn') || document.querySelector('.nav-button');
+            UserSession.dropdown(b);
+            const after1 = document.querySelectorAll('#user-dropdown').length;
+            UserSession.dropdown(b);
+            const after2 = document.querySelectorAll('#user-dropdown').length;
+            return { after1, after2 }; }""")
+        return d["after1"] == 1 and d["after2"] == 0
+
+    safe("shared/dropdown-toggles", dropdown_toggles)
+
+    # The login gate is the shared component in both modules: real buttons, no
+    # loading text left behind, no styles written inline in JS.
+    def gate_shared():
+        d = pg.evaluate("""() => {
+            const grid = document.createElement('div');
+            document.body.appendChild(grid);
+            return UserSession.renderGate(grid, () => {}).then(() => {
+                const btns = [...grid.querySelectorAll('.staff-button')];
+                const r = { n: btns.length,
+                            inline: btns.some(b => b.getAttribute('style')),
+                            loading: grid.textContent.indexOf('Loading') !== -1 };
+                grid.remove(); return r; }); }""")
+        return d["n"] > 1 and not d["inline"] and not d["loading"]
+    safe("shared/staff-gate-rendered", gate_shared)
+
+    # Cancel / Escape must resolve '' rather than leaving the caller hanging.
+    def picker_cancel():
+        clear_modals(pg)
+        pg.evaluate("() => { window.__picked = 'UNSET'; UserSession.pick({title:'T'}).then(n => window.__picked = n); }")
+        pg.wait_for_timeout(600)
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+        return pg.evaluate("() => window.__picked") == "" and mcount(pg) == 0
+    safe("shared/staff-picker-cancel", picker_cancel)
 
     # G. save flows (stubbed)
     def g_quick():
@@ -243,17 +374,69 @@ def run_ic(browser):
     safe("IC/modal-add-new", lambda: oc_click("() => { const b=document.getElementById('overview-add-item-btn'); if(b) b.click(); }"))
     safe("IC/modal-quick-update", lambda: oc_click("() => { const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }", slider=True))
 
+    # I&C must render the SAME shared picker as the Prep Manager — same markup,
+    # no locally-built copy (the old one styled its buttons inline, in JS).
     def count_staff():
         clear_modals(pg)
         pg.evaluate("() => UserSession.clear()")
         pg.evaluate("() => document.getElementById('start-count-btn').click()")
         pg.wait_for_timeout(900)
-        ok = mcount(pg) >= 1 and pg.evaluate("() => document.querySelectorAll('.modal-box button').length") > 1
+        shape = pg.evaluate("""() => ({
+            n: document.querySelectorAll('.staff-select-button').length,
+            avatar: !!document.querySelector('.staff-select-button .staff-initial'),
+            inline: [...document.querySelectorAll('.staff-select-button')].some(b => b.getAttribute('style')),
+            buttons: [...document.querySelectorAll('.btn-group button')].map(b => b.textContent.trim()) })""")
+        ok = (mcount(pg) >= 1 and shape["n"] > 1 and shape["avatar"]
+              and not shape["inline"] and shape["buttons"] == ["Cancel"])
         pg.mouse.click(6, 6); pg.wait_for_timeout(300)
         ok = ok and mcount(pg) == 0
         pg.evaluate("() => UserSession.set('Serge M', {toast:false})")
         return ok
     safe("IC/modal-count-staff", count_staff)
+
+    # Zebrage du tableau I&C + jetons de severite resolus. Une var() mal orthographiee
+    # ne casse rien de visible en test fonctionnel : elle rend juste la couleur
+    # transparente. Ce check l'attrape.
+    def ic_table_and_tokens():
+        pg.evaluate("""() => { const n=[...document.querySelectorAll('.nav-button')]
+            .find(b=>b.getAttribute('data-section')==='overview'); if(n) n.click(); }""")
+        pg.wait_for_timeout(600)
+        d = pg.evaluate("""() => {
+            const rows = [...document.querySelectorAll('.overview-table tbody tr')];
+            const cs = getComputedStyle(document.documentElement);
+            const tok = n => cs.getPropertyValue(n).trim();
+            return { even: rows[1] ? getComputedStyle(rows[1]).backgroundColor : '',
+                     odd:  rows[0] ? getComputedStyle(rows[0]).backgroundColor : '',
+                     missing: ['--sev-critical','--sev-warn','--sev-neutral',
+                               '--table-border','--table-hover','--table-row-border',
+                               '--surface-alt','--surface-track','--danger-tint']
+                              .filter(n => !tok(n)) }; }""")
+        return (d["even"] == "rgb(245, 245, 240)" and d["odd"] != d["even"]
+                and d["missing"] == [])
+    safe("IC/table-zebra-and-tokens", ic_table_and_tokens)
+
+    # Full count screen: preps-style card — progress fill, user badge, location
+    # line, then Cancel returns to the dashboard.
+    def count_screen():
+        clear_modals(pg)
+        pg.evaluate("() => document.getElementById('start-count-btn').click()")
+        pg.wait_for_timeout(700)
+        d = pg.evaluate("""() => {
+            const ci = document.getElementById('count-interface');
+            if (!ci || getComputedStyle(ci).display === 'none') return null;
+            return {
+                fill: (document.getElementById('count-progress-fill')||{style:{}}).style.width || '',
+                badge: (document.getElementById('check-progress')||{}).textContent || '',
+                user: (document.getElementById('count-user-badge')||{}).textContent || '',
+                name: (document.getElementById('check-item-name')||{}).textContent || '',
+                loc: (document.getElementById('count-item-location')||{}).textContent || ''
+            }; }""")
+        pg.evaluate("() => { const b=document.getElementById('cancel-count-btn'); if(b) b.click(); }")
+        pg.wait_for_timeout(300)
+        back = pg.evaluate("() => getComputedStyle(document.getElementById('count-interface')).display==='none'")
+        return (bool(d) and d["fill"].endswith("%") and d["badge"].startswith("Item 1 of")
+                and bool(d["user"]) and bool(d["name"]) and d["loc"].startswith("\U0001F4CD") and back)
+    safe("IC/count-screen-layout", count_screen)
 
     # validation -> branded toast (not native alert)
     def validation_toast():
@@ -272,12 +455,264 @@ def run_ic(browser):
         clear_modals(pg)
         pg.evaluate("() => { window.__saveCalls=[]; const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }")
         pg.wait_for_timeout(600)
+        pg.evaluate("() => { const t=document.querySelector('.qu-tab[data-tab=\"stock\"]'); if(t) t.click(); }")
         pg.evaluate("() => { const h=document.getElementById('modal-current-level'); if(h) h.value='2'; const sv=document.getElementById('modal-save'); if(sv) sv.click(); }")
         pg.wait_for_timeout(600)
         n = pg.evaluate("() => (window.__saveCalls||[]).filter(c=>c.fn==='saveIcItem').length")
         clear_modals(pg)
         return n >= 1
     safe("IC/save-quick-update", ic_save)
+
+    # --- Ordered / Received -------------------------------------------------
+    OPEN_QU = "() => { const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }"
+    PANES = """() => ({
+        stock: document.getElementById('qu-pane-stock').style.display !== 'none',
+        order: document.getElementById('qu-pane-order').style.display !== 'none' })"""
+
+    def pick_tab(tab):
+        pg.evaluate("(t) => { const b=document.querySelector('.qu-tab[data-tab=\"'+t+'\"]'); if(b) b.click(); }", tab)
+        pg.wait_for_timeout(200)
+
+    # Exactly one intent visible at a time (stock slider vs order stepper), and the
+    # chosen tab sticks across modal opens — both ways, so the assertion does not
+    # depend on which tab an earlier test happened to leave selected.
+    def ic_order_tab_separation():
+        clear_modals(pg)
+        seen = []
+        for tab in ("stock", "order"):
+            pg.evaluate(OPEN_QU); pg.wait_for_timeout(600)
+            pick_tab(tab)
+            picked = pg.evaluate(PANES)
+            pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+            pg.evaluate(OPEN_QU); pg.wait_for_timeout(600)
+            reopened = pg.evaluate(PANES)          # sticky
+            pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+            other = "order" if tab == "stock" else "stock"
+            seen.append(picked[tab] and not picked[other]
+                        and reopened[tab] and not reopened[other])
+        clear_modals(pg)
+        return all(seen)
+    safe("IC/order-tab-separation", ic_order_tab_separation)
+
+    # The whole point of the feature: ordering records what is on the way and must
+    # NOT credit the stock. A regression here silently reintroduces the phantom
+    # deliveries it was built to prevent.
+    def ic_order_sets_pending():
+        clear_modals(pg)
+        pg.evaluate("() => { window.__saveCalls=[]; const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }")
+        pg.wait_for_timeout(600)
+        before = pg.evaluate("() => { const h=document.getElementById('modal-current-level'); return h?parseFloat(h.value):null; }")
+        pick_tab("order")
+        pg.evaluate("() => { const b=document.getElementById('order-plus'); if(b) b.click(); }")
+        pg.wait_for_timeout(250)
+        pg.evaluate("() => { const s=document.getElementById('order-save'); if(s) s.click(); }")
+        pg.wait_for_timeout(700)
+        saved = pg.evaluate(
+            "() => { const c=[...(window.__saveCalls||[])].reverse().find(x=>x.fn==='saveIcItem');"
+            " return c?{pending:c.args[0].pendingQty, level:c.args[0].currentLevel, at:!!c.args[0].pendingAt}:null; }")
+        logged = pg.evaluate(
+            "() => (window.__saveCalls||[]).some(c=>c.fn==='saveIcActivityLog' && c.args[0].actionType==='order')")
+        clear_modals(pg)
+        return (bool(saved) and saved["pending"] > 0 and saved["at"]
+                and (before is None or saved["level"] == before) and logged)
+    safe("IC/order-sets-pending", ic_order_sets_pending)
+
+    # Annuler une commande doit effacer la DATE et le FOURNISSEUR, pas seulement
+    # la quantite. Trouve dans la vraie base le 03/08 : un article annule gardait
+    # pendingAt='...18:25' + pendingProvider='Metro', soit « commande chez Metro »
+    # sur un article que personne n'a commande.
+    def ic_cancel_clears_pending():
+        clear_modals(pg)
+        pg.evaluate("""() => { const it=(window.icItems||[])[0];
+            it.pendingQty = 2; it.pendingAt = new Date().toISOString(); it.pendingProvider = 'Metro';
+            const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='overview');
+            if (n) n.click(); }""")
+        pg.wait_for_timeout(500)
+        pg.evaluate("() => { window.__saveCalls=[]; }")
+        pg.evaluate(OPEN_QU); pg.wait_for_timeout(700)
+        pick_tab("order")
+        # ramene la quantite a 0 puis enregistre
+        pg.evaluate("""() => { const i=document.getElementById('order-level');
+            i.value = 0; i.dispatchEvent(new Event('change'));
+            const s=document.getElementById('order-save'); if(s) s.click(); }""")
+        pg.wait_for_timeout(700)
+        saved = pg.evaluate("""() => { const c=[...(window.__saveCalls||[])].reverse()
+            .find(x=>x.fn==='saveIcItem'); return c ? {
+                qty: c.args[0].pendingQty, at: c.args[0].pendingAt,
+                prov: c.args[0].pendingProvider, level: c.args[0].currentLevel } : null; }""")
+        clear_modals(pg)
+        return (bool(saved) and saved["qty"] == 0
+                and saved["at"] is None and saved["prov"] is None)
+    safe("IC/cancel-clears-pending-date", ic_cancel_clears_pending)
+
+    # Seed one pending item in memory, then drive the reception screen.
+    def seed_pending(qty=3):
+        clear_modals(pg)
+        return pg.evaluate("""(q) => {
+            const it = (window.icItems||[])[0];
+            if (!it) return null;
+            it.pendingQty = q; it.pendingAt = new Date().toISOString(); it.pendingProvider = 'Metro';
+            const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='overview');
+            if (n) n.click();
+            return { name: it.name, level: it.currentLevel };
+        }""", qty)
+
+    def open_reception():
+        pg.evaluate("() => { const b=document.querySelector('.pending-banner__btn'); if(b) b.click(); }")
+        pg.wait_for_timeout(600)
+
+    def ic_pending_badge():
+        seeded = seed_pending()
+        pg.wait_for_timeout(500)
+        badge = pg.evaluate(
+            "() => { const b=document.querySelector('.overview-table .pending-badge'); return b?b.textContent.trim():''; }")
+        banner = pg.evaluate("() => { const b=document.querySelector('#overview-section .pending-banner'); return !!b && b.style.display!=='none'; }")
+        return bool(seeded) and "+3" in badge and banner
+    safe("IC/pending-badge", ic_pending_badge)
+
+    def ic_receive_all():
+        seeded = seed_pending()
+        if not seeded:
+            return False
+        pg.wait_for_timeout(400)
+        pg.evaluate("() => { window.__saveCalls=[]; }")
+        open_reception()
+        pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
+        pg.wait_for_timeout(800)
+        saved = pg.evaluate("""() => {
+            const c=(window.__saveCalls||[]).find(x=>x.fn==='saveAllIcItems');
+            const it=c?(c.args[0]||[])[0]:null;
+            return it?{level:it.currentLevel, pending:it.pendingQty}:null; }""")
+        logged = pg.evaluate(
+            "() => (window.__saveCalls||[]).some(c=>c.fn==='saveIcActivityLog' && c.args[0].actionType==='receive')")
+        issued = pg.evaluate("() => (window.__saveCalls||[]).some(c=>c.fn==='saveDeliveryIssue')")
+        clear_modals(pg)
+        return (bool(saved) and saved["pending"] == 0
+                and saved["level"] == seeded["level"] + 3 and logged and not issued)
+    safe("IC/receive-all", ic_receive_all)
+
+    # Short delivery: one tap on "−" leaves 1 missing -> claim entry + not-delivered log.
+    def ic_receive_partial():
+        seeded = seed_pending()
+        if not seeded:
+            return False
+        pg.wait_for_timeout(400)
+        pg.evaluate("() => { window.__saveCalls=[]; }")
+        open_reception()
+        pg.evaluate("() => { const m=document.querySelector('.receive-step[data-d=\"-1\"]'); if(m) m.click(); }")
+        pg.wait_for_timeout(300)
+        pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
+        pg.wait_for_timeout(800)
+        issue = pg.evaluate(
+            "() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveDeliveryIssue');"
+            " return c?{missing:c.args[0].missingQty, ordered:c.args[0].orderedQty, received:c.args[0].receivedQty, id:!!c.args[0].id}:null; }")
+        nd = pg.evaluate(
+            "() => (window.__saveCalls||[]).some(c=>c.fn==='saveIcActivityLog' && c.args[0].actionType==='not-delivered')")
+        level = pg.evaluate("""() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveAllIcItems');
+            return c?(c.args[0]||[])[0].currentLevel:null; }""")
+        clear_modals(pg)
+        return (bool(issue) and issue["missing"] == 1 and issue["ordered"] == 3
+                and issue["received"] == 2 and issue["id"] and nd
+                and level == seeded["level"] + 2)
+    safe("IC/receive-partial-creates-issue", ic_receive_partial)
+
+    # The claims card is the readable side of deliveryIssues: without it the
+    # missing quantities pile up in the database and nobody ever sees them.
+    def ic_claims_card():
+        seeded = seed_pending()
+        if not seeded:
+            return False
+        pg.wait_for_timeout(400)
+        pg.evaluate("""() => { window.__fakeClaims = [{id:'issue_test', itemId:1, itemName:'Mayonnaise',
+            unit:'bottle', provider:'Metro', orderedQty:3, receivedQty:0, missingQty:3,
+            reportedAt:new Date().toISOString(), resolved:false}]; }""")
+        open_reception()
+        pg.evaluate("() => { const m=document.querySelector('.receive-step[data-d=\"-1\"]'); if(m) m.click(); }")
+        pg.wait_for_timeout(250)
+        pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
+        pg.wait_for_timeout(900)
+        card = pg.evaluate("""() => { const c=document.getElementById('claims-card');
+            return c ? {shown: c.style.display!=='none', text: c.textContent} : null; }""")
+        settled = pg.evaluate("""() => { const b=document.querySelector('.claim-row__settle'); if(!b) return false;
+            b.click(); return true; }""")
+        pg.wait_for_timeout(500)
+        gone = pg.evaluate("() => { const c=document.getElementById('claims-card'); return !c || c.style.display==='none'; }")
+        pg.evaluate("() => { window.__fakeClaims = []; }")
+        clear_modals(pg)
+        return (bool(card) and card["shown"] and "Mayonnaise" in card["text"]
+                and "1 open claim" in card["text"] and settled and gone)
+    safe("IC/claims-card-and-settle", ic_claims_card)
+
+    # A purchase is a whole number of packages. Shelf stock can be 0.8 bag; an
+    # order of 0.8 bag cannot exist, and stepping from it used to yield 0.7.
+    def ic_order_whole_units():
+        clear_modals(pg)
+        pg.evaluate("""() => { (window.icItems||[]).forEach(it => {
+            it.currentLevel = 0.8; it.targetLevel = 2; it.pendingQty = 0; });
+            const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='overview');
+            if (n) n.click(); }""")
+        pg.wait_for_timeout(500)
+        pg.evaluate(OPEN_QU); pg.wait_for_timeout(700)
+        pick_tab("order")
+        # Read the RAW slider value too, not just the label: the label is rounded
+        # for display, so checking it alone would pass over a slider quietly
+        # running on a 0.5 scale (what a stale cached slider.js produced).
+        read = """() => ({ qty: document.getElementById('order-qty').textContent.trim(),
+                           raw: document.getElementById('order-level').value,
+                           ticks: [...document.querySelectorAll('#order-ticks .tick-label')].map(t=>t.textContent),
+                           status: document.getElementById('order-status').textContent.trim(),
+                           cls: document.getElementById('order-status').className,
+                           slider: !!document.querySelector('#qu-pane-order .slider-handle') })"""
+        start = pg.evaluate(read)
+        pg.evaluate("() => { const b=document.getElementById('order-plus'); if(b) b.click(); }")
+        pg.wait_for_timeout(250)
+        up = pg.evaluate(read)
+        pg.evaluate("() => { const b=document.getElementById('order-minus'); if(b) b.click(); const c=document.getElementById('order-minus'); if(c) c.click(); }")
+        pg.wait_for_timeout(300)
+        down = pg.evaluate(read)
+        clear_modals(pg)
+        whole = lambda s: str(s).isdigit()
+        steps = [start, up, down]
+        # every tick is labelled with a consecutive whole number: 0,1,2,...
+        ticks_ok = start["ticks"] == [str(i) for i in range(len(start["ticks"]))] and len(start["ticks"]) > 2
+        return (start["slider"] and ticks_ok
+                and all(whole(s["qty"]) and whole(s["raw"]) for s in steps)
+                and int(up["qty"]) == int(start["qty"]) + 1
+                and int(down["qty"]) == int(start["qty"]) - 1
+                and "order-status--over" in up["cls"]
+                and "order-status--under" in down["cls"]
+                and up["status"] == "OVER TARGET" and down["status"] == "UNDER TARGET")
+    safe("IC/order-whole-units-and-status", ic_order_whole_units)
+
+    # The count card is a sibling of the sections: navigating away mid-count used
+    # to strand it at the bottom of History.
+    def ic_count_hidden_on_nav():
+        clear_modals(pg)
+        pg.evaluate("() => document.getElementById('start-count-btn').click()")
+        pg.wait_for_timeout(700)
+        during = pg.evaluate("() => getComputedStyle(document.getElementById('count-interface')).display")
+        pg.evaluate("() => { const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='history'); if(n) n.click(); }")
+        pg.wait_for_timeout(600)
+        after = pg.evaluate("() => getComputedStyle(document.getElementById('count-interface')).display")
+        pg.evaluate("() => { const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='dashboard'); if(n) n.click(); }")
+        pg.wait_for_timeout(500)
+        back = pg.evaluate("() => getComputedStyle(document.getElementById('dashboard-section')).display")
+        return during != "none" and after == "none" and back != "none"
+    safe("IC/count-hidden-on-nav", ic_count_hidden_on_nav)
+
+    # The I&C history page must render an order through the shared wording, not
+    # fall through to "modified" with a stock arrow (what Serge saw on 03/08).
+    def ic_history_order_line():
+        clear_modals(pg)
+        pg.evaluate("""() => { const n=[...document.querySelectorAll('.nav-button')]
+            .find(b=>b.getAttribute('data-section')==='history'); if(n) n.click(); }""")
+        pg.wait_for_timeout(900)
+        ok = pg.evaluate("""() => {
+            if (typeof describeLog !== 'function') return null;
+            const d = describeLog({actionType:'order', oldValue:0, newValue:1, unit:'bag', stock:4});
+            return d && d.label === 'ordered' && d.change.indexOf('\\u2192') === -1; }""")
+        return ok is True
+    safe("IC/history-order-not-modified", ic_history_order_line)
 
     rec("IC/no-native-dialogs", len(dialogs) == 0, str(dialogs))
     rec("IC/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
