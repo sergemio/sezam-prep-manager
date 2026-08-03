@@ -84,6 +84,12 @@
                         </button>
                     </div>
 
+                    <!-- Incoming delivery banner — filled by renderPendingBanners() -->
+                    <div class="pending-banner" style="display: none;"></div>
+
+                    <!-- Open supplier claims — filled by renderClaimsCard() -->
+                    <div class="claims-card" id="claims-card" style="display: none;"></div>
+
                     <div class="ic-stats-row">
                         <div class="ic-stat-card">
                             <div class="ic-stat-label">Items Below 50%</div>
@@ -149,7 +155,10 @@
                 <!-- Overview section -->
                 <div class="content-section" id="overview-section" style="display: none;">
                     <h1 class="section-title">I&C Inventory Overview</h1>
-                    
+
+                    <!-- Incoming delivery banner — filled by renderPendingBanners() -->
+                    <div class="pending-banner" style="display: none;"></div>
+
                     <div class="card">
                         <h2 class="card-title">Filters</h2>
                         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:10px;">Location</div>
@@ -210,54 +219,45 @@
                     </div>
                 </div>
                 
-                <!-- Full count interface (hidden initially) -->
+                <!-- Full count interface (hidden initially) — same layout as the
+                     preps check card (.prep-check-* in styles.css) -->
                 <div id="count-interface" style="display: none;">
-                    <div class="card">
-                        <h1 class="section-title">I&C Full Count</h1>
-                        
-                        <div id="location-header" class="sublocation-header">
-                            Location: <span id="current-location">Bar</span>
+                    <div class="card prep-check-card">
+                        <div class="prep-check-progress" aria-hidden="true">
+                            <div class="prep-check-progress-fill" id="count-progress-fill"></div>
                         </div>
-                        
-                        <div class="check-progress" id="check-progress">
-                            Item 1 of 5
+                        <div class="prep-check-top">
+                            <span class="prep-check-badge" id="check-progress">Item 1 of 5</span>
+                            <button type="button" class="prep-check-user prep-check-user--switch" id="count-user-badge" title="Tap to switch user"></button>
                         </div>
-                        
-                        <div class="check-item-name" id="check-item-name">
-                            Item Name
-                        </div>
-                        
-                        <div class="check-item-target" id="check-item-target">
-                            Target: 5 units
-                        </div>
-                        
-                        <!-- Touch-friendly input -->
-                        <div class="input-group">
-                            <label class="input-label">Current level:</label>
-                            <input type="hidden" id="current-level-input">
-                            
-                            <div class="touch-input-container">
-                                <div class="value-display">
-                                    <span id="current-value">0</span>
-                                </div>
-                                
-                                <div class="control-row">
-                                    <button class="control-button" id="decrease">-</button>
-                                    <button class="control-button" id="increase">+</button>
-                                </div>
-                                
-                                <div class="slider-container">
-                                    <div class="slider-track"></div>
-                                    <div class="slider-progress" id="progress"></div>
-                                    <div class="slider-handle" id="handle"></div>
-                                    <div class="tick-marks" id="ticks"></div>
-                                </div>
+
+                        <div class="prep-check-item-name" id="check-item-name">Item Name</div>
+                        <div class="count-item-location" id="count-item-location"></div>
+                        <div class="prep-check-target" id="check-item-target">Target: 5 units</div>
+
+                        <input type="hidden" id="current-level-input">
+
+                        <div class="touch-input-container">
+                            <div class="value-display">
+                                <span id="current-value">0</span>
+                            </div>
+
+                            <div class="control-row">
+                                <button class="control-button" id="decrease">-</button>
+                                <button class="control-button" id="increase">+</button>
+                            </div>
+
+                            <div class="slider-container">
+                                <div class="slider-track"></div>
+                                <div class="slider-progress" id="progress"></div>
+                                <div class="slider-handle" id="handle"></div>
+                                <div class="tick-marks" id="ticks"></div>
                             </div>
                         </div>
-                        
-                        <div class="button-group">
-                            <button class="action-button" id="save-next-btn">Save & Next</button>
-                            <button class="secondary-button" id="cancel-count-btn">Cancel</button>
+
+                        <div class="prep-check-actions">
+                            <button class="btn btn--primary prep-check-save" id="save-next-btn">Save & Next</button>
+                            <button class="btn btn--secondary" id="cancel-count-btn">Cancel</button>
                         </div>
                     </div>
                 </div>

@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const countInterface = document.getElementById('count-interface');
     const saveNextBtn = document.getElementById('save-next-btn');
     const cancelCountBtn = document.getElementById('cancel-count-btn');
-    const currentLocationElement = document.getElementById('current-location');
     const checkProgressElement = document.getElementById('check-progress');
     const checkItemNameElement = document.getElementById('check-item-name');
     const checkItemTargetElement = document.getElementById('check-item-target');
@@ -51,38 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSortDirection = null; // 'asc', 'desc', or null for original order
     let originalItemOrder = []; // Store original order for reset
     
-    // Renders the staff-picker buttons. Loading + Firebase/fallback now live in
-    // the shared UserSession.loadStaff(); createStaffButton wires each click.
+    // The login gate is UserSession.renderGate (user.js) — this module used to
+    // build its own grid, with the loading line styled inline in JS.
     function loadStaffMembers() {
-        if (!staffGrid) return;
-        staffGrid.innerHTML = '<div style="text-align: center; padding: 15px;">Loading staff...</div>';
-        UserSession.loadStaff().then(function (names) {
-            staffGrid.innerHTML = '';
-            names.forEach(createStaffButton);
-        });
+        UserSession.renderGate(staffGrid, showMainInterface);
     }
 
-    // Create staff button
-    function createStaffButton(name) {
-        const button = document.createElement('button');
-        button.className = 'staff-button';
-        button.setAttribute('data-staff', name);
-        button.textContent = name;
-        
-        button.addEventListener('click', function() {
-            selectStaff(name);
-        });
-        
-        staffGrid.appendChild(button);
-    }
-    
-    // Select staff and show main interface
-    function selectStaff(name) {
-        // Route through the shared session: persists, updates the name labels, and
-        // shows the switch toast (previously I&C did none of this).
-        if (window.UserSession) UserSession.set(name); else currentStaff = name;
-
-        // Show main interface
+    // Reveal the app once someone is identified. renderGate/dropdown have already
+    // set the session by the time this runs.
+    function showMainInterface() {
         if (staffSelection) staffSelection.style.display = 'none';
         if (mainInterface) mainInterface.style.display = 'flex';
 
@@ -108,6 +84,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Set up real-time updates
                     setupRealtimeUpdates();
+
+                    // Open supplier claims (ordered, never delivered)
+                    refreshDeliveryIssues();
                     
                     // Check for old history records to purge (only once per session)
                     setTimeout(() => {
@@ -200,19 +179,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // formatDate is now the shared helper in ui-helpers.js ("9 Mar, 14:30").
 
-    // Display helpers (Batch 1 harmonisation).
     // fmtQty: drop a trailing ".0" on whole counts ("8.0" -> "8"), keep real
-    // fractions ("1.1" stays "1.1"). pluralizeUnit: countable containers get an
-    // "s" ("bucket" -> "buckets", "box" -> "boxes"); mass units stay invariant.
+    // fractions ("1.1" stays "1.1"). pluralizeUnit now lives in ui-helpers.js —
+    // the history wording needs it too, and one copy per module is how the
+    // renderers drifted in the first place.
     function fmtQty(n) {
         return Number((Number(n) || 0).toFixed(1)).toString();
-    }
-    function pluralizeUnit(unit, n) {
-        const u = (unit || '').trim();
-        if (!u || Number(n) === 1) return u;
-        if (['kg', 'g', 'l', 'ml', 'cl', 'L'].indexOf(u) !== -1) return u;
-        if (/(s|x|z|ch|sh)$/i.test(u)) return u + 'es';
-        return u + 's';
     }
 
     // Log activity changes to Firebase
@@ -250,6 +222,396 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // ---------------------------------------------------------------------
+    // Ordered / Received (stock vs on the way)
+    //
+    // An item carries TWO distinct quantities:
+    //   currentLevel = what is physically on the shelf
+    //   pendingQty   = what has been ordered and has not arrived yet
+    // Merging them (the old reflex: "2 in stock + 3 ordered -> I type 5") makes
+    // the stock lie for a whole week as soon as a delivery is missed. Ordering
+    // therefore never touches currentLevel; only a count or a reception does.
+    // An item without pendingQty behaves exactly as before -> no migration.
+    // ---------------------------------------------------------------------
+
+    function pendingQtyOf(item) {
+        return parseFloat(item && item.pendingQty) || 0;
+    }
+
+    function pendingItems() {
+        return (window.icItems || []).filter(it => pendingQtyOf(it) > 0);
+    }
+
+    // Single logging entry point for the order/receive events: same shape as
+    // logActivityChange, plus optional extra fields, and always a .catch.
+    function logIcEvent(item, actionType, oldValue, newValue, extra) {
+        if (!window.firebaseDb || typeof window.firebaseDb.saveIcActivityLog !== 'function') {
+            return Promise.resolve();
+        }
+        const activity = Object.assign({
+            timestamp: new Date().toISOString(),
+            user: currentStaff,
+            itemId: item.id,
+            itemName: item.name,
+            location: item.location,
+            sublocation: item.sublocation,
+            actionType: actionType,
+            oldValue: oldValue,
+            newValue: newValue,
+            unit: item.unit
+        }, extra || {});
+
+        return window.firebaseDb.saveIcActivityLog(activity)
+            .catch(error => {
+                console.error('Error logging ' + actionType + ':', error);
+                showMessage('Saved, but the activity log failed', 'warning');
+            });
+    }
+
+    // "N items on the way" + the button that opens the reception screen.
+    // Rendered into every .pending-banner (dashboard + overview) so the reminder
+    // is visible wherever Serge happens to be.
+    function renderPendingBanners() {
+        const banners = document.querySelectorAll('.pending-banner');
+        if (!banners.length) return;
+
+        const waiting = pendingItems();
+        banners.forEach(el => {
+            if (waiting.length === 0) {
+                el.style.display = 'none';
+                el.innerHTML = '';
+                return;
+            }
+            el.style.display = '';
+            el.innerHTML = `
+                <span class="pending-banner__text">
+                    🚚 <strong>${waiting.length}</strong> ${waiting.length > 1 ? 'items' : 'item'} on the way
+                </span>
+                <button type="button" class="btn btn--primary pending-banner__btn">Receive delivery</button>
+            `;
+            const btn = el.querySelector('.pending-banner__btn');
+            if (btn) btn.addEventListener('click', showReceptionModal);
+        });
+    }
+
+    // Reception screen: every line pre-filled with received = ordered, so the
+    // nominal case (everything arrived) is ONE button. Only exceptions are typed.
+    // What is missing goes to deliveryIssues -> the supplier claim list writes itself.
+    function showReceptionModal() {
+        const waiting = pendingItems();
+        if (waiting.length === 0) {
+            showMessage('Nothing on the way right now', 'info');
+            return;
+        }
+        SoundFX.pop();
+
+        // The step follows what was ORDERED, not the shelf granularity: a delivery
+        // arrives in the units that were ordered, so 3 bags steps 3 → 2 → 1 → 0
+        // even when the item itself is counted in halves.
+        const draft = waiting.map(it => {
+            const ordered = pendingQtyOf(it);
+            const isFraction = Math.abs(ordered - Math.round(ordered)) > 1e-9;
+            return { item: it, ordered: ordered, received: ordered, step: isFraction ? 0.5 : 1 };
+        });
+
+        const { box: content, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
+
+        content.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">🚚 Receive delivery</h3>
+                <p style="margin: 8px 0 0 0; color: var(--text-medium); font-size: 14px;">
+                    Everything is pre-filled as fully received — adjust only what is missing.
+                </p>
+            </div>
+            <div class="receive-list" id="receive-list"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" id="receive-cancel" class="btn btn--secondary">Cancel</button>
+                <button type="button" id="receive-all" class="btn btn--primary" style="flex: 2;">✓ Validate reception</button>
+            </div>
+        `;
+
+        const list = content.querySelector('#receive-list');
+
+        function renderRows() {
+            list.innerHTML = '';
+            draft.forEach((row, i) => {
+                const missing = Math.round((row.ordered - row.received) * 100) / 100;
+                const el = document.createElement('div');
+                el.className = 'receive-row' + (missing > 0 ? ' receive-row--short' : '');
+                el.innerHTML = `
+                    <div class="receive-row__main">
+                        <span class="receive-row__mark">${missing > 0 ? '⚠' : '✓'}</span>
+                        <span class="receive-row__name">${row.item.name}</span>
+                    </div>
+                    <div class="receive-row__qty">
+                        <button type="button" class="receive-step" data-i="${i}" data-d="-1" aria-label="one less">−</button>
+                        <span class="receive-row__val">${fmtQty(row.received)}</span>
+                        <span class="receive-row__of">/ ${fmtQty(row.ordered)} ${row.item.unit}</span>
+                        <button type="button" class="receive-step" data-i="${i}" data-d="1" aria-label="one more">+</button>
+                    </div>
+                    ${missing > 0
+                        ? `<div class="receive-row__missing">${fmtQty(missing)} ${pluralizeUnit(row.item.unit, missing)} missing → claim</div>`
+                        : ''}
+                `;
+                list.appendChild(el);
+            });
+
+            list.querySelectorAll('.receive-step').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const row = draft[parseInt(btn.dataset.i, 10)];
+                    const delta = parseInt(btn.dataset.d, 10) * row.step;
+                    // Received can never be negative, nor exceed what was ordered:
+                    // an over-delivery is a different event, not a reception.
+                    row.received = Math.min(row.ordered, Math.max(0, row.received + delta));
+                    SoundFX.pop();
+                    renderRows();
+                });
+            });
+        }
+        renderRows();
+
+        content.querySelector('#receive-cancel').addEventListener('click', () => closeModal());
+
+        content.querySelector('#receive-all').addEventListener('click', () => {
+            const btn = content.querySelector('#receive-all');
+            btn.disabled = true;
+            applyReception(draft)
+                .then(missingCount => {
+                    SoundFX.complete();
+                    showMessage(
+                        missingCount > 0
+                            ? `Delivery recorded — ${missingCount} line${missingCount > 1 ? 's' : ''} short, added to the claim list`
+                            : 'Delivery recorded — everything received',
+                        missingCount > 0 ? 'warning' : 'success'
+                    );
+                    closeModal();
+                })
+                .catch(error => {
+                    console.error('Error recording reception:', error);
+                    showMessage('Error recording the delivery — nothing was lost, try again', 'error');
+                    btn.disabled = false;
+                });
+        });
+    }
+
+    // Writes the reception: stock += received, pending cleared, one log per line,
+    // and a deliveryIssues entry for every short line. Resolves with how many
+    // lines came up short.
+    //
+    // The stock write goes through saveAllIcItems (a single multi-path update) so
+    // the whole delivery lands atomically — a half-written reception would leave
+    // some items credited and others still "on the way". saveData() is bypassed
+    // on purpose here: it swallows its own errors and returns nothing, which would
+    // let a failed write report success. Local state is rolled back if it fails.
+    function applyReception(draft) {
+        const snapshot = draft.map(row => ({
+            row: row,
+            before: {
+                currentLevel: row.item.currentLevel,
+                pendingQty: row.item.pendingQty,
+                pendingAt: row.item.pendingAt,
+                pendingProvider: row.item.pendingProvider,
+                lastCheckedBy: row.item.lastCheckedBy,
+                lastCheckedTime: row.item.lastCheckedTime
+            }
+        }));
+
+        const now = new Date().toISOString();
+        const touched = [];
+        const shortLines = [];
+
+        draft.forEach(row => {
+            const item = row.item;
+            const stockBefore = parseFloat(item.currentLevel) || 0;
+            const missing = Math.round((row.ordered - row.received) * 100) / 100;
+
+            row.stockBefore = stockBefore;
+            row.orderedAt = item.pendingAt || '';
+            row.provider = item.pendingProvider || '';
+            row.missing = missing;
+
+            item.currentLevel = Math.round((stockBefore + row.received) * 100) / 100;
+            item.pendingQty = 0;
+            item.pendingAt = null;
+            item.pendingProvider = null;
+            item.lastCheckedBy = currentStaff;
+            item.lastCheckedTime = now;
+
+            touched.push(item);
+            if (missing > 0) shortLines.push(row);
+        });
+
+        const db = window.firebaseDb;
+        const stockWrite = (db && typeof db.saveAllIcItems === 'function')
+            ? db.saveAllIcItems(touched)
+            : Promise.resolve();
+
+        return stockWrite
+            .then(() => {
+                try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
+
+                // Logs and claim entries are secondary: each swallows its own error
+                // with a warning toast so a failed log never rolls back a good stock.
+                draft.forEach(row => {
+                    logIcEvent(row.item, 'receive', row.stockBefore, row.item.currentLevel, {
+                        orderedQty: row.ordered,
+                        receivedQty: row.received
+                    });
+                });
+
+                shortLines.forEach(row => {
+                    logIcEvent(row.item, 'not-delivered', row.ordered, row.received, {
+                        missingQty: row.missing,
+                        provider: row.provider
+                    });
+
+                    if (!db || typeof db.saveDeliveryIssue !== 'function') return;
+                    const issue = {
+                        id: 'issue_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                        itemId: row.item.id,
+                        itemName: row.item.name,
+                        unit: row.item.unit || '',
+                        provider: row.provider,
+                        orderedQty: row.ordered,
+                        receivedQty: row.received,
+                        missingQty: row.missing,
+                        orderedAt: row.orderedAt,
+                        reportedAt: now,
+                        reportedBy: currentStaff,
+                        resolved: false
+                    };
+                    db.saveDeliveryIssue(issue).catch(error => {
+                        console.error('Error saving delivery issue:', error);
+                        showMessage('Stock updated, but the claim entry failed for ' + row.item.name, 'warning');
+                    });
+                });
+
+                updateDashboardLists();
+                updateStats();
+                if (typeof updateOverviewTable === 'function') updateOverviewTable();
+                renderPendingBanners();
+                // Re-read so the claims card shows what this delivery just added.
+                if (shortLines.length > 0) refreshDeliveryIssues();
+                return shortLines.length;
+            })
+            .catch(error => {
+                // Put the items back exactly as they were: the UI must never show a
+                // reception that did not reach the server.
+                snapshot.forEach(s => Object.assign(s.row.item, s.before));
+                throw error;
+            });
+    }
+
+    // --- Supplier claims --------------------------------------------------
+    // Every short line recorded at reception lands in deliveryIssues. This card
+    // is the readable side of it: the list to raise with the supplier, and the
+    // "settled" button once it has been credited or redelivered.
+    let openClaims = [];
+
+    function refreshDeliveryIssues() {
+        if (!window.firebaseDb || typeof window.firebaseDb.loadDeliveryIssues !== 'function') {
+            return Promise.resolve([]);
+        }
+        return window.firebaseDb.loadDeliveryIssues()
+            .then(list => {
+                openClaims = (list || []).filter(i => i && !i.resolved);
+                renderClaimsCard();
+                return openClaims;
+            })
+            .catch(error => {
+                console.error('Error loading delivery issues:', error);
+                return [];
+            });
+    }
+
+    function claimsAsText() {
+        return openClaims.map(c => {
+            const when = c.orderedAt ? ' (ordered ' + formatDate(c.orderedAt) + ')' : '';
+            return `- ${c.itemName}: ordered ${fmtQty(c.orderedQty)}, received ${fmtQty(c.receivedQty)}, missing ${fmtQty(c.missingQty)}${when}`;
+        }).join('\n');
+    }
+
+    function renderClaimsCard() {
+        const card = document.getElementById('claims-card');
+        if (!card) return;
+
+        if (openClaims.length === 0) {
+            card.style.display = 'none';
+            card.innerHTML = '';
+            return;
+        }
+
+        card.style.display = '';
+        card.innerHTML = `
+            <div class="claims-card__head">
+                <span class="claims-card__title">⚠️ ${openClaims.length} open claim${openClaims.length > 1 ? 's' : ''} with suppliers</span>
+                <button type="button" class="btn btn--secondary claims-card__copy" id="claims-copy">Copy list</button>
+            </div>
+            <div class="claims-card__list">
+                ${openClaims.map(c => `
+                    <div class="claim-row">
+                        <span class="claim-row__name">${c.itemName}</span>
+                        <span class="claim-row__detail">
+                            missing <strong>${fmtQty(c.missingQty)} ${pluralizeUnit(c.unit || '', c.missingQty)}</strong>
+                            of ${fmtQty(c.orderedQty)}${c.provider ? ' · ' + c.provider : ''}
+                            · ${formatDate(c.reportedAt)}
+                        </span>
+                        <button type="button" class="btn btn--secondary claim-row__settle" data-id="${c.id}">Settled</button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        const copyBtn = card.querySelector('#claims-copy');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const text = claimsAsText();
+                // navigator.clipboard needs a secure context; over plain HTTP on the
+                // tablet it rejects, so fall back to showing the text to copy by hand.
+                const fallback = () => showMessage('Copy manually:\n' + text, 'info');
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text)
+                        .then(() => showMessage('Claim list copied', 'success'))
+                        .catch(fallback);
+                } else {
+                    fallback();
+                }
+            });
+        }
+
+        card.querySelectorAll('.claim-row__settle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const claim = openClaims.find(c => c.id === id);
+                if (!claim) return;
+                btn.disabled = true;
+
+                const settled = Object.assign({}, claim, {
+                    resolved: true,
+                    resolvedAt: new Date().toISOString(),
+                    resolvedBy: currentStaff
+                });
+                window.firebaseDb.saveDeliveryIssue(settled)
+                    .then(() => {
+                        openClaims = openClaims.filter(c => c.id !== id);
+                        renderClaimsCard();
+                        SoundFX.complete();
+                        showMessage('Claim marked as settled', 'success');
+                    })
+                    .catch(error => {
+                        console.error('Error settling claim:', error);
+                        showMessage('Could not update the claim — try again', 'error');
+                        btn.disabled = false;
+                    });
+            });
+        });
+    }
+
+    // Last tab used in the quick-update modal ('stock' | 'order'). Defaults to
+    // Order — opening an item from the overview almost always means "I'm buying
+    // this" — and is sticky, so a correction run stays on Stock once chosen.
+    let quickModalTab = 'order';
+
     // Active category (badge) filters for the overview list
     let activeCategoryFilters = new Set();
 
@@ -276,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (activeCategoryFilters.size > 0) {
             const clear = document.createElement('span');
             clear.textContent = '✕ clear all';
-            clear.style.cssText = 'cursor:pointer;color:#c0392b;font-size:13px;margin-left:6px;padding:10px 8px;display:inline-flex;align-items:center;min-height:44px;';
+            clear.style.cssText = 'cursor:pointer;color:var(--sev-critical);font-size:13px;margin-left:6px;padding:10px 8px;display:inline-flex;align-items:center;min-height:44px;';
             clear.addEventListener('click', () => { activeCategoryFilters.clear(); updateOverviewTable(); });
             bar.appendChild(clear);
         }
@@ -284,6 +646,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update overview table
     function updateOverviewTable() {
+        renderPendingBanners();
+
         const overviewTableBody = document.getElementById('overview-table-body');
         if (!overviewTableBody) return;
         
@@ -362,7 +726,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             row.innerHTML = `
                 <td class="item-name" style="cursor: pointer;" title="Double-click to edit item details">${item.name}</td>
-                <td class="current-value">${item.currentLevel}</td>
+                <td class="current-value">${item.currentLevel}${pendingQtyOf(item) > 0
+                    ? ` <span class="pending-badge" title="${fmtQty(pendingQtyOf(item))} ${item.unit} ordered, not received yet">+${fmtQty(pendingQtyOf(item))} 🚚</span>`
+                    : ''}</td>
                 <td class="level-bar-container">
                     <div class="level-bar">
                         <div class="level-bar-fill" style="width: ${displayPercentage}%; background-color: ${levelBarColor};"></div>
@@ -834,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateDashboardLists() {
         updateLowStockList();
         updateCountCard();
+        renderPendingBanners();
     }
 
     // Lists the exact items the count button is about to walk through. Uses the same
@@ -978,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const _need = item.targetLevel - item.currentLevel;
-            const _needColor = item.currentLevel === 0 ? '#dc2626' : '#b45309';
+            const _needColor = item.currentLevel === 0 ? 'var(--danger-strong)' : 'var(--sev-warn)';
             todoItem.innerHTML = `
                 <div class="todo-item-name">${item.name}</div>
                 <div class="todo-item-detail">
@@ -1014,7 +1381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // so it stands out from the neutral totals next to it.
         const belowFifty = window.icItems.filter(item => item.currentLevel < item.targetLevel * 0.5).length;
         itemsBelowFiftyElement.textContent = belowFifty;
-        itemsBelowFiftyElement.style.color = belowFifty > 0 ? '#b45309' : '';
+        itemsBelowFiftyElement.style.color = belowFifty > 0 ? 'var(--sev-warn)' : '';
 
         updateLastInventoryStat();
     }
@@ -1081,53 +1448,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // User login button (header) — dropdown
+        // User login button (header) — the shared dropdown (user.js). The copy
+        // that lived here styled its panel inline and read window.staffMembers
+        // directly, so it was empty whenever Firebase was unreachable.
         if (userLoginBtn) {
             userLoginBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const existing = document.getElementById('ic-user-dropdown');
-                if (existing) { existing.remove(); return; }
-
-                const rect = userLoginBtn.getBoundingClientRect();
-                const dropdown = document.createElement('div');
-                dropdown.id = 'ic-user-dropdown';
-                dropdown.style.cssText = `
-                    position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
-                    background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-                    padding: 8px 0; z-index: 9999; min-width: 180px; border: 1px solid var(--border-light);
-                    opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
-                `;
-
-                const staffList = window.staffMembers || [];
-                staffList.forEach(member => {
-                    if (!member.active) return;
-                    const item = document.createElement('div');
-                    item.textContent = member.name;
-                    item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
-                    item.addEventListener('click', (ev) => {
-                        ev.stopPropagation();
-                        if (window.UserSession) UserSession.set(member.name); else currentStaff = member.name;
-                        dropdown.remove();
-                    });
-                    dropdown.appendChild(item);
-                });
-
-                document.body.appendChild(dropdown);
-                requestAnimationFrame(() => {
-                    dropdown.style.opacity = '1';
-                    dropdown.style.transform = 'translateY(0)';
-                });
-
-                const closeHandler = (ev) => {
-                    if (!dropdown.contains(ev.target) && ev.target !== userLoginBtn) {
-                        dropdown.remove();
-                        document.removeEventListener('click', closeHandler);
-                    }
-                };
-                setTimeout(() => document.addEventListener('click', closeHandler), 0);
+                UserSession.dropdown(userLoginBtn);
             });
         }
-        
+
         // Navigation buttons
         navButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -1145,6 +1475,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Switch between content sections
     function switchSection(sectionId, buttonElement) {
+        // The count card is a sibling of the sections, not one of them, so nothing
+        // in activateSection hides it: leaving mid-count used to strand it at the
+        // bottom of History or the dashboard. Leaving the section leaves the count.
+        if (countInterface && countInterface.style.display !== 'none') {
+            countInterface.style.display = 'none';
+            if (dashboardSection) dashboardSection.style.display = '';
+        }
+
         activateSection(sectionId, buttonElement, {
             navButtons, contentSections,
             onSection: (id) => {
@@ -1244,6 +1582,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cancelCountBtn) {
             cancelCountBtn.addEventListener('click', cancelFullCount);
         }
+
+        // The badge is the handover point: whoever takes over the count taps it
+        // and picks their name, so lastCheckedBy stays honest mid-run.
+        const userBadge = document.getElementById('count-user-badge');
+        if (userBadge) {
+            userBadge.addEventListener('click', () => {
+                UserSession.pick({ title: 'Who is counting now?' })
+                    .then(name => { if (name) userBadge.textContent = name; });
+            });
+        }
     }
     
     // Start the full count process
@@ -1255,77 +1603,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show staff selection or use current staff
         if (!currentStaff) {
-            showStaffSelectionModal().then(staff => {
-                if (staff) {
-                    if (window.UserSession) UserSession.set(staff); else currentStaff = staff;
-                    startFullCountProcess();
-                }
-            });
+            UserSession.pick({
+                title: 'Who will perform this count?',
+                subtitle: 'Select staff member performing the I&C full count'
+            }).then(name => { if (name) startFullCountProcess(); });
         } else {
             startFullCountProcess();
         }
-    }
-    
-    // Show staff selection modal
-    function showStaffSelectionModal() {
-        return new Promise((resolve) => {
-            // Backdrop-click / Escape resolve null (settle guards against a double
-            // resolve when a button already settled with a name).
-            let settled = false;
-            const settle = (result) => { if (settled) return; settled = true; resolve(result); };
-            const { box: content, close } = openModal({ onClose: () => settle(null) });
-            const finish = (result) => { settle(result); close(); };
-
-            const title = document.createElement('h3');
-            title.textContent = 'Select Staff for Count';
-            title.style.marginBottom = '20px';
-            title.style.textAlign = 'center';
-            
-            // Staff container
-            const staffContainer = document.createElement('div');
-            
-            // Shared loader: Firebase active staff, else DEFAULT_STAFF fallback.
-            UserSession.loadStaff().then(names => names.forEach(addStaffButton));
-
-            // Function to add staff button
-            function addStaffButton(name) {
-                const btn = document.createElement('button');
-                btn.textContent = name;
-                btn.style.display = 'block';
-                btn.style.width = '100%';
-                btn.style.padding = '10px';
-                btn.style.margin = '10px 0';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '5px';
-                btn.style.backgroundColor = '#80b244';
-                btn.style.color = 'white';
-                btn.style.cursor = 'pointer';
-                
-                btn.onclick = function() { finish(name); };
-
-                staffContainer.appendChild(btn);
-            }
-            
-            // Cancel button
-            const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = 'Cancel';
-            cancelBtn.style.display = 'block';
-            cancelBtn.style.width = '100%';
-            cancelBtn.style.padding = '10px';
-            cancelBtn.style.margin = '20px 0 0 0';
-            cancelBtn.style.border = 'none';
-            cancelBtn.style.borderRadius = '5px';
-            cancelBtn.style.backgroundColor = '#f1f1f1';
-            cancelBtn.style.color = '#333';
-            cancelBtn.style.cursor = 'pointer';
-            
-            cancelBtn.onclick = function() { finish(null); };
-
-            // Assemble modal (backdrop mount + close paths handled by openModal)
-            content.appendChild(title);
-            content.appendChild(staffContainer);
-            content.appendChild(cancelBtn);
-        });
     }
     
     // Function to continue with full count process
@@ -1392,27 +1676,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const item = countQueue[currentItemIndex];
-        
-        // Update location header
-        if (currentLocationElement) {
-            currentLocationElement.textContent = item.location || 'All';
+
+        // Fill the progress bar to mirror "Item X of N" — same pattern as the
+        // preps check screen, so staff see their position in the run.
+        const progressFill = document.getElementById('count-progress-fill');
+        if (progressFill) {
+            progressFill.style.width = `${((currentItemIndex + 1) / countQueue.length) * 100}%`;
         }
-        
+
         // Update progress indicator
         if (checkProgressElement) {
             checkProgressElement.textContent = `Item ${currentItemIndex + 1} of ${countQueue.length}`;
         }
-        
-        // Update item name
-        if (checkItemNameElement) {
-            checkItemNameElement.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <span>${item.name}</span>
-                    <span class="user-indicator">${currentStaff}</span>
-                </div>
-            `;
+
+        // Who is counting
+        const userBadge = document.getElementById('count-user-badge');
+        if (userBadge) {
+            userBadge.textContent = currentStaff || '';
         }
-        
+
+        // Item name — the hero of the screen
+        if (checkItemNameElement) {
+            checkItemNameElement.textContent = item.name;
+        }
+
+        // Where to look: location, plus sublocation when it adds information
+        const locationLine = document.getElementById('count-item-location');
+        if (locationLine) {
+            const sub = item.sublocation && item.sublocation !== item.location ? ` — ${item.sublocation}` : '';
+            locationLine.textContent = `📍 ${item.location || 'All'}${sub}`;
+        }
+
         // Update target
         if (checkItemTargetElement) {
             checkItemTargetElement.textContent = `Target: ${item.targetLevel} ${item.unit}`;
@@ -1547,10 +1841,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show quick update modal for an item
     function showQuickUpdateModal(item) {
         SoundFX.pop();
+
+        // Ordering state, kept separate from the stock slider. A purchase is a WHOLE
+        // number of packages — you can hold 0.8 bag on the shelf but you cannot order
+        // 0.8 bag at Metro — so the order scale is integers whatever the shelf
+        // granularity. Default = the whole order landing closest to target, so buying
+        // on target is a single tap on "Record order".
+        const stockNow = parseFloat(item.currentLevel) || 0;
+        const targetNow = parseFloat(item.targetLevel) || 0;
+        const shortBy = Math.max(0, Math.round((targetNow - stockNow) * 100) / 100);
+        const alreadyPending = pendingQtyOf(item);
+        const suggestedOrder = Math.round(shortBy);
+        let orderQty = alreadyPending > 0 ? Math.round(alreadyPending) : suggestedOrder;
+        const orderMax = Math.max(4, Math.ceil(targetNow), orderQty + 2);
         // Slider cleanup centralised in onClose so EVERY close path (buttons,
         // backdrop-click, Escape) destroys the slider — no leaks.
         const { backdrop: modal, box: content, close: closeModal } = openModal({
-            onClose: () => { if (modalSlider && typeof modalSlider.destroy === 'function') modalSlider.destroy(); }
+            onClose: () => {
+                if (modalSlider && typeof modalSlider.destroy === 'function') modalSlider.destroy();
+                if (orderSlider && typeof orderSlider.destroy === 'function') orderSlider.destroy();
+            }
         });
 
         // Item details
@@ -1560,23 +1870,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h3 style="margin: 0; color: #333;">${item.name}</h3>
                     <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
                 </div>
-                <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Target: ${item.targetLevel} ${item.unit}</strong> &nbsp;•&nbsp; Current: ${item.currentLevel} ${item.unit}</p>
+                <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Target: ${item.targetLevel} ${item.unit}</strong> &nbsp;•&nbsp; Current: ${item.currentLevel} ${item.unit}${
+                    shortBy > 0 ? ` &nbsp;•&nbsp; <span style="color: var(--accent-orange); font-weight: 600;">short by ${fmtQty(shortBy)}</span>` : ''
+                }</p>
             </div>
-            
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">New quantity:</label>
+
+            <!-- One intent at a time: the Stock pane edits currentLevel, the Order
+                 pane edits pendingQty. Both steppers visible at once caused users
+                 to "add" an order with the stock slider — the phantom-stock bug. -->
+            <div class="qu-tabs" role="tablist">
+                <button type="button" class="qu-tab" data-tab="stock" role="tab">📦 Stock</button>
+                <button type="button" class="qu-tab" data-tab="order" role="tab">🚚 Order${
+                    alreadyPending > 0 ? ` <span class="qu-tab__badge">${fmtQty(alreadyPending)}</span>` : ''
+                }</button>
+            </div>
+
+            <div id="qu-pane-stock">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Stock on shelf:</label>
                 <input type="hidden" id="modal-current-level" value="${item.currentLevel}">
-                
+
                 <div class="touch-input-container">
                     <div class="value-display">
                         <span id="modal-current-value">${item.currentLevel}</span>
                     </div>
-                    
+
                     <div class="control-row">
                         <button class="control-button" id="modal-decrease">-</button>
                         <button class="control-button" id="modal-increase">+</button>
                     </div>
-                    
+
                     <div class="slider-container">
                         <div class="slider-track"></div>
                         <div class="slider-progress" id="modal-progress"></div>
@@ -1584,26 +1906,198 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="tick-marks" id="modal-ticks"></div>
                     </div>
                 </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="modal-cancel" class="btn btn--secondary qu-cancel">Cancel</button>
+                    <button id="modal-edit-details" class="btn btn--info">Edit Details</button>
+                    <button id="modal-save" class="btn btn--primary">Save</button>
+                </div>
             </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button id="modal-cancel" class="btn btn--secondary">Cancel</button>
-                <button id="modal-edit-details" class="btn btn--info">Edit Details</button>
-                <button id="modal-save" class="btn btn--primary">Save</button>
+
+            <div id="qu-pane-order" style="display: none;">
+                <div class="order-block">
+                    <div class="order-block__title">🚚 ${alreadyPending > 0 ? 'On the way' : 'I ordered'}</div>
+                    <div class="order-block__row">
+                        <button type="button" class="order-step" id="order-minus" aria-label="one less">−</button>
+                        <span class="order-qty" id="order-qty">${orderQty}</span>
+                        <span class="order-unit" id="order-unit">${pluralizeUnit(item.unit, orderQty)}</span>
+                        <button type="button" class="order-step" id="order-plus" aria-label="one more">+</button>
+                        <span class="order-status" id="order-status"></span>
+                    </div>
+
+                    <input type="hidden" id="order-level" value="${orderQty}">
+                    <div class="slider-container order-slider">
+                        <div class="slider-track"></div>
+                        <div class="slider-progress" id="order-progress"></div>
+                        <div class="slider-handle" id="order-handle"></div>
+                        <div class="tick-marks" id="order-ticks"></div>
+                    </div>
+
+                    <div class="order-hint" id="order-hint"></div>
+                    <button type="button" id="order-save" class="btn btn--primary order-save">
+                        ${alreadyPending > 0 ? 'Update order' : 'Record order'}
+                    </button>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn--secondary qu-cancel">Cancel</button>
+                </div>
             </div>
         `;
+
+        // --- Tab switching ----------------------------------------------------
+        const tabButtons = content.querySelectorAll('.qu-tab');
+        const stockPane = content.querySelector('#qu-pane-stock');
+        const orderPane = content.querySelector('#qu-pane-order');
+
+        function activateTab(tab) {
+            quickModalTab = tab;
+            tabButtons.forEach(b => b.classList.toggle('qu-tab--active', b.dataset.tab === tab));
+            stockPane.style.display = tab === 'stock' ? '' : 'none';
+            orderPane.style.display = tab === 'order' ? '' : 'none';
+        }
+        tabButtons.forEach(b => b.addEventListener('click', () => {
+            if (b.dataset.tab !== quickModalTab) SoundFX.pop();
+            activateTab(b.dataset.tab);
+        }));
+        activateTab(quickModalTab); // sticky choice from earlier in the session
+
+        // --- Ordering block wiring -------------------------------------------
+        const orderQtyEl = content.querySelector('#order-qty');
+        const orderUnitEl = content.querySelector('#order-unit');
+        const orderStatusEl = content.querySelector('#order-status');
+        const orderHintEl = content.querySelector('#order-hint');
+        const orderSaveBtn = content.querySelector('#order-save');
+        const orderLevelInput = content.querySelector('#order-level');
+
+        function renderOrderHint() {
+            orderQtyEl.textContent = orderQty;
+            orderUnitEl.textContent = pluralizeUnit(item.unit, orderQty);
+
+            // Status badge: where this order lands relative to target. Whole
+            // packages rarely land exactly on a fractional target, so the badge
+            // gives the direction and the line below gives the number.
+            const landing = Math.round((stockNow + orderQty) * 100) / 100;
+            const delta = Math.round((landing - targetNow) * 100) / 100;
+            const state = delta === 0 ? 'on' : (delta < 0 ? 'under' : 'over');
+            orderStatusEl.textContent =
+                state === 'on' ? 'ON TARGET' : (state === 'under' ? 'UNDER TARGET' : 'OVER TARGET');
+            orderStatusEl.className = 'order-status order-status--' + state;
+
+            const landingText = orderQty === 0
+                ? 'nothing on the way'
+                : `after delivery: ${fmtQty(landing)} / ${fmtQty(targetNow)} ${pluralizeUnit(item.unit, landing)}`;
+            const showReset = orderQty !== suggestedOrder;
+            orderHintEl.innerHTML = landingText +
+                (showReset ? ' &nbsp;<a href="#" id="order-reset" class="order-reset">↩ reset</a>' : '');
+
+            const reset = orderHintEl.querySelector('#order-reset');
+            if (reset) {
+                reset.addEventListener('click', e => {
+                    e.preventDefault();
+                    setOrderQty(suggestedOrder);
+                });
+            }
+        }
+
+        // The order slider owns the value; −/+ are wired to it by createTouchSlider.
+        // Everything else goes through setOrderQty so the two can never disagree.
+        let orderSlider = null;
+
+        function syncOrderFromInput() {
+            const raw = parseFloat(orderLevelInput.value) || 0;
+            const whole = Math.max(0, Math.round(raw));
+            orderQty = whole;
+            // The order scale is integer-only. If anything ever feeds a fraction in
+            // (a stale slider.js served from cache did exactly that), snap the
+            // handle instead of printing "5" over a handle sitting at 4.5 — a
+            // display that disagrees with the value is how phantom stock starts.
+            if (orderSlider && Math.abs(raw - whole) > 1e-9) orderSlider.setValue(whole);
+            renderOrderHint();
+        }
+
+        function setOrderQty(v) {
+            const next = Math.max(0, Math.min(orderMax, Math.round(v)));
+            if (orderSlider) {
+                orderSlider.setValue(next); // writes the input -> fires syncOrderFromInput
+            } else {
+                orderQty = next;
+                orderLevelInput.value = next;
+                renderOrderHint();
+            }
+        }
+
+        orderLevelInput.addEventListener('change', syncOrderFromInput);
+        renderOrderHint();
+
+        orderSaveBtn.addEventListener('click', () => {
+            const previous = alreadyPending;
+            if (orderQty === previous) {
+                showMessage('Nothing changed', 'info');
+                return;
+            }
+            orderSaveBtn.disabled = true;
+            const rollback = {
+                pendingQty: item.pendingQty,
+                pendingAt: item.pendingAt,
+                pendingProvider: item.pendingProvider
+            };
+
+            // Ordering never touches currentLevel — that is the whole point.
+            // Cancelling (qty 0) must clear the DATE and the SUPPLIER too, not
+            // just the quantity: leaving them behind reads as "ordered from Metro
+            // on the 3rd" on an item nobody ordered. null deletes the key in
+            // Firebase rather than storing an empty string.
+            item.pendingQty = orderQty;
+            item.pendingAt = orderQty > 0 ? new Date().toISOString() : null;
+            item.pendingProvider = orderQty > 0
+                ? ((item.providers && item.providers[0]) || '')
+                : null;
+
+            const db = window.firebaseDb;
+            const write = (db && typeof db.saveIcItem === 'function')
+                ? db.saveIcItem(item)
+                : Promise.resolve();
+
+            write
+                .then(() => {
+                    try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
+                    // `stock` lets the history line state what did NOT move — the
+                    // whole point being that ordering never touches currentLevel.
+                    logIcEvent(item, 'order', previous, orderQty, {
+                        provider: item.pendingProvider,
+                        stock: item.currentLevel
+                    });
+                    SoundFX.complete();
+                    showMessage(
+                        orderQty === 0
+                            ? `Order cleared for ${item.name}`
+                            : `${fmtQty(orderQty)} ${pluralizeUnit(item.unit, orderQty)} of ${item.name} on the way`,
+                        'success'
+                    );
+                    updateDashboardLists();
+                    updateStats();
+                    if (typeof updateOverviewTable === 'function') updateOverviewTable();
+                    closeModal();
+                })
+                .catch(error => {
+                    console.error('Error saving order:', error);
+                    Object.assign(item, rollback);
+                    showMessage('Error saving the order — try again', 'error');
+                    orderSaveBtn.disabled = false;
+                });
+        });
         
         // Set up event handlers
-        const cancelBtn = content.querySelector('#modal-cancel');
         const saveBtn = content.querySelector('#modal-save');
         
         // Create touch slider for this modal
         let modalSlider;
         
-        // Initialize the slider after the modal is added to DOM
+        // Initialize both sliders after the modal is added to DOM
         setTimeout(() => {
             modalSlider = window.createTouchSlider({
-                containerId: content.querySelector('.slider-container'),
+                containerId: content.querySelector('#qu-pane-stock .slider-container'),
                 valueDisplayId: 'modal-current-value',
                 handleId: 'modal-handle',
                 progressId: 'modal-progress',
@@ -1614,10 +2108,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 initialValue: parseFloat(item.currentLevel) || 0,
                 targetLevel: parseFloat(item.targetLevel) || 0
             });
+
+            // Order scale: whole packages only, 0..orderMax. The green marker sits
+            // on the suggested quantity (the one that lands closest to target).
+            const orderValues = [];
+            for (let i = 0; i <= orderMax; i++) orderValues.push(i);
+            orderSlider = window.createTouchSlider({
+                containerId: content.querySelector('#qu-pane-order .slider-container'),
+                valueDisplayId: 'order-qty',
+                handleId: 'order-handle',
+                progressId: 'order-progress',
+                ticksId: 'order-ticks',
+                decreaseId: 'order-minus',
+                increaseId: 'order-plus',
+                hiddenInputId: 'order-level',
+                initialValue: orderQty,
+                targetLevel: suggestedOrder,
+                // Short scale -> label every package, so "2" is readable as a
+                // quantity rather than a position between two ticks.
+                config: {
+                    min: 0, max: orderMax, step: 1, values: orderValues,
+                    labelEvery: orderMax <= 8 ? 1 : 0
+                }
+            });
         }, 0);
         
-        // Cancel button
-        cancelBtn.addEventListener('click', () => closeModal());
+        // Cancel buttons (one per pane)
+        content.querySelectorAll('.qu-cancel').forEach(b => b.addEventListener('click', () => closeModal()));
 
         // Edit Details button
         const editDetailsBtn = content.querySelector('#modal-edit-details');
@@ -2383,7 +2900,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete Item';
         deleteButton.style.padding = '10px 20px';
-        deleteButton.style.backgroundColor = '#ef4444';
+        deleteButton.style.backgroundColor = 'var(--danger)';
         deleteButton.style.color = 'white';
         deleteButton.style.border = 'none';
         deleteButton.style.borderRadius = '4px';
@@ -2758,36 +3275,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         const minutes = String(date.getMinutes()).padStart(2, '0');
                         const timeString = `${hours}:${minutes}`;
                         
-                        // Format action
-                        let actionText = '';
-                        let changeText = '';
-                        
-                        switch(log.actionType) {
-                            case 'count':
-                                actionText = 'counted';
-                                changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                                break;
-                            case 'update':
-                                actionText = 'updated';
-                                changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                                break;
-                            case 'add':
-                                actionText = 'added';
-                                changeText = `Initial: ${log.newValue} ${log.unit}`;
-                                break;
-                            case 'edit':
-                                actionText = 'edited';
-                                changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                                break;
-                            case 'delete':
-                                actionText = 'deleted';
-                                changeText = `Was: ${log.oldValue} ${log.unit}`;
-                                break;
-                            default:
-                                actionText = 'modified';
-                                changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`;
-                        }
-                        
+                        // Wording lives in describeLog (ui-helpers.js), shared with
+                        // the preps history — this switch had its own copy and
+                        // never learned the ordering actions.
+                        const described = describeLog(log) ||
+                            { label: 'modified', change: `${log.oldValue} → ${log.newValue} ${log.unit}` };
+                        const actionText = described.label;
+                        const changeText = described.change;
+
                         // Add location info if available
                         let locationInfo = '';
                         if (log.location) {
