@@ -165,7 +165,7 @@ function renderProviderChips() {
     container.innerHTML = '';
     selectedProviders.forEach(function(p) {
         var chip = document.createElement('span');
-        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:9999px;font-size:13px;';
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--success-surface);border:1px solid #a5d6a7;border-radius:9999px;font-size:13px;';
         chip.innerHTML = p + ' <span style="cursor:pointer;color:#999;font-weight:bold;">&times;</span>';
         chip.querySelector('span').addEventListener('click', function() { removeProvider(p); });
         container.appendChild(chip);

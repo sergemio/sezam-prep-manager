@@ -38,52 +38,12 @@ let isChecking = false;
 let tasks = [];
 let teamMessages = [];
 
-// Function to load staff members dynamically
-// Renders the staff-picker buttons. Loading + Firebase/fallback now live in the
-// shared UserSession.loadStaff(); clicking routes through UserSession.set()
-// (persists, updates labels, toast, mirrors currentStaff via the subscriber).
+// Login gate + user dropdowns all come from user.js now (renderGate / dropdown):
+// this module had its own copies, and the .loading-staff rule below was being
+// injected into <head> from JS instead of living in styles.css.
 function loadStaffMembers() {
-    const staffGrid = document.querySelector('.staff-grid');
-    if (!staffGrid) {
-        console.error('Staff grid not found');
-        return;
-    }
-    staffGrid.innerHTML = '<div class="loading-staff">Loading staff members...</div>';
-
-    UserSession.loadStaff().then(names => {
-        staffGrid.innerHTML = '';
-        if (!names.length) {
-            staffGrid.innerHTML = '<div class="loading-staff">No active staff members found. Please contact your administrator.</div>';
-            return;
-        }
-        names.forEach(name => {
-            const button = document.createElement('button');
-            button.className = 'staff-button';
-            button.setAttribute('data-staff', name);
-            button.textContent = name;
-            button.addEventListener('click', () => {
-                UserSession.set(name);
-                showMainInterface();
-            });
-            staffGrid.appendChild(button);
-        });
-    });
+    UserSession.renderGate(document.querySelector('.staff-grid'), showMainInterface);
 }
-
-// Add some CSS for the loading indicator
-const staffLoadingStyle = document.createElement('style');
-staffLoadingStyle.textContent = `
-    .loading-staff {
-        padding: 20px;
-        text-align: center;
-        color: var(--text-medium);
-        background-color: var(--bg-medium);
-        border-radius: 8px;
-        margin: 10px 0;
-        width: 100%;
-    }
-`;
-document.head.appendChild(staffLoadingStyle);
 
 // DOM elements
 const staffSelectionScreen = document.getElementById('staff-selection');
@@ -216,7 +176,7 @@ function initApp() {
             transition: background-color 0.2s;
         }
         .todo-item:active {
-            background-color: #f5f5f5;
+            background-color: var(--surface-muted);
         }
     `;
     document.head.appendChild(style);
@@ -310,8 +270,8 @@ function initApp() {
 const cantPrepStyle = document.createElement('style');
 cantPrepStyle.textContent = `
     .todo-tag.cant-prep {
-        background-color: #fee2e2;
-        color: #ef4444;
+        background-color: var(--danger-surface);
+        color: var(--danger);
     }
 `;
 document.head.appendChild(cantPrepStyle);
@@ -320,24 +280,24 @@ document.head.appendChild(cantPrepStyle);
 const badgeStyles = document.createElement('style');
 badgeStyles.textContent = `
     .todo-tag.empty {
-        background-color: #fee2e2;
-        color: #ef4444;
+        background-color: var(--danger-surface);
+        color: var(--danger);
     }
     .todo-tag.critical {
-        background-color: #ffedd5;
-        color: #f97316;
+        background-color: var(--warning-surface);
+        color: var(--warning);
     }
     .todo-tag.low {
-        background-color: #fef9c3;
+        background-color: var(--caution-surface);
         color: var(--warning-text);
     }
     .todo-tag.getting-low {
-        background-color: #f1f5f9;
-        color: #64748b;
+        background-color: var(--surface-slate);
+        color: var(--text-slate);
     }
     .todo-tag.cant-prep {
-        background-color: #fee2e2;
-        color: #ef4444;
+        background-color: var(--danger-surface);
+        color: var(--danger);
     }
 `;
 document.head.appendChild(badgeStyles);
@@ -370,7 +330,7 @@ function showLoadingIndicator() {
     spinner.className = 'loading-spinner';
     spinner.style.width = '50px';
     spinner.style.height = '50px';
-    spinner.style.border = '5px solid #f3f3f3';
+    spinner.style.border = '5px solid var(--surface-track)';
     spinner.style.borderTop = '5px solid var(--info)';
     spinner.style.borderRadius = '50%';
     spinner.style.animation = 'spin 1s linear infinite';
@@ -572,7 +532,7 @@ function showQuickUpdateModal(item, context = 'default') {
         prepLabel.style.fontWeight = '500';
         prepLabel.style.flex = '1';
         prepLabel.style.justifyContent = 'center';
-        prepLabel.style.backgroundColor = '#e8f5e9';
+        prepLabel.style.backgroundColor = 'var(--success-surface)';
         
         prepRadio = document.createElement('input');
         prepRadio.type = 'radio';
@@ -596,7 +556,7 @@ function showQuickUpdateModal(item, context = 'default') {
         countLabel.style.fontWeight = '500';
         countLabel.style.flex = '1';
         countLabel.style.justifyContent = 'center';
-        countLabel.style.backgroundColor = '#e3f2fd';
+        countLabel.style.backgroundColor = 'var(--info-surface)';
         
         countRadio = document.createElement('input');
         countRadio.type = 'radio';
@@ -628,18 +588,18 @@ function showQuickUpdateModal(item, context = 'default') {
         // Add event listeners to highlight the selected option
         prepRadio.addEventListener('change', function() {
             if (this.checked) {
-                prepLabel.style.backgroundColor = '#e8f5e9';
+                prepLabel.style.backgroundColor = 'var(--success-surface)';
                 prepLabel.style.fontWeight = '600';
-                countLabel.style.backgroundColor = '#e3f2fd';
+                countLabel.style.backgroundColor = 'var(--info-surface)';
                 countLabel.style.fontWeight = '500';
             }
         });
         
         countRadio.addEventListener('change', function() {
             if (this.checked) {
-                countLabel.style.backgroundColor = '#e3f2fd';
+                countLabel.style.backgroundColor = 'var(--info-surface)';
                 countLabel.style.fontWeight = '600';
-                prepLabel.style.backgroundColor = '#e8f5e9';
+                prepLabel.style.backgroundColor = 'var(--success-surface)';
                 prepLabel.style.fontWeight = '500';
             }
         });
@@ -806,7 +766,7 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
     modalHeader.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <h3 style="margin: 0; color: #333;">Can't Prep: ${item.name}</h3>
-        <span style="background-color: #ff8c04; color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
+        <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
     </div>
     <p style="margin: 5px 0;">Select a reason why this item can't be prepped:</p>
     `;
@@ -900,8 +860,8 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
             });
             
             // Highlight selected option
-            this.closest('.reason-option').style.backgroundColor = '#f9f9f9';
-            this.closest('.reason-option').style.borderColor = '#ef4444';
+            this.closest('.reason-option').style.backgroundColor = 'var(--surface-alt)';
+            this.closest('.reason-option').style.borderColor = 'var(--danger)';
             
             // Show/hide other reason input
             otherReasonContainer.style.display = this.value === 'Other' ? 'block' : 'none';
@@ -1237,11 +1197,11 @@ function generateStatusSummary(todoItems) {
 
     // Only render non-zero counters. Colour = severity (red problem, amber attention, slate neutral).
     const counters = [
-        { key: 'out',     label: 'OUT',     n: out,     color: '#c0392b', dot: '🔴' },
-        { key: 'blocked', label: "Can't prep", n: blocked, color: '#c0392b', dot: '⛔' },
-        { key: 'low',     label: 'LOW',     n: low,     color: '#8a6100', dot: '🟡' },
-        { key: 'overdue', label: 'OVERDUE', n: overdue, color: '#c0392b', dot: '⏰' },
-        { key: 'pending', label: 'TASKS',   n: pending, color: '#334155', dot: '📋' }
+        { key: 'out',     label: 'OUT',     n: out,     color: 'var(--sev-critical)', dot: '🔴' },
+        { key: 'blocked', label: "Can't prep", n: blocked, color: 'var(--sev-critical)', dot: '⛔' },
+        { key: 'low',     label: 'LOW',     n: low,     color: 'var(--sev-warn)', dot: '🟡' },
+        { key: 'overdue', label: 'OVERDUE', n: overdue, color: 'var(--sev-critical)', dot: '⏰' },
+        { key: 'pending', label: 'TASKS',   n: pending, color: 'var(--sev-neutral)', dot: '📋' }
     ].filter(c => c.n > 0);
 
     if (counters.length === 0) {
@@ -1338,25 +1298,25 @@ function renderPrepTodoItem(item) {
     // except for can't-prep items (slate — prepping them is blocked anyway).
     let edgeColor;
     if (item.canPrep === false) {
-        edgeColor = '#ef4444';
+        edgeColor = 'var(--danger)';
         todoItem.style.opacity = '0.7';
     } else if (percentage === 0) {
-        edgeColor = '#ef4444';
+        edgeColor = 'var(--danger)';
     } else if (percentage <= 0.25) {
-        edgeColor = '#f97316';
+        edgeColor = 'var(--warning)';
     } else if (percentage <= 0.4) {
         edgeColor = 'var(--warning)';
     } else {
-        edgeColor = '#64748b';
+        edgeColor = 'var(--text-slate)';
     }
     todoItem.style.borderLeftColor = edgeColor;
-    const needColor = item.canPrep === false ? '#475569' : edgeColor;
+    const needColor = item.canPrep === false ? 'var(--text-slate-strong)' : edgeColor;
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
         ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
         ${item.canPrep === false ? `
-            <div class="cant-prep-info" style="margin-top: 8px; background-color: #fff1f1; padding: 8px; border-radius: 4px; font-size: 13px;">
-                <div style="font-weight: 600; color: #ef4444;">Can't Prep: ${item.cantPrepReason}</div>
+            <div class="cant-prep-info" style="margin-top: 8px; background-color: var(--danger-tint); padding: 8px; border-radius: 4px; font-size: 13px;">
+                <div style="font-weight: 600; color: var(--danger);">Can't Prep: ${item.cantPrepReason}</div>
                 ${item.cantPrepReasonText ? `<div style="margin-top: 4px;">Reason: ${item.cantPrepReasonText}</div>` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #666;">
                     <span>By: ${item.cantPrepBy || 'Unknown'}</span>
@@ -1388,7 +1348,7 @@ function renderTaskTodoItem(task, missed, overdue, container) {
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item todo-item-task';
     todoItem.dataset.status = isOverdue ? 'overdue' : 'pending';
-    todoItem.style.borderLeftColor = isOverdue ? '#ef4444' : '#3b82f6';
+    todoItem.style.borderLeftColor = isOverdue ? 'var(--danger)' : 'var(--info)';
     todoItem.innerHTML = `
         <div class="todo-item-name">${task.title}</div>
         ${isOverdue ? '<div class="todo-item-detail">Overdue (' + overdue + ' day' + (overdue > 1 ? 's' : '') + ')</div>' : ''}
@@ -1435,7 +1395,7 @@ function showTaskModal(task) {
 
     const infoHtml = `
         ${task.description ? `<p style="margin: 0 0 16px 0; color: #555; font-size: 14px; line-height: 1.5;">${task.description}</p>` : ''}
-        <div style="margin-bottom: 16px; padding: 12px; background: #f7f9f5; border-radius: 6px; font-size: 14px;">
+        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-light); border-radius: 6px; font-size: 14px;">
             <div style="margin-bottom: 6px;"><strong>Type:</strong> ${freqText}</div>
             <div><strong>Last done:</strong> ${lastDoneText}</div>
         </div>
@@ -1649,123 +1609,13 @@ function updateStats() {
     }
 }
 
-// Function to show staff selection modal before starting prep check
-function showPrepCheckStaffModal() {
-    // resolveFn captured from the returned Promise below; backdrop-click/Escape
-    // settle false via onClose, confirm settles true (settle is idempotent).
-    let settled = false, resolveFn;
-    const settle = (v) => { if (!settled) { settled = true; resolveFn(v); } };
-    const { box: modalContent, close: closeModal } = openModal({ onClose: () => settle(false) });
-
-    const modalHeader = document.createElement('div');
-    modalHeader.className = 'modal-header';
-    modalHeader.innerHTML = `
-        <h3 style="margin: 0 0 8px 0; color: var(--primary-dark); font-size: 22px; text-align: center;">Who will perform this check?</h3>
-        <p style="margin: 0; color: var(--text-medium); text-align: center; font-size: 14px;">Select staff member performing Prep-Check</p>
-    `;
-
-    const staffContainer = document.createElement('div');
-    staffContainer.className = 'staff-container';
-    staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">Loading staff members...</div>';
-    
-    // Create buttons
-    const buttonGroup = document.createElement('div');
-    buttonGroup.className = 'btn-group';
-
-    const confirmButton = document.createElement('button');
-    confirmButton.textContent = 'Continue →';
-    confirmButton.disabled = true;
-    confirmButton.className = 'btn btn--primary';
-    confirmButton.style.opacity = '0.5';
-
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.className = 'btn btn--secondary';
-    
-    buttonGroup.appendChild(cancelButton);
-    buttonGroup.appendChild(confirmButton);
-    
-    // Add elements to modal
-    modalContent.appendChild(modalHeader);
-    modalContent.appendChild(staffContainer);
-    modalContent.appendChild(buttonGroup);
-
-    // Store the selected staff name
-    let selectedStaffName = null;
-
-    // Function to select a staff member
-    function selectStaffMember(staffName) {
-        selectedStaffName = staffName;
-        
-        // Update UI to show selection
-        const staffButtons = staffContainer.querySelectorAll('.staff-select-button');
-        staffButtons.forEach(button => {
-            button.classList.toggle('selected', button.getAttribute('data-staff') === staffName);
-        });
-        
-        // Enable the confirm button
-        confirmButton.disabled = false;
-        confirmButton.style.opacity = '1';
-        confirmButton.style.cursor = 'pointer';
-    }
-    
-    // Function to close the modal
-    // Loads the prep-check staff picker. Names come from the shared loader
-    // (Firebase active staff, else DEFAULT_STAFF); rendering is identical either
-    // way, so the old Firebase/fallback twin functions collapse into one.
-    function loadStaffForSelection() {
-        staffContainer.innerHTML = '';
-        UserSession.loadStaff().then(names => {
-            if (!names.length) {
-                staffContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-medium);">No active staff members found.</div>';
-                return;
-            }
-            names.forEach(name => {
-                const staffButton = document.createElement('div');
-                const isCurrentUser = name === currentStaff;
-                staffButton.className = 'staff-select-button' + (isCurrentUser ? ' selected' : '');
-                staffButton.setAttribute('data-staff', name);
-                staffButton.innerHTML = `
-                    <span class="staff-initial">${initials(name)}</span>
-                    <span class="staff-name">${name}</span>
-                    <span class="staff-check">✓</span>
-                `;
-                staffButton.addEventListener('click', () => selectStaffMember(name));
-                staffContainer.appendChild(staffButton);
-                if (isCurrentUser) selectStaffMember(name); // pre-select current user
-            });
-        });
-    }
-
-    // Add event listeners
-    cancelButton.addEventListener('click', closeModal);
-    
-    confirmButton.addEventListener('click', () => {
-        if (selectedStaffName) {
-            // One call: persist + update the name labels + switch toast + mirror.
-            UserSession.set(selectedStaffName);
-            settle(true);
-            closeModal();
-            startPrepCheckProcess();
-        }
-    });
-
-    // Load staff members
-    loadStaffForSelection();
-
-    return new Promise((resolve) => { resolveFn = resolve; });
-}
-
-// Update existing startPrepCheck function to show staff selection first
+// Staff picker + start. The picker itself lives in user.js (UserSession.pick) —
+// this module used to carry its own copy, which had drifted from the I&C one.
 function startPrepCheck() {
-    // Show staff selection modal first
-    showPrepCheckStaffModal()
-        .then(confirmed => {
-            if (confirmed) {
-                // The actual prep check process will be started by the modal's confirm button
-                // (it calls startPrepCheckProcess)
-            }
-        });
+    UserSession.pick({
+        title: 'Who will perform this check?',
+        subtitle: 'Select staff member performing Prep-Check'
+    }).then(name => { if (name) startPrepCheckProcess(); });
 }
 
 // Function that handles the actual prep check process (formerly startPrepCheck)
@@ -1833,79 +1683,16 @@ function showStaffSelection() {
     staffSelectionScreen.style.display = 'flex';
 }
 
-// Fills a user dropdown with one row per active staff member. Picking routes
-// through UserSession.set (persist + labels + toast + currentStaff mirror);
-// onPick handles the container-specific after-effects (close, relabel button).
-function appendStaffItems(dropdown, onPick) {
-    (window.staffMembers || []).forEach(member => {
-        if (!member.active) return;
-        const item = document.createElement('div');
-        item.textContent = member.name;
-        item.className = 'dropdown-item' + (member.name === currentStaff ? ' active' : '');
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            UserSession.set(member.name);
-            onPick(member.name);
-        });
-        dropdown.appendChild(item);
-    });
-}
-
+// Both dropdowns are UserSession.dropdown (user.js) — one panel, one z-index,
+// one outside-click handler. Only the after-pick effect differs per call site.
 function toggleUserDropdown() {
-    const existing = document.getElementById('user-dropdown');
-    if (existing) { existing.remove(); return; }
-
-    const btn = document.getElementById('user-login-btn');
-    const rect = btn.getBoundingClientRect();
-
-    const dropdown = document.createElement('div');
-    dropdown.id = 'user-dropdown';
-    dropdown.style.top = (rect.bottom + 6) + 'px';
-    dropdown.style.left = rect.left + 'px';
-
-    appendStaffItems(dropdown, () => {
-        showMainInterface();
-        dropdown.remove();
-    });
-
-    document.body.appendChild(dropdown);
-    requestAnimationFrame(() => dropdown.classList.add('show'));
+    UserSession.dropdown(document.getElementById('user-login-btn'), showMainInterface);
 }
 
 function toggleModalUserDropdown(btn) {
-    const existing = document.getElementById('modal-user-dropdown');
-    if (existing) { existing.remove(); return; }
-
-    const rect = btn.getBoundingClientRect();
-    const dropdown = document.createElement('div');
-    dropdown.id = 'modal-user-dropdown';
-    dropdown.className = 'user-dropdown-menu';
-    dropdown.style.cssText = `
-        position: fixed; top: ${rect.bottom + 6}px; left: ${rect.left}px;
-        background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        padding: 4px 0; z-index: 10001; min-width: 200px; border: 1px solid var(--border-light);
-        opacity: 0; transform: translateY(-8px); transition: opacity 0.2s ease, transform 0.2s ease;
-    `;
-
-    appendStaffItems(dropdown, (name) => {
+    UserSession.dropdown(btn, function (name) {
         btn.innerHTML = `${name} <span style="font-size: 12px;">▼</span>`;
-        dropdown.remove();
     });
-
-    document.body.appendChild(dropdown);
-    requestAnimationFrame(() => {
-        dropdown.style.opacity = '1';
-        dropdown.style.transform = 'translateY(0)';
-    });
-
-    // Close on click outside
-    const closeHandler = (e) => {
-        if (!dropdown.contains(e.target) && e.target !== btn) {
-            dropdown.remove();
-            document.removeEventListener('click', closeHandler);
-        }
-    };
-    setTimeout(() => document.addEventListener('click', closeHandler), 0);
 }
 
 function switchSection(sectionId, buttonElement) {
@@ -2100,13 +1887,13 @@ function showSingleItemUpdateModal() {
         let statusText;
         
         if (item.canPrep === false) {
-            statusColor = '#ef4444';
+            statusColor = 'var(--danger)';
             statusText = "Can't Prep";
         } else if (percentage <= 0) {
-            statusColor = '#ef4444';
+            statusColor = 'var(--danger)';
             statusText = 'Empty';
         } else if (percentage < 25) {
-            statusColor = '#f97316';
+            statusColor = 'var(--warning)';
             statusText = 'Critical';
         } else if (percentage < 50) {
             statusColor = 'var(--warning)';

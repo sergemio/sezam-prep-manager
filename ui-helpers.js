@@ -151,7 +151,7 @@
       case 'Sec/Ambiant': return { bg: '#f3ecdd', border: '#e0cfa6', text: '#8a6d2f' };
     }
     if (categoryGroup(cat) === 'nonalim') return { bg: '#ede7f6', border: '#b39ddb', text: '#5e35b1' };
-    return { bg: '#e8f5e9', border: '#a5d6a7', text: '#2e7d32' }; // nature
+    return { bg: 'var(--success-surface)', border: '#a5d6a7', text: '#2e7d32' }; // nature
   }
 
   // Inline style for one pill. `on` toggles selected vs muted (for the editor).
@@ -201,9 +201,9 @@
   // Colour = severity only (red = problème, amber = attention). The label
   // distinguishes OUT from Blocked.
   var IC_STATUS = {
-    out:     { label: 'OUT',     bg: '#fdeaea', border: '#f3b1b1', text: '#c0392b' },
-    low:     { label: 'LOW',     bg: '#fdf1d6', border: '#eecf83', text: '#8a6100' },
-    blocked: { label: "Can't prep", bg: '#fdeaea', border: '#f3b1b1', text: '#c0392b' }
+    out:     { label: 'OUT',     bg: 'var(--sev-critical-surface)', border: 'var(--sev-critical-border)', text: 'var(--sev-critical)' },
+    low:     { label: 'LOW',     bg: 'var(--sev-warn-surface)', border: 'var(--sev-warn-border)', text: 'var(--sev-warn)' },
+    blocked: { label: "Can't prep", bg: 'var(--sev-critical-surface)', border: 'var(--sev-critical-border)', text: 'var(--sev-critical)' }
   };
 
   function statusBadgeHTML(kind) {
@@ -308,6 +308,68 @@
     });
   }
 
+  // Countable containers get an "s" ("bucket" -> "buckets", "box" -> "boxes");
+  // mass/volume units stay invariant ("3 kg", not "3 kgs").
+  function pluralizeUnit(unit, n) {
+    var u = (unit || '').trim();
+    if (!u || Number(n) === 1) return u;
+    if (['kg', 'g', 'l', 'ml', 'cl', 'L'].indexOf(u) !== -1) return u;
+    if (/(s|x|z|ch|sh)$/i.test(u)) return u + 'es';
+    return u + 's';
+  }
+
+  // The ONE description of an activity-log line, shared by the two history
+  // renderers (history.js for preps, ic-inventory-app.js for I&C) which each had
+  // their own switch. They drifted: the I&C copy never learned the ordering
+  // actions and printed them as "modified · 0 → 1 bag", which reads as a stock
+  // move that never happened.
+  //
+  // RULE — the "X → Y" arrow is the grammar of a STOCK MOVE. It appears only on
+  // lines where the stock actually changed (count, update, receive). Ordering a
+  // delivery does not touch the stock, so those lines never use it: borrowing
+  // the arrow is what made "ordered 1 bag" read as "stock went from 0 to 1".
+  //
+  // Returns {label, change}, or null for a type the caller must handle itself
+  // (prep-only types: prep, cantprep, task-done, checklist-*, …).
+  function describeLog(log, overrides) {
+    var o = overrides || {};
+    var unit = log.unit || '';
+    var move = log.oldValue + ' → ' + log.newValue + ' ' + pluralizeUnit(unit, log.newValue);
+    var qty = function (v) { return v + ' ' + pluralizeUnit(unit, v); };
+
+    switch (log.actionType) {
+      case 'count':  return { label: o.count || 'counted', change: move };
+      case 'update': return { label: 'updated', change: move };
+      case 'edit':   return { label: 'edited', change: move };
+      case 'add':    return { label: 'added', change: 'Initial: ' + qty(log.newValue) };
+      case 'delete': return { label: 'deleted', change: 'Was: ' + qty(log.oldValue) };
+
+      // --- Ordering flow. Only "received" moves the stock. ---
+      case 'order':
+        // newValue/oldValue are the PENDING quantity, never the stock. `stock` is
+        // recorded at order time so the line can say what did NOT change.
+        var stockNote = log.stock === undefined ? '' : ' · stock stays ' + qty(log.stock);
+        return Number(log.newValue) > 0
+          ? { label: 'ordered', change: qty(log.newValue) + ' on the way' + stockNote }
+          : { label: 'order cancelled',
+              change: qty(log.oldValue) + ' no longer expected' + stockNote };
+
+      case 'receive':
+        return { label: 'received',
+                 change: qty(log.receivedQty !== undefined ? log.receivedQty : log.newValue) +
+                         ' delivered · stock ' + move };
+
+      case 'not-delivered':
+        return { label: 'not delivered',
+                 change: qty(log.missingQty) + ' missing · ordered ' + log.oldValue +
+                         ', got ' + log.newValue };
+
+      default: return null;
+    }
+  }
+
+  global.pluralizeUnit = pluralizeUnit;
+  global.describeLog = describeLog;
   global.escapeHtml = escapeHtml;
   global.makeSaver = makeSaver;
   global.byDisplayOrder = byDisplayOrder;

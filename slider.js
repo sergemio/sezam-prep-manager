@@ -67,7 +67,12 @@ function createTouchSlider(options) {
         increaseId,
         hiddenInputId,
         initialValue = 0,
-        targetLevel = 0
+        targetLevel = 0,
+        // Explicit scale, bypassing computeSliderConfig. Used by the order slider:
+        // a purchase is a whole number of packages, whatever granularity the shelf
+        // stock is counted in. Shape: {min, max, step, values[], labelEvery?}.
+        // labelEvery overrides the automatic tick-label spacing.
+        config = null
     } = options;
 
     // DOM elements
@@ -85,8 +90,8 @@ function createTouchSlider(options) {
         return null;
     }
 
-    // Adaptive range and step based on target level
-    let sliderConfig = computeSliderConfig(targetLevel, initialValue);
+    // Adaptive range and step based on target level (unless a scale was supplied)
+    let sliderConfig = config || computeSliderConfig(targetLevel, initialValue);
     let values = sliderConfig.values;
     let currentTarget = parseFloat(targetLevel) || 0;
 
@@ -147,7 +152,8 @@ function createTouchSlider(options) {
 
             const max = sliderConfig.max;
             let labelInterval;
-            if (max <= 4) labelInterval = 1;
+            if (sliderConfig.labelEvery) labelInterval = sliderConfig.labelEvery;
+            else if (max <= 4) labelInterval = 1;
             else if (max <= 10) labelInterval = 2;
             else if (max <= 20) labelInterval = 5;
             else labelInterval = 10;

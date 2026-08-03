@@ -83,7 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     var taskTypes = ['task-done', 'message-done', 'message-received', 'checklist-done', 'checklist-blocked', 'checklist-unchecked'];
                     if (taskTypes.indexOf(log.actionType) !== -1) {
                         dayGroups[dateKey].tasks.push(log);
-                    } else if (log.actionType === 'count') {
+                    } else if (log.actionType === 'count' || log.actionType === 'receive') {
+                        // A reception is a verified physical movement — same family as a count.
                         dayGroups[dateKey].checked.push(log);
                     } else if (['prep', 'cantprep', 'canprepagain'].includes(log.actionType)) {
                         dayGroups[dateKey].prepped.push(log);
@@ -97,13 +98,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const logKey = log.key || '';
                     const date = new Date(log.timestamp);
                     const timeString = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    // Shared wording first (describeLog in ui-helpers.js) — same words
+                    // as the I&C history. Only the prep-specific types, which have no
+                    // I&C equivalent, stay here.
                     let actionText = '', changeText = '';
-                    switch(log.actionType) {
-                        case 'count': actionText = 'checked'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
+                    const described = describeLog(log, { count: 'checked' });
+                    if (described) {
+                        actionText = described.label;
+                        changeText = described.change;
+                    } else switch(log.actionType) {
                         case 'prep': actionText = 'prepped'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
-                        case 'add': actionText = 'added'; changeText = `Initial: ${log.newValue} ${log.unit}`; break;
-                        case 'edit': actionText = 'edited'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
-                        case 'delete': actionText = 'deleted'; changeText = `Was: ${log.oldValue} ${log.unit}`; break;
                         case 'cantprep': actionText = 'Can\'t Prep'; changeText = log.reasonText ? `${log.reason}: ${log.reasonText}` : log.reason || 'Reason not specified'; break;
                         case 'canprepagain': actionText = 'Available'; changeText = 'Can now be prepped'; break;
                         case 'test': actionText = 'test'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
