@@ -312,12 +312,10 @@
     top: 0;
 }
 
-/* Zebra rows (unified table look, Serge's choice); hover scoped to tbody so it
-   wins over the even-row stripe (equal specificity, later in source order) */
-.overview-table tbody tr:nth-child(even) {
-    background-color: var(--surface-muted);
-}
-
+/* Le zébrage vit dans le socle commun (styles.css, « Socle commun des tableaux »)
+   avec celui de .db-table : c'était la même règle écrite deux fois. Le survol
+   reste ici — il est propre à l'I&C — et sa portée tbody lui fait gagner sur la
+   rayure paire (spécificité égale, mais déclaré plus loin). */
 .overview-table tbody tr:hover {
     background-color: var(--bg-light);
 }
@@ -392,6 +390,433 @@
 }
 
 /* Progress bar colors are computed in JS via HSL interpolation */
+
+/* ==========================================================================
+   Ordered / Received — stock vs on the way
+   ========================================================================== */
+
+/* Banner: "N items on the way" + the reception button (dashboard + overview) */
+.pending-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 14px 18px;
+    border: 2px solid var(--accent-orange);
+    border-radius: 10px;
+    background-color: #fff8ef;
+}
+
+.pending-banner__text {
+    font-size: 16px;
+    color: var(--primary-dark);
+}
+
+.pending-banner__text strong {
+    font-size: 20px;
+}
+
+/* The app's .btn stretches inside flex rows — pin these back to their content
+   width so the banner reads as "info + action", not one giant bar. */
+.pending-banner__btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding-left: 22px;
+    padding-right: 22px;
+}
+
+/* Badge next to the current value in the overview table: 2 (+3 🚚) */
+.pending-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background-color: var(--accent-orange-light, #ffe6cc);
+    color: var(--warning-text, #8a5a00);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Ordering block inside the quick-update modal, under the stock slider */
+.order-block {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px dashed var(--accent-orange);
+    border-radius: 8px;
+    background-color: #fffaf4;
+}
+
+.order-block__title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--warning-text, #8a5a00);
+    margin-bottom: 10px;
+}
+
+.order-block__row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+}
+
+/* Status, NOT a control: flat, no shadow, no button radius, not tappable.
+   Says where this order quantity lands relative to target. */
+.order-status {
+    margin-left: auto;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border-left: 3px solid currentColor;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+}
+
+.order-status--on {
+    color: var(--primary-dark);
+    background-color: #eaf3dd;
+}
+
+.order-status--under {
+    color: #8a5a00;
+    background-color: #fdf0d5;
+}
+
+.order-status--over {
+    color: #2c5f8a;
+    background-color: #e3eef7;
+}
+
+.order-step {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background-color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--primary-dark);
+    cursor: pointer;
+}
+
+.order-step:active {
+    transform: scale(0.95);
+}
+
+.order-qty {
+    min-width: 56px;
+    text-align: center;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.order-unit {
+    font-size: 14px;
+    color: var(--text-medium);
+}
+
+/* Order scale is whole packages (see the `config` option in slider.js), so the
+   track is short and needs less room than the stock slider. The bottom margin
+   must clear the tick labels, which hang OUTSIDE the container (bottom: -30px). */
+.order-slider {
+    width: auto;   /* see the note on #count-interface .slider-container */
+    height: 40px;
+    margin: 14px 10px 38px;
+}
+
+.order-hint {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.order-reset {
+    color: var(--accent-orange);
+    text-decoration: underline;
+}
+
+.order-save {
+    width: 100%;
+    margin-top: 12px;
+    min-height: 44px;
+}
+
+/* Reception checklist */
+.receive-list {
+    max-height: 55vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.receive-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.receive-row--short {
+    background-color: #fff4f4;
+}
+
+.receive-row__main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 140px;
+}
+
+.receive-row__mark {
+    font-size: 16px;
+    color: var(--primary-dark);
+}
+
+.receive-row--short .receive-row__mark {
+    color: var(--accent-red);
+}
+
+.receive-row__name {
+    font-size: 15px;
+    color: var(--text-dark);
+}
+
+.receive-row__qty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.receive-step {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background-color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.receive-step:active {
+    transform: scale(0.95);
+}
+
+.receive-row__val {
+    min-width: 34px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.receive-row__of {
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.receive-row__missing {
+    flex-basis: 100%;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-red);
+}
+
+/* Open supplier claims — the readable side of deliveryIssues */
+.claims-card {
+    margin-bottom: 16px;
+    padding: 14px 18px;
+    border: 1px solid var(--accent-red);
+    border-radius: 10px;
+    background-color: #fff6f6;
+}
+
+.claims-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.claims-card__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--danger-strong, #a12b2b);
+}
+
+/* Quick-update modal tabs — one intent at a time (Stock pane vs Order pane).
+   Both steppers visible at once caused stock edits meant as orders. */
+.qu-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background-color: var(--bg-medium);
+    border-radius: 10px;
+}
+
+.qu-tab {
+    flex: 1;
+    min-height: 44px;
+    padding: 10px 8px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-medium);
+    cursor: pointer;
+}
+
+.qu-tab--active {
+    background-color: white;
+    color: var(--primary-dark);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.qu-tab--active[data-tab="order"] {
+    color: var(--accent-orange);
+}
+
+.qu-tab__badge {
+    display: inline-block;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background-color: var(--accent-orange);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Full count screen — mirrors the preps check card (.prep-check-* in
+   styles.css) for cross-page consistency. Only the location line is I&C-specific. */
+
+/* The user badge doubles as the handover control: whoever takes over the count
+   taps it to put their own name on the entries. Styled as a badge, not a button. */
+.prep-check-user--switch {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.prep-check-user--switch::after {
+    content: ' ⇄';
+    opacity: .75;
+}
+
+.count-item-location {
+    text-align: center;
+    margin: -2px 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+/* Same arm's-length sizing as #prep-check-interface (styles.css) — the count
+   runs on the tablet while walking the storage rooms. */
+#count-interface .touch-input-container {
+    margin: 10px 0;
+    padding: 16px;
+}
+
+#count-interface .value-display {
+    margin: 8px 0;
+    font-size: 44px;
+}
+
+#count-interface .control-row {
+    margin-bottom: 10px;
+    padding: 0 20px;
+}
+
+#count-interface .control-button {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+}
+
+/* The tick marks and their labels are absolutely positioned OUTSIDE the slider
+   container (bottom: -34px), so the parent reserves no room for them: with the
+   inherited 15px they spilled 6px below the grey panel. The bottom margin must
+   cover the tick block plus the label line; the side margins keep the "0" and
+   the last label from touching the panel edge. */
+#count-interface .slider-container {
+    /* width:auto, not the inherited 100%: with 100% the side margins would push
+       the track OUTSIDE the panel instead of insetting it. */
+    width: auto;
+    margin: 15px 10px 40px;
+    height: 48px;
+}
+
+#count-interface .slider-handle {
+    width: 40px;
+    height: 40px;
+}
+
+#count-interface .tick-marks {
+    height: 34px;
+    bottom: -34px;
+}
+
+#count-interface .tick-label {
+    top: 18px;
+    font-size: 15px;
+}
+
+.claims-card__copy {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding-left: 18px;
+    padding-right: 18px;
+}
+
+.claim-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    border-top: 1px solid rgba(0, 0, 0, .06);
+}
+
+.claim-row__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.claim-row__detail {
+    flex: 1;
+    min-width: 180px;
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.claim-row__settle {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 13px;
+}
 
 .overview-table .level-bar-text {
     position: absolute;

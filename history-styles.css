@@ -197,6 +197,32 @@
     color: var(--danger-strong);
 }
 
+/* Ordering flow. Applied dynamically as action-${log.actionType} — a grep on the
+   class name finds nothing, so do not remove these. */
+/* Orange = the ordering identity used throughout the feature (🚚 badge, order
+   block, pending marker). Deliberately NOT the blue of a stock edit: an order
+   is not a stock movement. */
+.action-order .action-label {
+    background-color: #fdf0d5;
+    color: #8a5a00;
+}
+
+.action-receive .action-label {
+    background-color: var(--accent-green-light);
+    color: var(--primary-dark);
+}
+
+.log-item.action-not-delivered .action-label {
+    background-color: var(--accent-red);
+    color: white;
+    font-weight: 600;
+}
+
+.log-item.action-not-delivered .log-change {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
 .item-name {
     font-weight: 500;
 }

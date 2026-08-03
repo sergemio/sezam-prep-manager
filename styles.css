@@ -53,6 +53,38 @@
     /* z-index ladder */
     --z-overlay: 100; --z-modal: 1000; --z-modal-stacked: 1100;
     --z-dropdown: 1200; --z-toast: 1300; --z-gate: 2000;
+
+    /* ===== SEVERITY (2026-08-03) =====
+       Le rouge « rupture/bloqué » et l'ambre « attention » étaient réécrits en
+       dur dans TROIS fichiers JS (compteurs du dashboard PM, badges IC_STATUS,
+       inventaire I&C) — même valeur, trois endroits, donc trois occasions de
+       diverger. Ils vivent ici maintenant ; le JS les référence en var().
+       Valeurs INCHANGÉES : ce bloc ne doit rien modifier à l'écran. */
+    --sev-critical: #c0392b;          /* OUT · Can't prep · overdue */
+    --sev-critical-surface: #fdeaea;
+    --sev-critical-border: #f3b1b1;
+    --sev-warn: #8a6100;              /* LOW */
+    --sev-warn-surface: #fdf1d6;
+    --sev-warn-border: #eecf83;
+    --sev-neutral: #334155;           /* compteur TASKS, sans gravité */
+    /* L'inventaire I&C portait un SECOND ambre (#b45309) de sémantique
+       identique — dérive historique. Fusionné sur --sev-warn le 03/08 (choix
+       Serge) : une seule teinte « attention » dans les deux modules. */
+
+    /* Surfaces neutres écrites en dur un peu partout dans le JS */
+    --surface-alt: #f9f9f9;           /* fond d'option survolée */
+    --surface-track: #f3f3f3;         /* piste du spinner */
+    --surface-slate: #f1f5f9;         /* fond de compteur neutre */
+    --text-slate: #64748b;            /* texte de compteur neutre */
+    --text-slate-strong: #475569;
+    --danger-tint: #fff1f1;           /* encart « Can't Prep » */
+    --caution-surface: #fef9c3;       /* jaune pâle d'alerte douce */
+
+    /* Tableaux — valeurs partagées par .db-table et .overview-table */
+    --table-border: #e8e8e0;          /* contour du tableau + sous la ligne d'en-tête */
+    --table-row-border: #f0f0ec;      /* filet entre deux lignes */
+    --table-hover: #f0f4e8;           /* ligne survolée */
+    --table-head-text: #888888;       /* libellés d'en-tête */
 }
 
 body {
@@ -339,14 +371,17 @@ body {
 }
 
 /* User Dropdown */
+/* The ONE user dropdown (UserSession.dropdown in user.js). z-index sits above
+   the modal layer: the picker can be opened from a button inside a modal, and
+   the old per-module copies each hardcoded their own value (9999 / 10001). */
 #user-dropdown {
     position: fixed;
     background: white;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.15);
     padding: 8px 0;
-    z-index: 9999;
-    min-width: 180px;
+    z-index: 10001;
+    min-width: 190px;
     border: 1px solid var(--border-light);
     opacity: 0;
     transform: translateY(-8px);
@@ -356,6 +391,17 @@ body {
 #user-dropdown.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Was injected into <head> from script.js at load time. */
+.loading-staff {
+    width: 100%;
+    padding: 20px;
+    margin: 10px 0;
+    text-align: center;
+    color: var(--text-medium);
+    background-color: var(--bg-medium);
+    border-radius: 8px;
 }
 
 .dropdown-item {
@@ -563,14 +609,15 @@ body {
     transition: background-color 0.5s ease;
 }
 
-/* Make rows clickable */
-.inventory-table tr {
+/* Lignes cliquables — tbody UNIQUEMENT. Sans cette portée, le `filter` touchait
+   aussi la ligne d'en-tête (que le `filter: none` de .db-table, limité au tbody,
+   ne rattrapait pas) : survoler les titres de colonnes les assombrissait. */
+.inventory-table tbody tr {
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
-/* Hover effect for inventory rows */
-.inventory-table tr:hover {
+.inventory-table tbody tr:hover {
     filter: brightness(0.95);
 }
 
@@ -1242,12 +1289,28 @@ body {
     to { transform: translateY(0); opacity: 1; }
 }
 
-/* Modern table style (shared across pages) */
+/* ===== Socle commun des tableaux =====
+   L'app a deux familles : `.inventory-table.db-table` (Preps + DB Editor, 5
+   tables) et `.overview-table` (I&C, 1 table). Elles définissaient chacune leur
+   zébrage et leur survol — mêmes valeurs, deux endroits, donc deux occasions de
+   diverger. Ce qui est VRAIMENT commun vit ici ; ce qui suit garde les
+   spécificités voulues de chaque famille (en-tête vert I&C, colonnes triables).
+   Le zébré est le format retenu par Serge pour toutes les listes. */
+.db-table tbody tr,
+.overview-table tbody tr {
+    transition: background-color 0.1s;
+}
+
+.db-table tbody tr:nth-child(even),
+.overview-table tbody tr:nth-child(even) {
+    background-color: var(--surface-muted);
+}
+
 .db-table {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: none;
-    border: 1px solid #e8e8e0;
+    border: 1px solid var(--table-border);
 }
 
 .db-table thead tr {
@@ -1256,32 +1319,24 @@ body {
 
 .db-table thead th {
     background-color: transparent;
-    color: #888;
+    color: var(--table-head-text);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
     padding: 12px 16px;
-    border-bottom: 1px solid #e8e8e0;
-}
-
-.db-table tbody tr {
-    transition: background-color 0.1s;
-}
-
-.db-table tbody tr:nth-child(even) {
-    background-color: var(--surface-muted);
+    border-bottom: 1px solid var(--table-border);
 }
 
 .db-table tbody tr:hover {
-    background-color: #f0f4e8;
+    background-color: var(--table-hover);
     filter: none;
 }
 
 .db-table td {
     padding: 14px 16px;
     font-size: 14px;
-    border-bottom: 1px solid #f0f0ec;
+    border-bottom: 1px solid var(--table-row-border);
 }
 
 .item-name-cell {
@@ -1685,13 +1740,44 @@ tr.dragging {
    Staff Selection Modal
    ======================================== */
 
+/* Staff picker (UserSession.pick in user.js) — the ONE picker for both modules.
+   These replace the styles the two old copies wrote inline in JS. */
+.staff-picker__title {
+    margin: 0 0 8px 0;
+    text-align: center;
+    font-size: 22px;
+    color: var(--primary-dark);
+}
+
+.staff-picker__subtitle {
+    margin: 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-medium);
+}
+
+.staff-picker__loading {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-medium);
+}
+
+/* Sole action left in the picker: one tap on a name confirms, so Cancel is the
+   only button and takes the full row. */
+.staff-picker__cancel {
+    flex: 1;
+}
+
 .staff-container {
-    margin-bottom: 24px;
+    margin: 20px 0 24px;
     max-height: 450px;
     overflow-y: auto;
 }
 
+/* Rendered as a <button> (was a <div>): reset the UA defaults a button brings
+   and keep it full-width, so the shared picker looks the same in both modules. */
 .staff-select-button {
+    width: 100%;
     padding: 16px 20px;
     margin-bottom: 8px;
     border: none;
@@ -1699,8 +1785,11 @@ tr.dragging {
     cursor: pointer;
     display: flex;
     align-items: center;
+    text-align: left;
     gap: 14px;
     background-color: #f5f5f0;
+    font-family: inherit;
+    font-size: inherit;
     transition: all 0.2s;
 }
 
