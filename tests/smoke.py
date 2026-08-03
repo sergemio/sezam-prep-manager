@@ -33,7 +33,7 @@ STUB = """() => {
   const rec = (fn, a) => window.__saveCalls.push({fn: fn, args: a});
   const db = window.firebaseDb || {};
   ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
-   'saveAllIcItems','saveIcActivityLog',
+   'saveAllIcItems','saveIcActivityLog','updatePaths',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
@@ -581,15 +581,18 @@ def run_ic(browser):
         pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
         pg.wait_for_timeout(800)
         saved = pg.evaluate("""() => {
-            const c=(window.__saveCalls||[]).find(x=>x.fn==='saveAllIcItems');
-            const it=c?(c.args[0]||[])[0]:null;
-            return it?{level:it.currentLevel, pending:it.pendingQty}:null; }""")
+            const c=(window.__saveCalls||[]).find(x=>x.fn==='updatePaths');
+            if(!c) return null;
+            const u=c.args[0]||{};
+            const itemKey=Object.keys(u).find(k=>k.indexOf('icItems/')===0);
+            const it=itemKey?u[itemKey]:null;
+            return it?{level:it.currentLevel, pending:it.pendingQty,
+                       claims:Object.keys(u).filter(k=>k.indexOf('deliveryIssues/')===0).length}:null; }""")
         logged = pg.evaluate(
             "() => (window.__saveCalls||[]).some(c=>c.fn==='saveIcActivityLog' && c.args[0].actionType==='receive')")
-        issued = pg.evaluate("() => (window.__saveCalls||[]).some(c=>c.fn==='saveDeliveryIssue')")
         clear_modals(pg)
         return (bool(saved) and saved["pending"] == 0
-                and saved["level"] == seeded["level"] + 3 and logged and not issued)
+                and saved["level"] == seeded["level"] + 3 and logged and saved["claims"] == 0)
     safe("IC/receive-all", ic_receive_all)
 
     # Short delivery: one tap on "−" leaves 1 missing -> claim entry + not-delivered log.
@@ -604,18 +607,84 @@ def run_ic(browser):
         pg.wait_for_timeout(300)
         pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
         pg.wait_for_timeout(800)
-        issue = pg.evaluate(
-            "() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveDeliveryIssue');"
-            " return c?{missing:c.args[0].missingQty, ordered:c.args[0].orderedQty, received:c.args[0].receivedQty, id:!!c.args[0].id}:null; }")
+        # Le litige DOIT voyager dans la MEME ecriture que le stock : un avoir
+        # fournisseur perdu pendant que le stock dit "livre" ne se retrouve jamais.
+        d = pg.evaluate("""() => {
+            const c=(window.__saveCalls||[]).find(x=>x.fn==='updatePaths');
+            if(!c) return null;
+            const u=c.args[0]||{};
+            const ik=Object.keys(u).find(k=>k.indexOf('icItems/')===0);
+            const ck=Object.keys(u).find(k=>k.indexOf('deliveryIssues/')===0);
+            if(!ik||!ck) return {atomic:false};
+            const i=u[ck];
+            return {atomic:true, level:u[ik].currentLevel, missing:i.missingQty,
+                    ordered:i.orderedQty, received:i.receivedQty, id:!!i.id}; }""")
         nd = pg.evaluate(
             "() => (window.__saveCalls||[]).some(c=>c.fn==='saveIcActivityLog' && c.args[0].actionType==='not-delivered')")
-        level = pg.evaluate("""() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveAllIcItems');
-            return c?(c.args[0]||[])[0].currentLevel:null; }""")
         clear_modals(pg)
-        return (bool(issue) and issue["missing"] == 1 and issue["ordered"] == 3
-                and issue["received"] == 2 and issue["id"] and nd
-                and level == seeded["level"] + 2)
+        return (bool(d) and d.get("atomic") and d["missing"] == 1 and d["ordered"] == 3
+                and d["received"] == 2 and d["id"] and nd
+                and d["level"] == seeded["level"] + 2)
     safe("IC/receive-partial-creates-issue", ic_receive_partial)
+
+    # Bloc L — le manquant se calcule NET de ce qui est deja en route. Sans ca le
+    # dashboard affichait "10 to order" sur un article dont 3 arrivaient, et la meme
+    # livraison etait commandee deux fois.
+    def ic_shortfall_nets_pending():
+        d = pg.evaluate("""() => {
+            const f = window.__icShortfall;
+            if (typeof f !== 'function') return null;
+            return {
+                noPending: f({currentLevel: 0, targetLevel: 10}),
+                withPending: f({currentLevel: 0, targetLevel: 10, pendingQty: 3}),
+                covered: f({currentLevel: 2, targetLevel: 10, pendingQty: 8}),
+                never_negative: f({currentLevel: 5, targetLevel: 2, pendingQty: 4})
+            }; }""")
+        return (bool(d) and d["noPending"] == 10 and d["withPending"] == 7
+                and d["covered"] == 0 and d["never_negative"] == 0)
+    safe("IC/shortfall-nets-pending", ic_shortfall_nets_pending)
+
+    # Rejouer une reception (2 ecrans portent la banniere, la tablette peut dormir)
+    # ne doit rien reecrire : sinon second litige et commande fraiche ecrasee.
+    def ic_receive_replay_blocked():
+        seeded = seed_pending()
+        if not seeded:
+            return False
+        pg.wait_for_timeout(400)
+        open_reception()
+        # Un AUTRE terminal enregistre la livraison pendant que ce modal reste ouvert :
+        # en memoire le pending retombe a 0, mais le brouillon affiche encore 3.
+        pg.evaluate("""() => {
+            const it=(window.icItems||[]).find(i=>(parseFloat(i.pendingQty)||0)>0);
+            if(it){ it.pendingQty=0; it.pendingAt=null; it.pendingProvider=null; }
+        }""")
+        pg.evaluate("() => { window.__saveCalls=[]; }")
+        clicked = pg.evaluate("""() => {
+            const b=document.getElementById('receive-all');
+            if (!b) return false;
+            b.click();
+            return true; }""")
+        pg.wait_for_timeout(700)
+        wrote = pg.evaluate("() => (window.__saveCalls||[]).some(c=>c.fn==='updatePaths')")
+        clear_modals(pg)
+        # Le bouton devait exister (sinon le test ne prouve rien) ET rien ne doit partir.
+        return bool(clicked) and not wrote
+    safe("IC/receive-replay-blocked", ic_receive_replay_blocked)
+
+    # Unites deja plurielles en base ("sauce bottles", "units") : ne pas re-pluraliser.
+    def ic_pluralize_plural_units():
+        d = pg.evaluate("""() => ({
+            bottles: pluralizeUnit('bottles', 3),
+            units: pluralizeUnit('units', 2),
+            bag: pluralizeUnit('bag', 3),
+            box: pluralizeUnit('box', 2),
+            one: pluralizeUnit('bag', 1),
+            kg: pluralizeUnit('kg', 5)
+        })""")
+        return (bool(d) and d["bottles"] == "bottles" and d["units"] == "units"
+                and d["bag"] == "bags" and d["box"] == "boxes"
+                and d["one"] == "bag" and d["kg"] == "kg")
+    safe("shared/pluralize-keeps-plural-units", ic_pluralize_plural_units)
 
     # The claims card is the readable side of deliveryIssues: without it the
     # missing quantities pile up in the database and nobody ever sees them.

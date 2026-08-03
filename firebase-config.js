@@ -145,6 +145,19 @@ window.firebaseDb = {
     onValue: function(query, callback, errorCallback) { return onValue(query, callback, errorCallback); },
     remove: function(dbRef) { return remove(dbRef); },
 
+    // ONE atomic write spanning DIFFERENT nodes: Firebase applies it all or not at all.
+    // Needed whenever two records only make sense together — crediting a delivery's
+    // stock while losing its claim entry turns a supplier shortfall into a silent loss.
+    // Keys are full paths from the root ('icItems/45', 'deliveryIssues/issue_x').
+    updatePaths: function(updates) {
+        const clean = {};
+        Object.keys(updates).forEach(function (path) {
+            const v = updates[path];
+            clean[path] = (v && typeof v === 'object' && !Array.isArray(v)) ? stripUndefined(v) : v;
+        });
+        return update(ref(database), clean);
+    },
+
     // Prep items
     saveItem: prepItems.save,
     saveItemFields: prepItems.saveFields,

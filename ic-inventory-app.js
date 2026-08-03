@@ -242,6 +242,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return (window.icItems || []).filter(it => pendingQtyOf(it) > 0);
     }
 
+    // What the shelf will hold once the open orders land. THE single answer to "are we
+    // short, and by how much" — every screen must use it. When the dashboard computed
+    // the shortfall on currentLevel alone, it kept advertising "10 to order" on an item
+    // with 3 already on the way, and the same delivery got ordered twice.
+    function coveredLevelOf(item) {
+        return (parseFloat(item && item.currentLevel) || 0) + pendingQtyOf(item);
+    }
+
+    function shortfallOf(item) {
+        const target = parseFloat(item && item.targetLevel) || 0;
+        return Math.max(0, Math.round((target - coveredLevelOf(item)) * 100) / 100);
+    }
+
     // Single logging entry point for the order/receive events: same shape as
     // logActivityChange, plus optional extra fields, and always a .catch.
     function logIcEvent(item, actionType, oldValue, newValue, extra) {
@@ -387,6 +400,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     closeModal();
                 })
                 .catch(error => {
+                    // A replay is an expected outcome, not a fault: two screens carry
+                    // the banner. It must not surface as a console error.
+                    if (error && error.code === 'STALE_RECEPTION') {
+                        // Someone else already recorded it. Close and let the refreshed
+                        // banner speak: re-enabling the button would invite a replay.
+                        showMessage('This delivery was already recorded on another device', 'warning');
+                        renderPendingBanners();
+                        closeModal();
+                        return;
+                    }
                     console.error('Error recording reception:', error);
                     showMessage('Error recording the delivery — nothing was lost, try again', 'error');
                     btn.disabled = false;
@@ -404,6 +427,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // on purpose here: it swallows its own errors and returns nothing, which would
     // let a failed write report success. Local state is rolled back if it fails.
     function applyReception(draft) {
+        // Idempotence. The banner is rendered on TWO screens, and this modal holds a
+        // snapshot taken when it opened — so the same delivery can be validated twice
+        // (two devices, or one tablet left asleep and woken up later). If the pending
+        // quantity no longer matches what is on screen, someone already recorded it:
+        // replaying would file a second claim and wipe an order placed since.
+        const isStale = draft.some(row => {
+            const live = (window.icItems || []).find(i => i.id === row.item.id);
+            return !live || pendingQtyOf(live) !== row.ordered;
+        });
+        if (isStale) {
+            const err = new Error('This delivery was already recorded');
+            err.code = 'STALE_RECEPTION';
+            return Promise.reject(err);
+        }
+
         const snapshot = draft.map(row => ({
             row: row,
             before: {
@@ -442,16 +480,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const db = window.firebaseDb;
-        const stockWrite = (db && typeof db.saveAllIcItems === 'function')
-            ? db.saveAllIcItems(touched)
+
+        // Stock AND claims in ONE atomic write. A claim that fails while the stock says
+        // "fully delivered" is a supplier credit lost for good: nothing on screen would
+        // ever mention the missing goods again. They only make sense together.
+        const updates = {};
+        touched.forEach(it => { updates['icItems/' + it.id] = it; });
+        shortLines.forEach((row, i) => {
+            const issue = {
+                id: 'issue_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8),
+                itemId: row.item.id,
+                itemName: row.item.name,
+                unit: row.item.unit || '',
+                provider: row.provider,
+                orderedQty: row.ordered,
+                receivedQty: row.received,
+                missingQty: row.missing,
+                orderedAt: row.orderedAt,
+                reportedAt: now,
+                reportedBy: currentStaff,
+                resolved: false
+            };
+            updates['deliveryIssues/' + issue.id] = issue;
+        });
+
+        const write = (db && typeof db.updatePaths === 'function')
+            ? db.updatePaths(updates)
             : Promise.resolve();
 
-        return stockWrite
+        return write
             .then(() => {
                 try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
 
-                // Logs and claim entries are secondary: each swallows its own error
-                // with a warning toast so a failed log never rolls back a good stock.
+                // Logs are the only secondary write left: losing one costs traceability,
+                // not money, so it must never roll back a good reception.
                 draft.forEach(row => {
                     logIcEvent(row.item, 'receive', row.stockBefore, row.item.currentLevel, {
                         orderedQty: row.ordered,
@@ -463,26 +525,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     logIcEvent(row.item, 'not-delivered', row.ordered, row.received, {
                         missingQty: row.missing,
                         provider: row.provider
-                    });
-
-                    if (!db || typeof db.saveDeliveryIssue !== 'function') return;
-                    const issue = {
-                        id: 'issue_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-                        itemId: row.item.id,
-                        itemName: row.item.name,
-                        unit: row.item.unit || '',
-                        provider: row.provider,
-                        orderedQty: row.ordered,
-                        receivedQty: row.received,
-                        missingQty: row.missing,
-                        orderedAt: row.orderedAt,
-                        reportedAt: now,
-                        reportedBy: currentStaff,
-                        resolved: false
-                    };
-                    db.saveDeliveryIssue(issue).catch(error => {
-                        console.error('Error saving delivery issue:', error);
-                        showMessage('Stock updated, but the claim entry failed for ' + row.item.name, 'warning');
                     });
                 });
 
@@ -1292,13 +1334,15 @@ document.addEventListener('DOMContentLoaded', function() {
         lowStockContainer.innerHTML = '';
 
         // Filter items that are below 50% of target and match current location
+        // Stock already on the way counts as covered: an item with an open order is not
+        // something to order again.
         const lowStockItems = window.icItems.filter(item => {
-            const isLowStock = item.currentLevel < item.targetLevel * 0.5;
+            const isLowStock = coveredLevelOf(item) < item.targetLevel * 0.5;
             return isLowStock && (currentLocation === 'All' || item.location === currentLocation);
         }).sort((a, b) => {
             // Sort by percentage of target (lowest first)
-            const percentA = a.currentLevel / a.targetLevel;
-            const percentB = b.currentLevel / b.targetLevel;
+            const percentA = coveredLevelOf(a) / a.targetLevel;
+            const percentB = coveredLevelOf(b) / b.targetLevel;
             return percentA - percentB;
         });
 
@@ -1344,7 +1388,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
-            const _need = item.targetLevel - item.currentLevel;
+            // Shortfall net of what is already on the way, and the delivery shown right
+            // next to it — otherwise the card and the Overview table disagree on the
+            // same item, and whoever reads the card orders a second time.
+            const _need = shortfallOf(item);
+            const _pending = pendingQtyOf(item);
             const _needColor = item.currentLevel === 0 ? 'var(--danger-strong)' : 'var(--sev-warn)';
             todoItem.innerHTML = `
                 <div class="todo-item-name">${item.name}</div>
@@ -1352,7 +1400,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span style="color: var(--text-medium); font-weight: 500;">${item.location}</span>
                 </div>
                 ${item.categories && item.categories.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;">${categoryBadgesHTML(item.categories)}</div>` : ''}
-                <div class="todo-item-detail" style="color:var(--text-light);font-size:13px;">Current: ${fmtQty(item.currentLevel)} ${pluralizeUnit(item.unit, item.currentLevel)}</div>
+                <div class="todo-item-detail" style="color:var(--text-light);font-size:13px;">Current: ${fmtQty(item.currentLevel)} ${pluralizeUnit(item.unit, item.currentLevel)}${
+                    _pending > 0
+                        ? ` <span class="pending-badge" title="${fmtQty(_pending)} ${item.unit} ordered, not received yet">+${fmtQty(_pending)} 🚚</span>`
+                        : ''
+                }</div>
                 <div class="todo-need"><span class="todo-need-num" style="color:${_needColor};">${fmtQty(_need)}</span><span class="todo-need-lbl">${pluralizeUnit(item.unit, _need)} to order</span></div>
                 ${providersHtml}
                 <div class="todo-footer">
@@ -1379,7 +1431,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Items below 50% of target — colour the count amber when actionable (>0)
         // so it stands out from the neutral totals next to it.
-        const belowFifty = window.icItems.filter(item => item.currentLevel < item.targetLevel * 0.5).length;
+        const belowFifty = window.icItems.filter(item => coveredLevelOf(item) < item.targetLevel * 0.5).length;
         itemsBelowFiftyElement.textContent = belowFifty;
         itemsBelowFiftyElement.style.color = belowFifty > 0 ? 'var(--sev-warn)' : '';
 
@@ -1436,6 +1488,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Exposed for tests: pure, read-only, no side effects.
     window.__icComputeLastInventory = computeLastInventoryDisplay;
+    // Same reason: pure, and the one answer to "how much are we short" that every
+    // screen must agree on.
+    window.__icShortfall = shortfallOf;
     
     // Set up event listeners for navigation
     function setupNavigation() {
@@ -1934,6 +1989,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
 
                     <div class="order-hint" id="order-hint"></div>
+                    ${(item.providers && item.providers.length > 1) ? `
+                    <label class="order-provider">
+                        <span class="order-provider__lbl">Supplier</span>
+                        <select id="order-provider" class="order-provider__select">
+                            ${item.providers.map(p => `<option value="${p}"${
+                                p === item.pendingProvider ? ' selected' : ''
+                            }>${p}</option>`).join('')}
+                        </select>
+                    </label>` : ''}
                     <button type="button" id="order-save" class="btn btn--primary order-save">
                         ${alreadyPending > 0 ? 'Update order' : 'Record order'}
                     </button>
@@ -2048,11 +2112,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // just the quantity: leaving them behind reads as "ordered from Metro
             // on the 3rd" on an item nobody ordered. null deletes the key in
             // Firebase rather than storing an empty string.
+            // The supplier must be the one actually ordered from: a claim naming the
+            // wrong one is worse than a claim naming none. 24 of 102 items have two
+            // suppliers, so when there is a choice the user makes it (select above);
+            // with a single supplier there is nothing to ask.
+            const providerSelect = content.querySelector('#order-provider');
+            const chosenProvider = providerSelect
+                ? providerSelect.value
+                : ((item.providers && item.providers.length === 1) ? item.providers[0] : '');
+
             item.pendingQty = orderQty;
             item.pendingAt = orderQty > 0 ? new Date().toISOString() : null;
-            item.pendingProvider = orderQty > 0
-                ? ((item.providers && item.providers[0]) || '')
-                : null;
+            item.pendingProvider = orderQty > 0 ? chosenProvider : null;
 
             const db = window.firebaseDb;
             const write = (db && typeof db.saveIcItem === 'function')

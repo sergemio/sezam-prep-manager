@@ -541,6 +541,30 @@
     color: var(--text-medium);
 }
 
+/* Supplier picker — only rendered when the item has more than one supplier. */
+.order-provider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.order-provider__lbl {
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.order-provider__select {
+    padding: 8px 10px;
+    font-size: 15px;
+    border: 1px solid var(--table-border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-dark);
+    min-height: 40px;
+}
+
 .order-reset {
     color: var(--accent-orange);
     text-decoration: underline;

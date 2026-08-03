@@ -33,7 +33,7 @@ DIFF = os.path.join(HERE, "visual", "diff")
 STUB = """() => {
   const db = window.firebaseDb || {};
   ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
-   'saveAllIcItems','saveIcActivityLog',
+   'saveAllIcItems','saveIcActivityLog','updatePaths',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {

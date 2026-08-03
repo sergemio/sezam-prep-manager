@@ -314,7 +314,11 @@
     var u = (unit || '').trim();
     if (!u || Number(n) === 1) return u;
     if (['kg', 'g', 'l', 'ml', 'cl', 'L'].indexOf(u) !== -1) return u;
-    if (/(s|x|z|ch|sh)$/i.test(u)) return u + 'es';
+    // Some units are ALREADY plural in the database ("sauce bottles", "units").
+    // Adding "es" to those produced "bottleses" across the whole prep history the day
+    // describeLog started formatting those lines. A trailing "s" means: leave it alone.
+    if (/s$/i.test(u)) return u;
+    if (/(x|z|ch|sh)$/i.test(u)) return u + 'es';
     return u + 's';
   }
 
