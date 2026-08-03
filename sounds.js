@@ -66,6 +66,14 @@ const SoundFX = (() => {
             osc.stop(ac.currentTime + 0.12);
         },
 
+        // Two-tone attention alert — a team message just arrived. Plus affirmé
+        // que taskAppear (montée B5 -> E6) mais toujours calme (sine). Joué en
+        // rafale de 2-3 par l'ordonnanceur côté cuisine.
+        messageAlert() {
+            playTone(988, 0.16, 'sine', 0.19, 0);       // B5
+            playTone(1319, 0.30, 'sine', 0.17, 0.14);   // E6 (ring-out)
+        },
+
         // Gentle two-note bell — a new task just appeared in the due list.
         // Rising perfect fourth (G5 -> C6) with a soft sustain: audible over
         // kitchen noise but calm, not anxiogenic. Distinct from complete/filterOn.

@@ -980,7 +980,7 @@ body {
 
 .summary-title {
     display: inline;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 1.5px;
     color: #94a3b8;
@@ -1941,4 +1941,124 @@ tr.dragging {
     color: white;
     border-color: #80b244;
 }
+
+/* ===== Team messages (broadcast management -> dashboard cuisine) ===== */
+#team-messages-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.team-message {
+    background: #fff;
+    border: 2px solid var(--info, #2563eb);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Non-lu : contour qui pulse pour attirer l'œil ("il se retourne et voit") */
+.team-message.is-new {
+    border-color: #f59e0b;
+    animation: team-message-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes team-message-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.55); border-color: #f59e0b; }
+    50%      { box-shadow: 0 0 0 6px rgba(245,158,11,0.0);  border-color: #fbbf24; }
+}
+
+.team-message-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #b45309;
+    margin-bottom: 6px;
+}
+
+.team-message-text {
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-dark, #1f2937);
+    word-break: break-word;
+}
+
+.team-message-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 8px;
+}
+
+.team-message-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.team-message-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.15s;
+}
+.team-message-btn:active { transform: translateY(1px); }
+
+.team-message-btn--received {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1.5px solid #f59e0b;
+}
+.team-message-btn--completed {
+    background: var(--color-primary, #577c2b);
+    color: #fff;
+}
+
+/* Encadré d'envoi (DB Editor) */
+.team-broadcast .team-broadcast-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.team-broadcast-input {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+.team-broadcast-status {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.team-broadcast-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+.team-broadcast-item .tb-text { font-weight: 600; color: #1f2937; }
+.team-broadcast-item .tb-state { margin-left: auto; font-size: 12px; }
+.team-broadcast-item .tb-clear {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+.team-broadcast-item .tb-clear:hover { color: #dc2626; }
 

@@ -34,7 +34,7 @@ STUB = """() => {
   const db = window.firebaseDb || {};
   ['saveItem','saveAllItems','saveIcItem','saveAllIcItems','saveIcActivityLog',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
-   'saveActivityLog'].forEach(function (fn) {
+   'saveActivityLog','saveTeamMessage','deleteTeamMessage'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () { rec(fn, [].slice.call(arguments)); return Promise.resolve(); };
   });
   if (window.historySystem) {
@@ -167,6 +167,42 @@ def run_pm(browser):
         return base == 0 and after_new == 1 and after_repeat == 1
     safe("PM/task-appear-chime", g_taskbeep)
 
+    # I. team message: injecté -> panneau brillant + bips ; Received -> log+calme ; Completed -> log+retrait
+    def g_teammsg():
+        pg.evaluate("""() => {
+            window.__msgBeeps = 0;
+            if (typeof SoundFX !== 'undefined') SoundFX.messageAlert = () => { window.__msgBeeps++; };
+            window.__saveCalls = [];
+            teamMessages = [{ id:'__smoke_msg', text:'CLEAN THE FRIDGE', sentBy:'admin',
+                sentAt:'2026-01-01T10:00:00.000Z', receivedBy:null, receivedAt:null,
+                completedBy:null, completedAt:null }];
+            renderTeamMessages();
+        }""")
+        pg.wait_for_timeout(250)
+        r = pg.evaluate("""() => { const c=document.getElementById('team-messages-container');
+            return { glow: !!c.querySelector('.team-message.is-new'),
+                     text: (c.querySelector('.team-message-text')||{}).textContent||'',
+                     recv: !!c.querySelector('.team-message-btn--received'),
+                     comp: !!c.querySelector('.team-message-btn--completed'),
+                     beeps: window.__msgBeeps }; }""")
+        ok_render = r["glow"] and "CLEAN THE FRIDGE" in r["text"] and r["recv"] and r["comp"] and r["beeps"] >= 1
+        pg.evaluate("() => { markMessageReceived('__smoke_msg'); renderTeamMessages(); }")
+        pg.wait_for_timeout(100)
+        rv = pg.evaluate("""() => { const c=(window.__saveCalls||[]);
+            const s=c.find(x=>x.fn==='saveTeamMessage');
+            return { saved: !!(s && s.args[0].receivedBy),
+                     logged: !!c.find(x=>x.fn==='saveActivityLog' && x.args[0].actionType==='message-received'),
+                     calm: !document.querySelector('.team-message.is-new') && !document.querySelector('.team-message-btn--received') }; }""")
+        ok_recv = rv["saved"] and rv["logged"] and rv["calm"]
+        pg.evaluate("() => markMessageCompleted('__smoke_msg')")
+        pg.wait_for_timeout(100)
+        cp = pg.evaluate("""() => { const c=(window.__saveCalls||[]);
+            return { logged: !!c.find(x=>x.fn==='saveActivityLog' && x.args[0].actionType==='message-done'),
+                     deleted: !!c.find(x=>x.fn==='deleteTeamMessage') }; }""")
+        pg.evaluate("() => { teamMessages = []; renderTeamMessages(); }")
+        return ok_render and ok_recv and cp["logged"] and cp["deleted"]
+    safe("PM/team-message-flow", g_teammsg)
+
     rec("PM/no-native-dialogs", len(dialogs) == 0, str(dialogs))
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()
@@ -256,6 +292,17 @@ def run_db(browser):
     safe("DB/byDisplayOrder-loaded", lambda: pg.evaluate("() => typeof window.byDisplayOrder==='function'"))
     safe("DB/formatCheckDate-delegates", lambda: (lambda v: isinstance(v, str) and "ERR" not in v)(
         pg.evaluate("() => { try { return formatCheckDate('2025-03-09T14:30:00'); } catch(e){ return 'ERR'; } }")))
+
+    # team broadcast: "Send" crée un message (stubbé) avec le texte + un id
+    pg.evaluate(STUB)
+    def db_send():
+        pg.evaluate("""() => { window.__saveCalls=[]; const i=document.getElementById('team-message-input');
+            i.value='Test broadcast'; document.getElementById('team-message-send').click(); }""")
+        pg.wait_for_timeout(200)
+        d = pg.evaluate("() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveTeamMessage'); return c?{text:c.args[0].text,hasId:!!c.args[0].id}:null; }")
+        return bool(d) and d["text"] == "Test broadcast" and d["hasId"]
+    safe("DB/team-message-send", db_send)
+
     rec("DB/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()
 

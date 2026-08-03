@@ -1,0 +1,66 @@
+{
+  "rules": {
+    "prepItems": {
+      ".read": true,
+      ".write": true,
+      "$itemId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'currentLevel', 'targetLevel', 'unit'])"
+      }
+    },
+    "staffMembers": {
+      ".read": true,
+      ".write": true,
+      "$staffId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'active'])"
+      }
+    },
+    "activityLogs": {
+      ".read": true,
+      ".write": true,
+      "$logId": {
+        ".validate": "newData.hasChildren(['timestamp', 'itemName', 'actionType'])"
+      }
+    },
+    "lastCompleteCheck": {
+      ".read": true,
+      ".write": true
+    },
+    "icItems": {
+      ".read": true,
+      ".write": true,
+      "$itemId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'currentLevel', 'targetLevel', 'unit', 'location'])"
+      }
+    },
+    "icActivityLogs": {
+      ".read": true,
+      ".write": true
+    },
+    "todos": {
+      ".read": true,
+      ".write": true
+    },
+    "tasks": {
+      ".read": true,
+      ".write": true,
+      "$taskId": {
+        ".validate": "newData.hasChildren(['title', 'type', 'active'])"
+      }
+    },
+    "checklists": {
+      ".read": true,
+      ".write": true
+    },
+    "teamMessages": {
+      ".read": true,
+      ".write": true,
+      "$msgId": {
+        ".validate": "newData.hasChildren(['id', 'text', 'sentAt'])"
+      }
+    },
+    "settings": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

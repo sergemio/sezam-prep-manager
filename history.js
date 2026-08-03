@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!dayGroups[dateKey]) {
                         dayGroups[dateKey] = { date, prepped: [], checked: [], other: [], tasks: [] };
                     }
-                    var taskTypes = ['task-done', 'checklist-done', 'checklist-blocked', 'checklist-unchecked'];
+                    var taskTypes = ['task-done', 'message-done', 'message-received', 'checklist-done', 'checklist-blocked', 'checklist-unchecked'];
                     if (taskTypes.indexOf(log.actionType) !== -1) {
                         dayGroups[dateKey].tasks.push(log);
                     } else if (log.actionType === 'count') {
@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         case 'canprepagain': actionText = 'Available'; changeText = 'Can now be prepped'; break;
                         case 'test': actionText = 'test'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
                         case 'task-done': actionText = 'completed task'; changeText = ''; break;
+                        case 'message-received': actionText = 'acknowledged'; changeText = ''; break;
+                        case 'message-done': actionText = 'completed message'; changeText = ''; break;
                         case 'checklist-done': actionText = 'completed'; changeText = ''; break;
                         case 'checklist-blocked': actionText = "can't complete"; changeText = log.details || ''; break;
                         case 'checklist-unchecked': actionText = 'unchecked'; changeText = ''; break;

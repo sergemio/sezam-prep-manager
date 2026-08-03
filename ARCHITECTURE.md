@@ -63,6 +63,7 @@ log        { id:'log_…'/'iclog_…', actionType, itemId, itemName, oldValue, n
 - **DB Editor ne charge pas `user.js`** → il lit `localStorage['currentStaff']` directement (fallback `'admin'`).
 - **Tâches vs bouton RUN CHECK** : découplés. Lancer un prep check n'auto-complète PAS la tâche « Run PREP CHECK » (c'est un rappel manuel). Voir `isTaskDue`/`completeTask` dans `script.js`.
 - **Bip d'apparition de tâche** : `SoundFX.taskAppear()` déclenché par le diff des tâches dues dans `updateTodoList()` (rien de temporisé — ça suit le redraw).
+- **🚨 Nouveau nœud Firebase = règle à ajouter, sinon échec SILENCIEUX.** Les règles n'ont **pas de permission racine** → tout nœud absent de `database.rules.json` est refusé (`Permission denied`) et l'écriture échoue sans rien afficher. Workflow : ajouter le bloc dans `database.rules.json` **puis** `firebase deploy --only database --project sezam-prep-manager`. Le fichier local est la source de vérité (le CLI ne sait PAS relire les règles distantes). Toujours assortir les écritures d'un `.catch` qui affiche un toast d'échec.
 
 ## Lancer / tester
 

@@ -301,6 +301,14 @@
     if (typeof opts.onSection === 'function') opts.onSection(sectionId);
   }
 
+  // Escape a string for safe insertion into innerHTML.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  global.escapeHtml = escapeHtml;
   global.makeSaver = makeSaver;
   global.byDisplayOrder = byDisplayOrder;
   global.activateSection = activateSection;

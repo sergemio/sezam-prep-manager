@@ -118,6 +118,7 @@ const icItems = createCrudHelpers('icItems');
 const activityLogs = createLogHelpers('activityLogs', 'log');
 const icActivityLogs = createLogHelpers('icActivityLogs', 'iclog');
 const tasks = createCrudHelpers('tasks');
+const teamMessages = createCrudHelpers('teamMessages');
 
 // Global Firebase API — same interface as before, nothing breaks
 window.firebaseDb = {
@@ -168,7 +169,13 @@ window.firebaseDb = {
     saveAllTasks: tasks.saveAll,
     loadTasks: tasks.load,
     deleteTasks: tasks.delete,
-    onTasksChange: tasks.onChange
+    onTasksChange: tasks.onChange,
+
+    // Team messages (broadcast to the kitchen dashboard)
+    saveTeamMessage: teamMessages.save,
+    loadTeamMessages: teamMessages.load,
+    deleteTeamMessage: teamMessages.delete,
+    onTeamMessagesChange: teamMessages.onChange
 };
 
 // Dispatch event so pages know Firebase is ready

@@ -36,6 +36,7 @@ let currentItemIndex = 0;
 // every identity change routes through UserSession.set which fires it.
 let isChecking = false;
 let tasks = [];
+let teamMessages = [];
 
 // Function to load staff members dynamically
 // Renders the staff-picker buttons. Loading + Firebase/fallback now live in the
@@ -292,6 +293,11 @@ function initApp() {
         window.firebaseDb.onTasksChange(function(loadedTasks) {
             tasks = loadedTasks || [];
             updateTodoList();
+        });
+
+        window.firebaseDb.onTeamMessagesChange(function(loaded) {
+            teamMessages = loaded || [];
+            renderTeamMessages();
         });
     } else {
         // If Firebase is not available, use local storage
@@ -1465,6 +1471,96 @@ function completeTask(task) {
         user: staffName,
         itemName: task.title,
         actionType: 'task-done'
+    });
+}
+
+// ---- Team messages (broadcast management -> kitchen dashboard) ----
+// Un message envoyé depuis le DB Editor pop ici (sous le Status Summary), sonne
+// jusqu'à "Received", puis attend "Completed". Reçu/Fait tracés dans l'historique.
+
+// Sonneries locales à chaque appareil (jamais stockées) : id -> intervalId.
+const _msgSoundTimers = {};
+
+// Rafale de N carillons espacés ~900ms (6 = ~5s, calibré pour porter en cuisine).
+function burstMessageAlert(times) {
+    if (typeof SoundFX === 'undefined' || !SoundFX.messageAlert) return;
+    let i = 0;
+    (function ring() {
+        if (i >= times) return;
+        SoundFX.messageAlert();
+        i++;
+        setTimeout(ring, 900);
+    })();
+}
+
+// Pour chaque message NON reçu : rafale immédiate puis relance toutes les 30 min
+// jusqu'au "Received" (ou disparition du message). Message reçu -> plus aucun son.
+function manageMessageSounds(active) {
+    const unreceived = active.filter(m => !m.receivedAt);
+    const liveIds = new Set(unreceived.map(m => m.id));
+    Object.keys(_msgSoundTimers).forEach(id => {
+        if (!liveIds.has(id)) { clearInterval(_msgSoundTimers[id]); delete _msgSoundTimers[id]; }
+    });
+    if (document.hidden) return;              // pas de son quand l'onglet est en arrière-plan
+    unreceived.forEach(m => {
+        if (_msgSoundTimers[m.id]) return;    // déjà programmé sur cet appareil
+        burstMessageAlert(6);                 // rafale d'arrivée
+        _msgSoundTimers[m.id] = setInterval(function () {
+            if (!document.hidden) burstMessageAlert(6);
+        }, 30 * 60 * 1000);                   // relance toutes les 30 min
+    });
+}
+
+function renderTeamMessages() {
+    const container = document.getElementById('team-messages-container');
+    if (!container) return;
+    const active = (teamMessages || []).slice()
+        .sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || '')); // plus récent en haut
+    container.innerHTML = active.map(function (m) {
+        const received = !!m.receivedAt;
+        const meta = received
+            ? 'Reçu par ' + escapeHtml(m.receivedBy || '?')
+            : 'Envoyé par ' + escapeHtml(m.sentBy || '?');
+        const receivedBtn = received ? '' :
+            '<button class="team-message-btn team-message-btn--received" onclick="markMessageReceived(\'' + m.id + '\')">Received</button>';
+        return '<div class="team-message' + (received ? '' : ' is-new') + '">' +
+            '<div class="team-message-label">MESSAGE MANAGEMENT</div>' +
+            '<div class="team-message-text">' + escapeHtml(m.text) + '</div>' +
+            '<div class="team-message-meta">' + meta + '</div>' +
+            '<div class="team-message-actions">' + receivedBtn +
+            '<button class="team-message-btn team-message-btn--completed" onclick="markMessageCompleted(\'' + m.id + '\')">Completed</button>' +
+            '</div></div>';
+    }).join('');
+    manageMessageSounds(active);
+}
+
+// Premier "Received" = reçu pour toute l'équipe (coupe le son partout), tracé.
+function markMessageReceived(id) {
+    const m = (teamMessages || []).find(x => x.id === id);
+    if (!m || m.receivedAt) return;
+    const staffName = currentStaff || 'Unknown';
+    m.receivedBy = staffName;
+    m.receivedAt = new Date().toISOString();
+    Promise.resolve(window.firebaseDb.saveTeamMessage(m)).catch(function (err) {
+        console.error('saveTeamMessage (received) failed:', err);
+        showNotification('Échec', 'Accusé de réception non enregistré', 'error');
+    });
+    window.firebaseDb.saveActivityLog({
+        timestamp: m.receivedAt, user: staffName, itemName: m.text, actionType: 'message-received'
+    });
+}
+
+// "Completed" = tâche faite -> historique + retrait du message partout.
+function markMessageCompleted(id) {
+    const m = (teamMessages || []).find(x => x.id === id);
+    if (!m) return;
+    const staffName = currentStaff || 'Unknown';
+    window.firebaseDb.saveActivityLog({
+        timestamp: new Date().toISOString(), user: staffName, itemName: m.text, actionType: 'message-done'
+    });
+    Promise.resolve(window.firebaseDb.deleteTeamMessage(id)).catch(function (err) {
+        console.error('deleteTeamMessage failed:', err);
+        showNotification('Échec', 'Message non clôturé', 'error');
     });
 }
 

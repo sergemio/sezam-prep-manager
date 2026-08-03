@@ -311,7 +311,17 @@
 <!-- Main content panel -->
 <div class="content-panel">
     <h1 class="section-title">Database Editor</h1>
-    
+
+    <!-- Message éclair vers le dashboard cuisine -->
+    <div class="card team-broadcast">
+        <h2 class="card-title" style="margin-bottom:8px;">Message team</h2>
+        <div class="team-broadcast-row">
+            <input type="text" id="team-message-input" class="team-broadcast-input" placeholder="Un message pour la cuisine…" maxlength="200">
+            <button id="team-message-send" class="btn btn--primary">Send</button>
+        </div>
+        <div id="team-broadcast-status" class="team-broadcast-status"></div>
+    </div>
+
     <!-- Tab Navigation -->
     <div class="tab-navigation">
         <button class="tab-button active" data-target="prep-items-section">Prep Items</button>

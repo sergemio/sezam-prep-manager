@@ -76,7 +76,67 @@ function initTabNavigation() {
 document.addEventListener('DOMContentLoaded', function() {
     initApp();
     initTabNavigation();
+    initTeamBroadcast();
 });
+
+// Encadré "Message team" : envoie un message éclair qui pop + sonne sur le
+// dashboard cuisine (nœud teamMessages, réutilise sync + historique existants).
+function initTeamBroadcast() {
+    const input = document.getElementById('team-message-input');
+    const sendBtn = document.getElementById('team-message-send');
+    const statusEl = document.getElementById('team-broadcast-status');
+    if (!input || !sendBtn || !window.firebaseDb) return;
+
+    function send() {
+        const text = input.value.trim();
+        if (!text) return;
+        // On n'annonce le succès qu'APRÈS confirmation du serveur : une écriture
+        // refusée (règles Firebase) doit être visible, jamais silencieuse.
+        sendBtn.disabled = true;
+        Promise.resolve(window.firebaseDb.saveTeamMessage({
+            id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            text: text,
+            sentBy: localStorage.getItem('currentStaff') || 'admin',
+            sentAt: new Date().toISOString(),
+            receivedBy: null, receivedAt: null,
+            completedBy: null, completedAt: null
+        })).then(function () {
+            input.value = '';
+            if (typeof showNotification === 'function') showNotification('Message envoyé', '', 'success');
+        }).catch(function (err) {
+            console.error('saveTeamMessage failed:', err);
+            if (typeof showNotification === 'function')
+                showNotification('Échec de l\'envoi', (err && err.message) || 'Erreur Firebase', 'error');
+        }).finally(function () {
+            sendBtn.disabled = false;
+        });
+    }
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+
+    if (window.firebaseDb.onTeamMessagesChange) {
+        window.firebaseDb.onTeamMessagesChange(function (loaded) {
+            if (!statusEl) return;
+            const active = (loaded || []).slice()
+                .sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || ''));
+            statusEl.innerHTML = active.map(function (m) {
+                const state = m.receivedAt
+                    ? 'Reçu par ' + escapeHtml(m.receivedBy || '?') + ' · en attente de Completed'
+                    : 'Envoyé · pas encore reçu';
+                return '<div class="team-broadcast-item">' +
+                    '<span class="tb-text">' + escapeHtml(m.text) + '</span>' +
+                    '<span class="tb-state">' + state + '</span>' +
+                    '<button class="tb-clear" data-id="' + m.id + '" title="Retirer">&#x2715;</button>' +
+                    '</div>';
+            }).join('');
+            statusEl.querySelectorAll('.tb-clear').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    window.firebaseDb.deleteTeamMessage(b.getAttribute('data-id'));
+                });
+            });
+        });
+    }
+}
 
 function initApp() {
     
