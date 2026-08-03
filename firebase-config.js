@@ -18,16 +18,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
+// Firebase set()/update() throw SYNCHRONOUSLY on any undefined value. A synchronous
+// throw means the caller's .catch() is never even attached: the exception escapes the
+// click handler and aborts everything after it — a count screen freezes on the item,
+// a modal stays open, and nothing is shown to the user. Stripping is the only way to
+// guarantee a write can always be caught.
+function stripUndefined(obj) {
+    const clean = {};
+    Object.keys(obj).forEach(k => { if (obj[k] !== undefined) clean[k] = obj[k]; });
+    return clean;
+}
+
 // Helper to create standard CRUD functions for a Firebase path
 function createCrudHelpers(basePath, idPrefix) {
     return {
         save: function(item) {
-            return set(ref(database, basePath + '/' + item.id), item);
+            return set(ref(database, basePath + '/' + item.id), stripUndefined(item));
+        },
+        // Partial write: ONLY the listed fields are sent, everything else in the node is
+        // left alone. set() replaces the whole node, so any screen using it silently
+        // deletes the fields it does not know about — that is how a DB Editor save wiped
+        // canPrep and pendingQty. Prefer this whenever a screen edits a subset of a
+        // record. A field set to null is deleted (that is intentional); undefined is
+        // stripped, since "I have no value for this" must never mean "erase it".
+        saveFields: function(id, fields) {
+            return update(ref(database, basePath + '/' + id), stripUndefined(fields));
         },
         saveAll: function(items) {
             const updates = {};
             items.forEach(item => {
-                updates[basePath + '/' + item.id] = item;
+                updates[basePath + '/' + item.id] = stripUndefined(item);
             });
             return update(ref(database), updates);
         },
@@ -64,12 +84,7 @@ function createLogHelpers(basePath, prefix) {
     return {
         save: function(activity) {
             const logId = prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            // Firebase set() throws SYNCHRONOUSLY on any undefined value, which would
-            // abort the caller mid-flow (e.g. leave a modal stuck open). Strip undefined
-            // keys so a missing optional field can never break a log write.
-            const clean = {};
-            Object.keys(activity).forEach(k => { if (activity[k] !== undefined) clean[k] = activity[k]; });
-            return set(ref(database, basePath + '/' + logId), clean);
+            return set(ref(database, basePath + '/' + logId), stripUndefined(activity));
         },
         load: function() {
             return get(ref(database, basePath)).then((snapshot) => {
@@ -132,6 +147,7 @@ window.firebaseDb = {
 
     // Prep items
     saveItem: prepItems.save,
+    saveItemFields: prepItems.saveFields,
     saveAllItems: prepItems.saveAll,
     loadItems: prepItems.load,
     deleteItem: prepItems.delete,
@@ -154,6 +170,7 @@ window.firebaseDb = {
 
     // I&C items
     saveIcItem: icItems.save,
+    saveIcItemFields: icItems.saveFields,
     saveAllIcItems: icItems.saveAll,
     loadIcItems: icItems.load,
     deleteIcItem: icItems.delete,

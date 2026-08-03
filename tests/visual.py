@@ -32,7 +32,8 @@ DIFF = os.path.join(HERE, "visual", "diff")
 # Meme stub d'ecriture que smoke.py : aucune ecriture Firebase depuis les tests.
 STUB = """() => {
   const db = window.firebaseDb || {};
-  ['saveItem','saveAllItems','saveIcItem','saveAllIcItems','saveIcActivityLog',
+  ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
+   'saveAllIcItems','saveIcActivityLog',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
