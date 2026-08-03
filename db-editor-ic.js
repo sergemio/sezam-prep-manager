@@ -12,6 +12,11 @@ let icFormTitle;
 let icIdInput;
 let icNameInput;
 let icCurrentInput;
+// Has the user actually typed in the stock field during THIS edit? The form is filled
+// when it opens and never refreshed, so sending its stock back unconditionally would
+// undo a count made on the tablet meanwhile. We only write the stock when it was
+// deliberately edited here.
+let icStockTouched = false;
 let icTargetInput;
 let icUnitInput;
 let icLocationInput;
@@ -215,6 +220,7 @@ function initIcItemsManagement() {
     icIdInput = document.getElementById('ic-id');
     icNameInput = document.getElementById('ic-name');
     icCurrentInput = document.getElementById('ic-current');
+    if (icCurrentInput) icCurrentInput.addEventListener('input', () => { icStockTouched = true; });
     icTargetInput = document.getElementById('ic-target');
     icUnitInput = document.getElementById('ic-unit');
     icLocationInput = document.getElementById('ic-location');
@@ -339,6 +345,7 @@ function showAddNewIcForm() {
     icIdInput.value = newId;
     icNameInput.value = '';
     icCurrentInput.value = '0';
+    icStockTouched = false;
     icTargetInput.value = '1';
     populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), 'unit');
     populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), '');
@@ -373,6 +380,7 @@ return;
     icIdInput.value = item.id;
     icNameInput.value = item.name;
     icCurrentInput.value = item.currentLevel;
+    icStockTouched = false;
     icTargetInput.value = item.targetLevel;
     populateDropdown('ic-unit', 'ic-unit-new', [...new Set(icItems.map(i => i.unit).filter(Boolean))].sort(), item.unit);
     populateDropdown('ic-location', 'ic-location-new', [...new Set(icItems.map(i => i.location).filter(Boolean))].sort(), item.location || '');
@@ -398,63 +406,81 @@ function saveIcItem() {
     // Get providers from chip list
     const providers = [...selectedProviders];
 
-    // Create updated item object
-    const updatedItem = {
-id: parseInt(icIdInput.value),
-name: icNameInput.value.trim(),
-currentLevel: parseFloat(icCurrentInput.value),
-targetLevel: parseFloat(icTargetInput.value),
-unit: getDropdownValue('ic-unit', 'ic-unit-new'),
-location: getDropdownValue('ic-location', 'ic-location-new'),
-categories: [...selectedCategories],
-displayOrder: parseInt(icDisplayOrderInput.value),
-providers: providers,
-lastCheckedTime: new Date().toISOString(),
-lastCheckedBy: 'Admin (DB Editor)'
+    const itemId = parseInt(icIdInput.value);
+
+    // ONLY the fields this form owns. Everything else in the record — pendingQty,
+    // pendingAt, pendingProvider, sublocation, lastChecked* — belongs to other screens.
+    // Rebuilding a whole object here and set()-ing it is what silently deleted pending
+    // orders: set() replaces the node, so every field the form does not know about is
+    // erased. This is sent as a PATCH instead.
+    const config = {
+        name: icNameInput.value.trim(),
+        targetLevel: parseFloat(icTargetInput.value),
+        unit: getDropdownValue('ic-unit', 'ic-unit-new'),
+        location: getDropdownValue('ic-location', 'ic-location-new'),
+        categories: [...selectedCategories],
+        displayOrder: parseInt(icDisplayOrderInput.value),
+        providers: providers
     };
 
-    // Preserve the dormant `sublocation` value (kept for rollback safety until
-    // it is fully retired) so editing an item never silently drops it.
-    const _existingIc = icItems.find(i => i.id === updatedItem.id);
-    if (_existingIc && _existingIc.sublocation != null) {
-        updatedItem.sublocation = _existingIc.sublocation;
-    }
+    // The stock is a snapshot taken when the form opened and never refreshed. Sending it
+    // back unconditionally would undo a count made on the tablet meanwhile, so it only
+    // travels when someone actually typed in that field.
+    if (icStockTouched) config.currentLevel = parseFloat(icCurrentInput.value);
     
     let actionType = 'edit';
     let oldItem = null;
     
+    // firebase-config.js is a module, so it can still be loading. Bail out BEFORE
+    // touching the local array: showing a save the database never received is worse
+    // than refusing the save.
+    if (!window.firebaseDb || !window.firebaseDb.saveIcItem || !window.firebaseDb.saveIcItemFields) {
+        showErrorMessage('Database not ready — wait a moment and try again.');
+        return;
+    }
+
+    let updatedItem;
+    let write;
+
     if (isAddingIc) {
 // Make sure ID doesn't already exist
-if (icItems.some(item => item.id === updatedItem.id)) {
+if (icItems.some(item => item.id === itemId)) {
     showErrorMessage('An I&C item with this ID already exists. Please use a different ID.');
     return;
 }
 
-// Add new item
+// A brand-new node has nothing to preserve, so it is written whole.
+updatedItem = Object.assign({
+    id: itemId,
+    currentLevel: parseFloat(icCurrentInput.value),
+    lastCheckedTime: new Date().toISOString(),
+    lastCheckedBy: 'Admin (DB Editor)'
+}, config);
 icItems.push(updatedItem);
 actionType = 'add';
+write = window.firebaseDb.saveIcItem(updatedItem);
     } else {
 // Update existing item
 const index = icItems.findIndex(item => item.id === currentEditingIcId);
-if (index !== -1) {
-    // Store old item information for logging
-    oldItem = {...icItems[index]};
-    
-    // Preserve original last checked info if we're just editing configuration
-    if (icItems[index].lastCheckedTime) {
-        updatedItem.lastCheckedTime = icItems[index].lastCheckedTime;
-    }
-    if (icItems[index].lastCheckedBy) {
-        updatedItem.lastCheckedBy = icItems[index].lastCheckedBy;
-    }
-    
-    icItems[index] = updatedItem;
+if (index === -1) {
+    showErrorMessage('I&C item not found — reload the page and try again.');
+    return;
 }
+// Store old item information for logging
+oldItem = {...icItems[index]};
+
+// MERGE into the live object, never replace it: the local copy must keep the
+// fields this form never saw, exactly like the database node does.
+updatedItem = Object.assign(icItems[index], config);
+
+// Renaming the id is the one case where a patch will not do — it targets a node
+// that does not exist yet. Fall back to a full write, as before.
+write = (itemId === currentEditingIcId)
+    ? window.firebaseDb.saveIcItemFields(currentEditingIcId, config)
+    : window.firebaseDb.saveIcItem(Object.assign({}, updatedItem, { id: itemId }));
     }
-    
-    // Save to Firebase
-    if (window.firebaseDb && window.firebaseDb.saveIcItem) {
-window.firebaseDb.saveIcItem(updatedItem)
+
+    write
     .then(() => {
         // Log the activity if history system is available
         if (window.firebaseDb.saveIcActivityLog) {
@@ -485,7 +511,6 @@ window.firebaseDb.saveIcItem(updatedItem)
         console.error('Error saving I&C item:', error);
         showErrorMessage('Failed to save I&C item to database.');
     });
-    }
 }
 
 // Validate the I&C form before saving

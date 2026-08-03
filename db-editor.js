@@ -12,6 +12,10 @@ let formTitle;
 let itemIdInput;
 let itemNameInput;
 let itemCurrentInput;
+// Has the user actually typed in the stock field during THIS edit? The form is filled
+// when it opens and never refreshed, so sending its stock back unconditionally would
+// undo a count made on the tablet meanwhile.
+let prepStockTouched = false;
 let itemTargetInput;
 let itemUnitInput;
 let saveItemButton;
@@ -147,6 +151,7 @@ function initApp() {
     itemIdInput = document.getElementById('item-id');
     itemNameInput = document.getElementById('item-name');
     itemCurrentInput = document.getElementById('item-current');
+    if (itemCurrentInput) itemCurrentInput.addEventListener('input', () => { prepStockTouched = true; });
     itemTargetInput = document.getElementById('item-target');
     itemUnitInput = document.getElementById('item-unit');
     saveItemButton = document.getElementById('save-item');
@@ -298,6 +303,7 @@ function showAddNewForm() {
     itemIdInput.value = newId;
     itemNameInput.value = '';
     itemCurrentInput.value = '0';
+    prepStockTouched = false;
     itemTargetInput.value = '1';
     populateDropdown('item-unit', 'item-unit-new', [...new Set(prepItems.map(i => i.unit).filter(Boolean))].sort(), 'containers');
     itemDisplayOrderInput.value = newId;
@@ -329,6 +335,7 @@ function showEditForm(itemId) {
     itemIdInput.value = item.id;
     itemNameInput.value = item.name;
     itemCurrentInput.value = item.currentLevel;
+    prepStockTouched = false;
     itemTargetInput.value = item.targetLevel;
     populateDropdown('item-unit', 'item-unit-new', [...new Set(prepItems.map(i => i.unit).filter(Boolean))].sort(), item.unit);
     itemDisplayOrderInput.value = item.displayOrder || item.id;
@@ -348,75 +355,98 @@ function saveItem() {
     // Validate form
     if (!validateForm()) return;
     
-    // Create updated item object
-    const updatedItem = {
-        id: parseInt(itemIdInput.value),
+    const itemId = parseInt(itemIdInput.value);
+
+    // ONLY the fields this form owns. canPrep, updateType and the cantPrep* trio are
+    // written by the kitchen dashboard and are invisible here — rebuilding a whole
+    // object and set()-ing it erased them, silently unblocking a prep the kitchen had
+    // flagged. This is sent as a PATCH instead.
+    const config = {
         name: itemNameInput.value.trim(),
-        currentLevel: parseFloat(itemCurrentInput.value),
         targetLevel: parseFloat(itemTargetInput.value),
         unit: getDropdownValue('item-unit', 'item-unit-new'),
-        displayOrder: parseInt(itemDisplayOrderInput.value),
-        lastCheckedTime: new Date().toISOString(),
-        lastCheckedBy: 'Admin (DB Editor)'
+        displayOrder: parseInt(itemDisplayOrderInput.value)
     };
-    
+
+    // The stock is a snapshot taken when the form opened and never refreshed. Sending it
+    // back unconditionally would undo a count made on the tablet meanwhile, so it only
+    // travels when someone actually typed in that field. Editing a target is not a
+    // count either, which is why lastChecked* is no longer touched here.
+    if (prepStockTouched) config.currentLevel = parseFloat(itemCurrentInput.value);
+
+    // firebase-config.js is a module, so it can still be loading. Bail out BEFORE
+    // touching the local array: showing a save the database never received is worse
+    // than refusing the save.
+    if (!window.firebaseDb || !window.firebaseDb.saveItem || !window.firebaseDb.saveItemFields) {
+        showErrorMessage('Database not ready — wait a moment and try again.');
+        return;
+    }
+
     let actionType = 'edit';
     let oldItem = null;
-    
+    let updatedItem;
+    let write;
+
     if (isAdding) {
         // Make sure ID doesn't already exist
-        if (prepItems.some(item => item.id === updatedItem.id)) {
+        if (prepItems.some(item => item.id === itemId)) {
             showErrorMessage('An item with this ID already exists. Please use a different ID.');
             return;
         }
-        
-        // Add new item
+
+        // A brand-new node has nothing to preserve, so it is written whole.
+        updatedItem = Object.assign({
+            id: itemId,
+            currentLevel: parseFloat(itemCurrentInput.value),
+            lastCheckedTime: new Date().toISOString(),
+            lastCheckedBy: 'Admin (DB Editor)'
+        }, config);
         prepItems.push(updatedItem);
         actionType = 'add';
+        write = window.firebaseDb.saveItem(updatedItem);
     } else {
         // Update existing item
         const index = prepItems.findIndex(item => item.id === currentEditingId);
-        if (index !== -1) {
-            // Store old item information for logging
-            oldItem = {...prepItems[index]};
-            
-            // Preserve original last checked info if we're just editing configuration
-            if (prepItems[index].lastCheckedTime) {
-                updatedItem.lastCheckedTime = prepItems[index].lastCheckedTime;
-            }
-            if (prepItems[index].lastCheckedBy) {
-                updatedItem.lastCheckedBy = prepItems[index].lastCheckedBy;
-            }
-            
-            prepItems[index] = updatedItem;
+        if (index === -1) {
+            showErrorMessage('Item not found — reload the page and try again.');
+            return;
         }
+        // Store old item information for logging
+        oldItem = {...prepItems[index]};
+
+        // MERGE into the live object, never replace it: the local copy must keep the
+        // fields this form never saw, exactly like the database node does.
+        updatedItem = Object.assign(prepItems[index], config);
+
+        // Renaming the id is the one case where a patch will not do — it targets a node
+        // that does not exist yet. Fall back to a full write, as before.
+        write = (itemId === currentEditingId)
+            ? window.firebaseDb.saveItemFields(currentEditingId, config)
+            : window.firebaseDb.saveItem(Object.assign({}, updatedItem, { id: itemId }));
     }
-    
-    // Save to Firebase
-    if (window.firebaseDb) {
-        window.firebaseDb.saveItem(updatedItem)
-            .then(() => {
-                // Log the activity if history system is available
-                if (window.historySystem && typeof window.historySystem.logItemModification === 'function') {
-                    window.historySystem.logItemModification(
-                        updatedItem,
-                        'Admin (DB Editor)',
-                        actionType,
-                        oldItem
-                    ).catch(error => {
-                        console.error("Error logging activity:", error);
-                    });
-                }
-                
-                showSuccessMessage(isAdding ? 'Item added successfully.' : 'Item updated successfully.');
-                renderItemsTable();
-                cancelEdit(); // Hide the form
-            })
-            .catch(error => {
-                console.error('Error saving item:', error);
-                showErrorMessage('Failed to save item to database.');
-            });
-    }
+
+    write
+        .then(() => {
+            // Log the activity if history system is available
+            if (window.historySystem && typeof window.historySystem.logItemModification === 'function') {
+                window.historySystem.logItemModification(
+                    updatedItem,
+                    'Admin (DB Editor)',
+                    actionType,
+                    oldItem
+                ).catch(error => {
+                    console.error("Error logging activity:", error);
+                });
+            }
+
+            showSuccessMessage(isAdding ? 'Item added successfully.' : 'Item updated successfully.');
+            renderItemsTable();
+            cancelEdit(); // Hide the form
+        })
+        .catch(error => {
+            console.error('Error saving item:', error);
+            showErrorMessage('Failed to save item to database.');
+        });
 }
 
 // Validate the form before saving

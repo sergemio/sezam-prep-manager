@@ -32,7 +32,8 @@ STUB = """() => {
   window.__saveCalls = [];
   const rec = (fn, a) => window.__saveCalls.push({fn: fn, args: a});
   const db = window.firebaseDb || {};
-  ['saveItem','saveAllItems','saveIcItem','saveAllIcItems','saveIcActivityLog',
+  ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
+   'saveAllIcItems','saveIcActivityLog',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
@@ -737,6 +738,67 @@ def run_db(browser):
         d = pg.evaluate("() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveTeamMessage'); return c?{text:c.args[0].text,hasId:!!c.args[0].id}:null; }")
         return bool(d) and d["text"] == "Test broadcast" and d["hasId"]
     safe("DB/team-message-send", db_send)
+
+    # --- Bloc J : editer depuis le DB Editor ne doit JAMAIS toucher aux champs que ce
+    # formulaire ne connait pas. Avant le correctif, l'objet etait reconstruit puis
+    # set() : canPrep / cantPrep* et pendingQty disparaissaient de la base sans un mot.
+    def db_prep_edit_patch():
+        d = pg.evaluate("""() => {
+            const it = prepItems[0];
+            if (!it) return null;
+            window.__saveCalls = [];
+            showEditForm(it.id);
+            const t = document.getElementById('item-target');
+            t.value = String((parseFloat(t.value) || 0) + 1);
+            saveItem();
+            const c = (window.__saveCalls || []).find(x => x.fn === 'saveItemFields');
+            if (!c) return { fn: (window.__saveCalls[0] || {}).fn || 'none' };
+            return { fn: 'saveItemFields', keys: Object.keys(c.args[1]).sort(), id: c.args[0] };
+        }""")
+        if not d or d.get("fn") != "saveItemFields":
+            return False
+        forbidden = {"canPrep", "updateType", "cantPrepBy", "cantPrepReason",
+                     "cantPrepTime", "currentLevel", "lastCheckedTime", "lastCheckedBy"}
+        return not (forbidden & set(d["keys"])) and "targetLevel" in d["keys"]
+    safe("DB/prep-edit-sends-patch-only", db_prep_edit_patch)
+
+    # Le stock n'est envoye QUE s'il a ete tape : le formulaire est une photo prise a
+    # l'ouverture, le renvoyer tel quel annulerait un comptage fait sur la tablette.
+    def db_prep_stock_touched():
+        d = pg.evaluate("""() => {
+            const it = prepItems[0];
+            if (!it) return null;
+            window.__saveCalls = [];
+            showEditForm(it.id);
+            const c = document.getElementById('item-current');
+            c.value = String((parseFloat(c.value) || 0) + 3);
+            c.dispatchEvent(new Event('input', { bubbles: true }));
+            saveItem();
+            const call = (window.__saveCalls || []).find(x => x.fn === 'saveItemFields');
+            return call ? { sent: call.args[1].currentLevel } : null;
+        }""")
+        return bool(d) and d["sent"] is not None
+    safe("DB/prep-edit-sends-touched-stock", db_prep_stock_touched)
+
+    def db_ic_edit_keeps_pending():
+        d = pg.evaluate("""() => {
+            const it = icItems[0];
+            if (!it) return null;
+            window.__saveCalls = [];
+            showEditIcForm(it.id);
+            const t = document.getElementById('ic-target');
+            t.value = String((parseFloat(t.value) || 0) + 1);
+            saveIcItem();
+            const c = (window.__saveCalls || []).find(x => x.fn === 'saveIcItemFields');
+            if (!c) return { fn: (window.__saveCalls[0] || {}).fn || 'none' };
+            return { fn: 'saveIcItemFields', keys: Object.keys(c.args[1]).sort() };
+        }""")
+        if not d or d.get("fn") != "saveIcItemFields":
+            return False
+        forbidden = {"pendingQty", "pendingAt", "pendingProvider", "sublocation",
+                     "currentLevel", "lastCheckedTime", "lastCheckedBy"}
+        return not (forbidden & set(d["keys"])) and "targetLevel" in d["keys"]
+    safe("DB/ic-edit-preserves-pending", db_ic_edit_keeps_pending)
 
     rec("DB/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()
