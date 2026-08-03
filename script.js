@@ -32,6 +32,20 @@ let currentStaff = '';
 // truth). UserSession.set/restore/clear now drive currentStaff everywhere.
 if (window.UserSession) UserSession.subscribe(function (n) { currentStaff = n; });
 let currentItemIndex = 0;
+// The check walks a frozen list of item IDs, never positions in `prepItems`. That array
+// is replaced AND re-sorted by the realtime listener, so an index taken at display time
+// could point at a different item by the time Save runs: the screen showed one name and
+// the database received another — with the activity log recording the wrong name too,
+// which made it untraceable. IDs survive deletions and reordering.
+let checkQueueIds = [];
+
+// The item the check is currently on, resolved fresh from the live array. Returns null
+// if it was deleted from another device while the check was running.
+function currentCheckItem() {
+    const id = checkQueueIds[currentItemIndex];
+    if (id === undefined) return null;
+    return prepItems.find(i => i.id === id) || null;
+}
 // The user-switch toast now lives entirely in UserSession.showSwitchToast (user.js);
 // every identity change routes through UserSession.set which fires it.
 let isChecking = false;
@@ -233,8 +247,12 @@ function initApp() {
         window.firebaseDb.onItemsChange((updatedItems) => {
 
             if (updatedItems) {
-                // Update with whatever Firebase returns (including empty arrays)
-                prepItems = updatedItems;
+                // Merge, never swap: open modals hold references captured when they
+                // opened, and writing an orphan back later undoes whatever another
+                // device did meanwhile. Same objects, fresh values.
+                prepItems = (typeof mergeById === 'function')
+                    ? mergeById(prepItems, updatedItems)
+                    : updatedItems;
 
                 // IMPORTANT: Sort by displayOrder using the helper function
                 prepItems = sortItemsByDisplayOrder(prepItems);
@@ -378,9 +396,17 @@ function saveAndNext() {
         return;
     }
     
-    // Get the current item being checked
-    const item = prepItems[currentItemIndex];
-    
+    // Resolved by ID, not by position: the array may have been re-sorted or shortened
+    // by another device since this item was displayed.
+    const item = currentCheckItem();
+    if (!item) {
+        // Deleted from the DB Editor while the check was running. Nothing to write —
+        // skip to the next item rather than saving onto whoever took its place.
+        showNotification('Item deleted', 'This item was removed elsewhere — skipping to the next one', 'warning');
+        advanceCheck();
+        return;
+    }
+
     // Store old value before updating
     const oldValue = item.currentLevel;
     const newValue = parseFloat(currentLevelInput.value);
@@ -420,7 +446,13 @@ function saveAndNext() {
     SoundFX.tap();
 
     // Move to next item or complete check
-    if (currentItemIndex < prepItems.length - 1) {
+    advanceCheck();
+}
+
+// Step to the next queued item, or finish. Walks the frozen ID queue, so an item deleted
+// from another device is skipped rather than shifting everything that follows.
+function advanceCheck() {
+    if (currentItemIndex < checkQueueIds.length - 1) {
         currentItemIndex++;
         showCurrentPrepItem();
     } else {
@@ -1525,13 +1557,22 @@ function markMessageCompleted(id) {
 }
 
 function showCurrentPrepItem() {
-    const item = prepItems[currentItemIndex];
-    checkProgressElement.textContent = `Item ${currentItemIndex + 1} of ${prepItems.length}`;
+    const item = currentCheckItem();
+    if (!item) {
+        // Deleted elsewhere mid-check: skip it instead of rendering the wrong article.
+        // advanceCheck() ends the check cleanly if this was the last one.
+        advanceCheck();
+        return;
+    }
+    // Total comes from the frozen queue, not from prepItems: otherwise adding an item
+    // from the DB Editor mid-check would make "Item 12 of 41" jump to 42.
+    const total = checkQueueIds.length;
+    checkProgressElement.textContent = `Item ${currentItemIndex + 1} of ${total}`;
 
     // Fill the progress bar to mirror "Item X of N" so staff see their position.
     const progressFill = document.getElementById('prep-check-progress-fill');
     if (progressFill) {
-        const pct = prepItems.length ? ((currentItemIndex + 1) / prepItems.length) * 100 : 0;
+        const pct = total ? ((currentItemIndex + 1) / total) * 100 : 0;
         progressFill.style.width = pct + '%';
     }
 
@@ -1622,11 +1663,15 @@ function startPrepCheck() {
 function startPrepCheckProcess() {
     isChecking = true;
     currentItemIndex = 0;
-    
-    
+
     // Sort items using our helper function
     prepItems = sortItemsByDisplayOrder(prepItems);
-    
+
+    // Freeze the walk order as IDs. From here on the check follows THIS list, whatever
+    // the realtime listener does to `prepItems` — reordering it mid-check no longer
+    // moves the target under the user's finger.
+    checkQueueIds = prepItems.map(i => i.id);
+
     
     dashboardSection.style.display = 'none';
     prepCheckInterface.style.display = 'block';

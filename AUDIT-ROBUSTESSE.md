@@ -102,7 +102,7 @@ appelant. Non re-vérifiés (à confirmer au bloc O) : le chiffre de 440 lignes 
 |---|---|---|
 | **I** ✅ | `saveFields(id, patch)` (écriture partielle) + strip des `undefined` dans `createCrudHelpers` | La fondation : neutralise **toute la classe** de failles d'écrasement |
 | **J** ✅ | DB Editor : fusionner au lieu de reconstruire (preps + I&C) — stock envoyé **seulement s'il a été tapé** | Arrête la destruction de `canPrep` et `pendingQty` |
-| **K** | Identité au lieu de position : listener qui préserve les objets, Prep Check par `id` | Arrête l'écriture sur le mauvais article |
+| **K** ✅ | Identité au lieu de position : `mergeById` dans les 2 listeners, Prep Check sur une file d'`id` figée | Arrête l'écriture sur le mauvais article |
 | **L** ✅ | Cohérence commande : dashboard soustrait `pendingQty`, litige **dans** la transaction, réception idempotente, choix du fournisseur, `pluralizeUnit` | Répare ce que A→H a introduit |
 | **M** | Politique d'erreur unique : `.catch` partout + toast global sur échec d'écriture | Plus aucun échec silencieux |
 | **N** | `pluralizeUnit`, succès annoncé avant écriture, ids par transaction | Correctifs isolés |

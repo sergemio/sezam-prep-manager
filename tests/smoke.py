@@ -336,6 +336,87 @@ def run_pm(browser):
     safe("PM/team-message-flow", g_teammsg)
 
     rec("PM/no-native-dialogs", len(dialogs) == 0, str(dialogs))
+    # Le parcours complet du check n'etait couvert par AUCUN test, alors que le bloc K
+    # touche justement saveAndNext. Filet de base : ce qui est affiche est ce qui est
+    # ecrit, et le check avance.
+    def pm_check_end_to_end():
+        d = pg.evaluate("""() => {
+            if (typeof startPrepCheckProcess !== 'function') return null;
+            startPrepCheckProcess();
+            const first = currentCheckItem();
+            if (!first) return null;
+            const firstId = first.id;
+            const shown = checkItemNameElement.textContent;
+
+            window.__saveCalls = [];
+            currentLevelInput.value = '3';
+            saveAndNext();
+
+            const saved = (window.__saveCalls || []).filter(c => c.fn === 'saveItem');
+            const second = currentCheckItem();
+            return {
+                savedId: saved.length ? saved[0].args[0].id : null,
+                expectedId: firstId,
+                savedLevel: saved.length ? saved[0].args[0].currentLevel : null,
+                shownMatched: shown === first.name,
+                advanced: !!second && second.id !== firstId,
+                index: currentItemIndex
+            }; }""")
+        return (bool(d) and d["savedId"] == d["expectedId"] and d["savedLevel"] == 3
+                and d["shownMatched"] and d["advanced"] and d["index"] == 1)
+    safe("PM/check-saves-displayed-item", pm_check_end_to_end)
+
+    # Bloc K — le check suit des IDENTIFIANTS, pas des positions. Le listener remplace
+    # ET retrie prepItems : un index pris a l'affichage pouvait desigher un autre
+    # article au moment du Save (ecran un nom, base un autre, journal le mauvais aussi).
+    def pm_check_resolves_by_id():
+        d = pg.evaluate("""() => {
+            if (typeof startPrepCheckProcess !== 'function'
+                || typeof currentCheckItem !== 'function') return null;
+            startPrepCheckProcess();
+            const before = currentCheckItem();
+            if (!before) return null;
+            const id = before.id;
+            const total = checkQueueIds.length;
+
+            // Un autre terminal reordonne la liste : l'article vise ne doit pas bouger.
+            prepItems = prepItems.slice().reverse();
+            const afterReorder = currentCheckItem();
+
+            // Puis il supprime l'article en cours : plus rien a ecrire dessus.
+            prepItems = prepItems.filter(i => i.id !== id);
+            const afterDelete = currentCheckItem();
+
+            return {
+                followsId: !!afterReorder && afterReorder.id === id,
+                nullWhenDeleted: afterDelete === null,
+                queueFrozen: checkQueueIds.length === total
+            }; }""")
+        return (bool(d) and d["followsId"] and d["nullWhenDeleted"] and d["queueFrozen"])
+    safe("PM/check-follows-id-not-position", pm_check_resolves_by_id)
+
+    # mergeById : meme identite d'objet, valeurs fraiches, champs supprimes en amont
+    # retires. C'est ce qui empeche un modal ouvert de reecrire des valeurs perimees.
+    def shared_merge_by_id():
+        d = pg.evaluate("""() => {
+            if (typeof mergeById !== 'function') return null;
+            const local = [{id: 1, name: 'A', stock: 2, gone: 'x'}, {id: 2, name: 'B'}];
+            const held = local[0];
+            const merged = mergeById(local, [
+                {id: 1, name: 'A', stock: 9},
+                {id: 3, name: 'C'}
+            ]);
+            return {
+                sameObject: merged[0] === held,
+                refreshed: held.stock === 9,
+                droppedField: !('gone' in held),
+                newItemKept: merged.some(i => i.id === 3),
+                length: merged.length
+            }; }""")
+        return (bool(d) and d["sameObject"] and d["refreshed"] and d["droppedField"]
+                and d["newItemKept"] and d["length"] == 2)
+    safe("shared/mergeById-keeps-identity", shared_merge_by_id)
+
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()
 

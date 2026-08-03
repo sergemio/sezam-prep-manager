@@ -1600,7 +1600,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupRealtimeUpdates() {
         if (window.firebaseDb && window.firebaseDb.onIcItemsChange) {
             window.firebaseDb.onIcItemsChange((updatedItems) => {
-                window.icItems = updatedItems;
+                // Merge, never swap: a Full Count queue and every open modal hold
+                // references taken when they started. Replacing the objects orphaned
+                // them, and saving an orphan later wrote back its stale fields —
+                // that is how a count in progress could resurrect a cancelled order.
+                window.icItems = (typeof mergeById === 'function')
+                    ? mergeById(window.icItems, updatedItems)
+                    : updatedItems;
                 
                 // Extract locations and sublocations
                 extractLocationsAndSublocations();

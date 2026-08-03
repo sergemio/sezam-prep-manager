@@ -301,6 +301,22 @@
     if (typeof opts.onSection === 'function') opts.onSection(sectionId);
   }
 
+  // Refresh a local array from a realtime snapshot WITHOUT swapping the objects.
+  // Open modals, count queues and reception drafts all hold references captured when
+  // they opened. Replacing the array with fresh objects turns those references into
+  // orphans — and an orphan written back later carries stale values for every field
+  // that changed meanwhile, silently undoing another device's work.
+  // Same object identity, fresh field values; fields deleted upstream are dropped.
+  function mergeById(local, remote) {
+    var byId = new Map((local || []).map(function (o) { return [o.id, o]; }));
+    return (remote || []).map(function (r) {
+      var cur = byId.get(r.id);
+      if (!cur) return r;
+      Object.keys(cur).forEach(function (k) { if (!(k in r)) delete cur[k]; });
+      return Object.assign(cur, r);
+    });
+  }
+
   // Escape a string for safe insertion into innerHTML.
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -376,6 +392,7 @@
   global.describeLog = describeLog;
   global.escapeHtml = escapeHtml;
   global.makeSaver = makeSaver;
+  global.mergeById = mergeById;
   global.byDisplayOrder = byDisplayOrder;
   global.activateSection = activateSection;
   global.openModal = openModal;
