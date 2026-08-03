@@ -100,10 +100,10 @@ appelant. Non re-vérifiés (à confirmer au bloc O) : le chiffre de 440 lignes 
 
 | Bloc | Contenu | Pourquoi |
 |---|---|---|
-| **I** | `saveFields(id, patch)` (écriture partielle) + strip des `undefined` dans `createCrudHelpers` | La fondation : neutralise **toute la classe** de failles d'écrasement |
-| **J** | DB Editor : fusionner au lieu de reconstruire (preps + I&C) ⚠️ contient une décision produit, voir ci-dessous | Arrête la destruction de `canPrep` et `pendingQty` |
+| **I** ✅ | `saveFields(id, patch)` (écriture partielle) + strip des `undefined` dans `createCrudHelpers` | La fondation : neutralise **toute la classe** de failles d'écrasement |
+| **J** ✅ | DB Editor : fusionner au lieu de reconstruire (preps + I&C) — stock envoyé **seulement s'il a été tapé** | Arrête la destruction de `canPrep` et `pendingQty` |
 | **K** | Identité au lieu de position : listener qui préserve les objets, Prep Check par `id` | Arrête l'écriture sur le mauvais article |
-| **L** | Cohérence commande : dashboard soustrait `pendingQty`, litige **dans** la transaction, réception idempotente, choix du fournisseur | Répare ce que A→H a introduit |
+| **L** ✅ | Cohérence commande : dashboard soustrait `pendingQty`, litige **dans** la transaction, réception idempotente, choix du fournisseur, `pluralizeUnit` | Répare ce que A→H a introduit |
 | **M** | Politique d'erreur unique : `.catch` partout + toast global sur échec d'écriture | Plus aucun échec silencieux |
 | **N** | `pluralizeUnit`, succès annoncé avant écriture, ids par transaction | Correctifs isolés |
 | **O** | ~440 lignes mortes + fusion des deux modals | Légèreté |
@@ -129,17 +129,17 @@ appelant. Non re-vérifiés (à confirmer au bloc O) : le chiffre de 440 lignes 
 
 ---
 
-## Décisions ouvertes — à trancher par Serge
+## Décisions
 
-- **`currentLevel` dans le formulaire du DB Editor** (bloque l'écriture du bloc J).
-  Le DB Editor peut réécrire un stock compté entre-temps sur la tablette (le formulaire
-  est rempli à l'ouverture et jamais rafraîchi). Deux issues : **retirer le champ stock du
-  DB Editor** (le stock ne se corrige plus que depuis l'app I&C) — recommandé — ou le
-  garder en acceptant le risque.
+- ✅ **`currentLevel` dans le DB Editor** — tranché par Serge le 04/08 : le champ **reste**,
+  mais il n'est envoyé que si quelqu'un a **tapé dedans** (drapeau posé sur l'événement
+  `input`). Ni retrait du champ, ni écrasement accidentel : la correction depuis le PC reste
+  possible quand elle est intentionnelle. Implémenté au bloc J.
 - **Sécurité de la base** (PIN public, règles ouvertes) : décision d'architecture, pas un
-  correctif de code. À traiter séparément.
+  correctif de code. **Toujours ouvert**, à traiter séparément.
 
-## Consigne d'usage en attendant le correctif
+## Consigne d'usage — levée après le push des blocs I/J
 
-**Ne pas éditer d'articles dans le DB Editor** — c'est lui qui détruit les blocages
-cuisine à chaque enregistrement, et 8 preps sont bloqués actuellement.
+En attendant le déploiement, **ne pas éditer d'articles dans le DB Editor** : c'est lui qui
+détruit les blocages cuisine à chaque enregistrement, et 8 preps sont bloqués. Le correctif
+est écrit et testé, mais la production tourne encore sur l'ancien code.
