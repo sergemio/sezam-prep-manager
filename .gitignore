@@ -1,2 +1,13 @@
 backup-*.json
 backup-ic-merge/
+
+# Non-regression visuelle : captures locales (volumineuses, machine-dependantes).
+# La reference se regenere avec `python tests/visual.py --baseline`.
+tests/visual/
+
+# Dossiers de travail locaux : non suivis jusqu'ici, ils partiraient au premier
+# `git add -A` (screenshots/ pese 1,6 Mo de PNG). Rien ici n'a besoin d'etre
+# publie sur GitHub Pages.
+screenshots/
+archive/
+category-migration/
