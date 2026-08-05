@@ -37,7 +37,14 @@ STUB = """() => {
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
-    if (typeof db[fn] === 'function') db[fn] = function () { rec(fn, [].slice.call(arguments)); return Promise.resolve(); };
+    if (typeof db[fn] === 'function') db[fn] = function () {
+      rec(fn, [].slice.call(arguments));
+      // Interrupteur de panne : sans lui, TOUS les stubs reussissent toujours et aucun
+      // rollback n'est jamais exercé par la suite de tests — c'est ce trou qui a laisse
+      // passer le poison `undefined` du bloc I, trouve seulement en lisant la vraie base.
+      if (window.__failWrites) return Promise.reject(new Error('simulated write failure'));
+      return Promise.resolve();
+    };
   });
   // Les creations transactionnelles ECRIVENT (runTransaction) : elles doivent etre
   // stubbees comme les autres, mais en rendant l'article cree, que l'appelant fusionne.
@@ -726,6 +733,87 @@ def run_ic(browser):
                 and (before is None or saved["level"] == before) and logged)
     safe("IC/order-sets-pending", ic_order_sets_pending)
 
+    # Bloc P — LE trou de l'audit : aucun test ne faisait jamais echouer une ecriture,
+    # donc aucun rollback n'etait exerce. C'est ce qui a laisse passer le poison
+    # `undefined` du bloc I, trouve seulement en lisant la vraie base.
+    # Ici : une commande dont l'ecriture est refusee doit rendre l'article EXACTEMENT
+    # tel qu'il etait — sans laisser de cle `undefined`, qui ferait lever synchroniquement
+    # la prochaine ecriture et figerait l'ecran de comptage sans message.
+    def ic_order_rollback_on_failure():
+        clear_modals(pg)
+        before = pg.evaluate("""() => {
+            const it = (window.icItems || [])[0];
+            if (!it) return null;
+            return { id: it.id, level: it.currentLevel,
+                     keys: Object.keys(it).sort().join(','),
+                     pending: it.pendingQty === undefined ? '__absent__' : it.pendingQty }; }""")
+        if not before:
+            return False
+        pg.evaluate("() => { window.__saveCalls=[]; window.__failWrites = true; const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }")
+        pg.wait_for_timeout(600)
+        pick_tab("order")
+        pg.evaluate("() => { const b=document.getElementById('order-plus'); if(b) b.click(); }")
+        pg.wait_for_timeout(250)
+        pg.evaluate("() => { const s=document.getElementById('order-save'); if(s) s.click(); }")
+        pg.wait_for_timeout(900)
+        after = pg.evaluate("""(id) => {
+            const it = (window.icItems || []).find(i => i.id === id);
+            if (!it) return null;
+            const undef = Object.keys(it).filter(k => it[k] === undefined);
+            return { level: it.currentLevel, keys: Object.keys(it).sort().join(','),
+                     pending: it.pendingQty === undefined ? '__absent__' : it.pendingQty,
+                     undefKeys: undef }; }""", before["id"])
+        pg.evaluate("() => { window.__failWrites = false; }")
+        clear_modals(pg)
+        if not after:
+            return False
+        return (after["level"] == before["level"]
+                and after["pending"] == before["pending"]
+                and after["keys"] == before["keys"]
+                and after["undefKeys"] == [])
+    safe("IC/order-rollback-leaves-no-undefined", ic_order_rollback_on_failure)
+
+    # describeLog n'etait teste que sur 'order'. La REGLE qu'il porte est pourtant le
+    # coeur de la lisibilite de l'historique : la fleche X -> Y est la grammaire d'un
+    # MOUVEMENT DE STOCK, elle ne doit jamais apparaitre sur une commande (commander ne
+    # touche pas le stock). C'est cette confusion qui affichait « MODIFIED 0 -> 1 bag ».
+    def shared_describelog_covers_all_types():
+        d = pg.evaluate("""() => {
+            const base = (t, extra) => Object.assign(
+                { actionType: t, unit: 'bag', oldValue: 1, newValue: 3 }, extra || {});
+            const r = {};
+            r.count    = describeLog(base('count'));
+            r.update   = describeLog(base('update'));
+            r.add      = describeLog(base('add'));
+            r.del      = describeLog(base('delete'));
+            r.order    = describeLog(base('order', { stock: 4, provider: 'Alep' }));
+            r.cancel   = describeLog(base('order', { newValue: 0, oldValue: 2, stock: 4 }));
+            r.receive  = describeLog(base('receive', { receivedQty: 2 }));
+            r.missing  = describeLog(base('not-delivered', { missingQty: 1 }));
+            r.unknown  = describeLog({ actionType: 'zzz-jamais-vu', unit: 'bag' });
+            const out = {};
+            Object.keys(r).forEach(k => {
+                out[k] = r[k] ? { label: r[k].label, change: r[k].change } : null;
+            });
+            return out; }""")
+        if not d:
+            return False
+        # Tous les types reels sont couverts, et un type inconnu rend null (l'appelant
+        # a un repli) — jamais un texte trompeur.
+        for key in ("count", "update", "add", "del", "order", "cancel", "receive", "missing"):
+            if not d.get(key):
+                return False
+        if d["unknown"] is not None:
+            return False
+        arrow = "→"
+        return (arrow not in d["order"]["change"]          # commander ne bouge pas le stock
+                and arrow not in d["cancel"]["change"]
+                and arrow in d["receive"]["change"]        # recevoir, si
+                and arrow in d["count"]["change"]
+                and "on the way" in d["order"]["change"]
+                and d["receive"]["label"] == "received")
+    safe("shared/describeLog-covers-all-types", shared_describelog_covers_all_types)
+
     # Annuler une commande doit effacer la DATE et le FOURNISSEUR, pas seulement
     # la quantite. Trouve dans la vraie base le 03/08 : un article annule gardait
     # pendingAt='...18:25' + pendingProvider='Metro', soit « commande chez Metro »
@@ -879,6 +967,40 @@ def run_ic(browser):
         return bool(clicked) and not wrote
     safe("IC/receive-replay-blocked", ic_receive_replay_blocked)
 
+    # Bloc P — le chemin le plus critique de l'app, et son rollback n'avait JAMAIS ete
+    # exerce : tous les stubs reussissaient. Si l'ecriture de la reception echoue, le
+    # stock ne doit pas avoir bouge d'un gramme — sinon l'ecran credite une livraison que
+    # la base n'a pas enregistree, et l'ecart ne se voit plus jamais.
+    def ic_reception_rolls_back():
+        seeded = seed_pending()
+        if not seeded:
+            return False
+        pg.wait_for_timeout(400)
+        before = pg.evaluate("""() => {
+            const it = (window.icItems || []).find(i => (parseFloat(i.pendingQty) || 0) > 0);
+            return it ? { id: it.id, level: it.currentLevel, pending: it.pendingQty } : null; }""")
+        if not before:
+            return False
+        open_reception()
+        pg.evaluate("() => { window.__saveCalls=[]; window.__failWrites = true; }")
+        pg.evaluate("() => { const b=document.getElementById('receive-all'); if(b) b.click(); }")
+        pg.wait_for_timeout(900)
+        after = pg.evaluate("""(id) => {
+            const it = (window.icItems || []).find(i => i.id === id);
+            if (!it) return null;
+            return { level: it.currentLevel, pending: it.pendingQty,
+                     undefKeys: Object.keys(it).filter(k => it[k] === undefined) }; }""",
+                            before["id"])
+        pg.evaluate("() => { window.__failWrites = false; }")
+        clear_modals(pg)
+        if not after:
+            return False
+        # Stock ET commande restaures a l'identique, et aucune cle empoisonnee.
+        return (after["level"] == before["level"]
+                and after["pending"] == before["pending"]
+                and after["undefKeys"] == [])
+    safe("IC/reception-rolls-back-on-failure", ic_reception_rolls_back)
+
     # Unites deja plurielles en base ("sauce bottles", "units") : ne pas re-pluraliser.
     def ic_pluralize_plural_units():
         d = pg.evaluate("""() => ({
@@ -993,7 +1115,12 @@ def run_ic(browser):
     safe("IC/history-order-not-modified", ic_history_order_line)
 
     rec("IC/no-native-dialogs", len(dialogs) == 0, str(dialogs))
-    rec("IC/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
+    # Les pannes que le test PROVOQUE lui-meme (interrupteur __failWrites) doivent bien
+    # produire un console.error — c'est le comportement attendu de guard(). On les ecarte
+    # ici, et elles SEULES : le filtre porte sur la chaine exacte du stub, aucune vraie
+    # erreur ne peut passer a travers.
+    real_errs = [e for e in errs if "simulated write failure" not in str(e)]
+    rec("IC/0-console-errors", len(real_errs) == 0, (str(real_errs[:3]) if real_errs else ""))
     pg.close()
 
 
