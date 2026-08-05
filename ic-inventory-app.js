@@ -1066,9 +1066,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Check for duplicate names (excluding current item)
-            const duplicateName = icItems.find(i => i.id !== item.id && i.name.toLowerCase() === newName.toLowerCase());
+            const duplicateName = findDuplicateName(newName, item.id);
             if (duplicateName) {
-                showMessage(`An item with the name "${newName}" already exists`, 'error');
+                showMessage(`An item named "${duplicateName.name}" already exists`, 'error');
                 nameInput.focus();
                 return;
             }
@@ -1495,6 +1495,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Idem : la regle unique qui decide ce qu on accepte d enregistrer. Exposee pour
     // que le test constate qu elle refuse bien, plutot que de la relire des yeux.
     window.__icValidateItemForm = validateItemForm;
+    window.__icFindDuplicateName = findDuplicateName;
     
     // Set up event listeners for navigation
     function setupNavigation() {
@@ -2555,6 +2556,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return { group: categoriesGroup, editor: editor };
     }
 
+    // Deux articles du meme nom eclatent le stock sur deux fiches : on commande sur
+    // l une, on compte sur l autre, et l ecart ne se voit jamais. La comparaison
+    // ignore la casse et les espaces de bord — "Ayran" et " ayran " designent le meme
+    // produit pour la personne qui fait l inventaire. exceptId permet a un article de
+    // garder son propre nom quand on le modifie.
+    function findDuplicateName(name, exceptId) {
+        const wanted = (name || '').trim().toLowerCase();
+        if (!wanted) return null;
+        return (window.icItems || []).find(function (i) {
+            return i.id !== exceptId && (i.name || '').trim().toLowerCase() === wanted;
+        }) || null;
+    }
+
     // Validation commune aux deux modals article : renvoie le message d erreur, ou
     // null si la saisie est bonne. Elle etait ecrite deux fois, mot pour mot ; les
     // deux ecrans doivent refuser exactement les memes saisies, sinon une valeur
@@ -2569,6 +2583,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (!fields.unit) return 'Please enter a unit';
         if (!fields.location) return 'Please select or enter a location';
+        const twin = findDuplicateName(fields.name, fields.id);
+        if (twin) return 'An item named "' + twin.name + '" already exists';
         return null;
     }
 
@@ -2845,7 +2861,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const categories = catEditorEdit.get();
 
             // Validation
-            const invalid = validateItemForm({ name, currentLevel, targetLevel, unit, location });
+            const invalid = validateItemForm({ name, currentLevel, targetLevel, unit, location, id: item.id });
             if (invalid) {
                 showMessage(invalid, 'error');
                 return;

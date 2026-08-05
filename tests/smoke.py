@@ -947,7 +947,8 @@ def run_ic(browser):
         d = pg.evaluate("""() => {
             const v = window.__icValidateItemForm;
             if (typeof v !== 'function') return null;
-            const ok = {name: 'X', currentLevel: 0, targetLevel: 1, unit: 'kg', location: 'Fridge'};
+            const ok = {name: 'ZZ-inexistant-' + Date.now(), currentLevel: 0,
+                        targetLevel: 1, unit: 'kg', location: 'Fridge'};
             const ko = (patch) => v(Object.assign({}, ok, patch));
             return {
                 accepts_valid:  v(ok),
@@ -969,6 +970,38 @@ def run_ic(browser):
                    ("no_name", "stock_nan", "stock_negative", "target_zero",
                     "no_unit", "no_location"))
     safe("IC/item-validation-is-shared", ic_validation_is_shared)
+
+    # Decision Serge 05/08 : deux articles du meme nom eclatent le stock sur deux fiches
+    # (on commande sur l'une, on compte sur l'autre). Une seule regle pour les 3 ecrans.
+    def ic_duplicate_name_blocked():
+        d = pg.evaluate("""() => {
+            const dup = window.__icFindDuplicateName, val = window.__icValidateItemForm;
+            if (typeof dup !== 'function' || typeof val !== 'function') return null;
+            const victim = (window.icItems || []).find(i => i && i.name);
+            if (!victim) return null;
+            const form = (patch) => val(Object.assign(
+                {name: victim.name, currentLevel: 1, targetLevel: 1,
+                 unit: 'kg', location: 'Fridge'}, patch));
+            return {
+                exact:       !!dup(victim.name),
+                other_case:  !!dup(victim.name.toUpperCase()),
+                padded:      !!dup('  ' + victim.name + '  '),
+                keeps_own:   dup(victim.name, victim.id),
+                blank:       dup('   '),
+                creation:    form({}),
+                self_edit:   form({id: victim.id})
+            }; }""")
+        if not d:
+            return False
+        # le nom est repere quelle que soit la casse ou les espaces...
+        if not (d["exact"] and d["other_case"] and d["padded"]):
+            return False
+        # ...mais un article garde le sien quand on le modifie, et un nom vide ne compte pas
+        if d["keeps_own"] is not None or d["blank"] is not None:
+            return False
+        # creation refusee avec un message, edition du meme article acceptee
+        return isinstance(d["creation"], str) and d["creation"] and d["self_edit"] is None
+    safe("IC/duplicate-name-blocked", ic_duplicate_name_blocked)
 
     # Rejouer une reception (2 ecrans portent la banniere, la tablette peut dormir)
     # ne doit rien reecrire : sinon second litige et commande fraiche ecrasee.
