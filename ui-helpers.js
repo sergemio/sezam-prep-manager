@@ -317,6 +317,32 @@
     });
   }
 
+  // Filet de derniere ligne : firebase-config emet `db-write-failed` des qu'une ecriture
+  // echoue, quel que soit l'appelant et meme s'il a oublie son .catch. L'app entiere
+  // repose sur des ecritures silencieuses — un echec invisible fait diverger l'ecran et
+  // la base sans que personne ne le sache. Ici on garantit qu'il se voit TOUJOURS.
+  var lastWriteError = 0;
+  global.addEventListener('db-write-failed', function () {
+    // Un incident reseau fait souvent echouer plusieurs ecritures d'affilee : un seul
+    // message toutes les 5 s, sinon l'ecran se couvre de toasts identiques.
+    var now = Date.now();
+    if (now - lastWriteError < 5000) return;
+    lastWriteError = now;
+    var msg = 'Check the connection and try again';
+    if (typeof global.showNotification === 'function') {
+      global.showNotification('Not saved', msg, 'error');
+    } else {
+      console.error('Not saved — ' + msg);
+    }
+  });
+
+  // Les ecritures sans .catch (il en reste une dizaine, historiques) rejettent dans le
+  // vide une fois que guard() a re-leve. Elles ont deja produit un log et un toast :
+  // on evite le doublon en console, SANS toucher aux erreurs venues d'ailleurs.
+  global.addEventListener('unhandledrejection', function (e) {
+    if (e.reason && e.reason.__dbReported) e.preventDefault();
+  });
+
   // Escape a string for safe insertion into innerHTML.
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {

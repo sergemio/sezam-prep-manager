@@ -73,9 +73,14 @@ const SoundFX = (() => {
 
     // Le tout premier geste de la session debloque l'audio pour de bon. On ecoute large
     // (tap, clic, touche) et en capture, pour ne dependre d'aucun handler applicatif.
-    ['pointerdown', 'touchend', 'mousedown', 'keydown'].forEach(function (ev) {
-        document.addEventListener(ev, unlock, { capture: true, passive: true });
-    });
+    // Liste volontairement large : les navigateurs n'acceptent pas tous les memes
+    // evenements comme "geste utilisateur", et le but est que l'audio reparte au tout
+    // premier contact, quel qu'il soit. Les ecouteurs RESTENT en place : iOS resuspend
+    // le contexte apres chaque veille, il faut donc pouvoir le relancer indefiniment.
+    ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown']
+        .forEach(function (ev) {
+            document.addEventListener(ev, unlock, { capture: true, passive: true });
+        });
 
     // Retour de veille : cas typique de la tablette de cuisine reprise le matin. iOS
     // suspend le contexte pendant la veille et ne le relance pas tout seul.
@@ -110,7 +115,15 @@ const SoundFX = (() => {
         ].join(';');
         indicator.addEventListener('click', function () {
             unlock();
-            setTimeout(refreshIndicator, 200);
+            // Carillon de confirmation : sans retour audible, on ne sait pas si le tap
+            // a servi a quelque chose. C'est le meme son que celui des messages.
+            setTimeout(function () {
+                if (ctx && ctx.state === 'running') {
+                    playTone(988, 0.16, 'sine', 0.19, 0);
+                    playTone(1319, 0.30, 'sine', 0.17, 0.14);
+                }
+                refreshIndicator();
+            }, 200);
         });
         document.body.appendChild(indicator);
     }

@@ -29,11 +29,35 @@ function stripUndefined(obj) {
     return clean;
 }
 
+// EVERY write goes through here. A failed write that nobody notices is the worst
+// outcome in this app: the screen shows the new value, the database keeps the old one,
+// and the two only diverge further. Callers should still add their own .catch to roll
+// back their local state — this is the net beneath them, not a replacement. It fires a
+// `db-write-failed` event (ui-helpers turns it into a toast) and re-throws so existing
+// .catch blocks keep working.
+function guard(promise, label) {
+    return promise.catch(function (err) {
+        // Marque l'erreur comme deja signalee : une dizaine d'appels historiques n'ont
+        // pas de .catch, et le re-throw ci-dessous en ferait autant de "unhandled
+        // rejection" bruyantes. ui-helpers les laisse passer en silence — elles ont
+        // deja produit un log ET un toast, les signaler deux fois n'apporte rien.
+        try { err.__dbReported = true; } catch (e) { /* err peut etre gele */ }
+        console.error('Firebase write failed [' + label + ']:', err);
+        try {
+            window.dispatchEvent(new CustomEvent('db-write-failed', {
+                detail: { label: label, error: err }
+            }));
+        } catch (e) { /* jamais laisser la notification masquer l'erreur d'origine */ }
+        throw err;
+    });
+}
+
 // Helper to create standard CRUD functions for a Firebase path
 function createCrudHelpers(basePath, idPrefix) {
     return {
         save: function(item) {
-            return set(ref(database, basePath + '/' + item.id), stripUndefined(item));
+            return guard(set(ref(database, basePath + '/' + item.id), stripUndefined(item)),
+                         basePath + '/save');
         },
         // Partial write: ONLY the listed fields are sent, everything else in the node is
         // left alone. set() replaces the whole node, so any screen using it silently
@@ -42,14 +66,15 @@ function createCrudHelpers(basePath, idPrefix) {
         // record. A field set to null is deleted (that is intentional); undefined is
         // stripped, since "I have no value for this" must never mean "erase it".
         saveFields: function(id, fields) {
-            return update(ref(database, basePath + '/' + id), stripUndefined(fields));
+            return guard(update(ref(database, basePath + '/' + id), stripUndefined(fields)),
+                         basePath + '/saveFields');
         },
         saveAll: function(items) {
             const updates = {};
             items.forEach(item => {
                 updates[basePath + '/' + item.id] = stripUndefined(item);
             });
-            return update(ref(database), updates);
+            return guard(update(ref(database), updates), basePath + '/saveAll');
         },
         load: function() {
             return get(ref(database, basePath)).then((snapshot) => {
@@ -68,7 +93,7 @@ function createCrudHelpers(basePath, idPrefix) {
             });
         },
         delete: function(itemId) {
-            return remove(ref(database, basePath + '/' + itemId));
+            return guard(remove(ref(database, basePath + '/' + itemId)), basePath + '/delete');
         },
         onChange: function(callback) {
             onValue(ref(database, basePath), (snapshot) => {
@@ -84,7 +109,8 @@ function createLogHelpers(basePath, prefix) {
     return {
         save: function(activity) {
             const logId = prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            return set(ref(database, basePath + '/' + logId), stripUndefined(activity));
+            return guard(set(ref(database, basePath + '/' + logId), stripUndefined(activity)),
+                         basePath + '/log');
         },
         load: function() {
             return get(ref(database, basePath)).then((snapshot) => {
@@ -155,7 +181,7 @@ window.firebaseDb = {
             const v = updates[path];
             clean[path] = (v && typeof v === 'object' && !Array.isArray(v)) ? stripUndefined(v) : v;
         });
-        return update(ref(database), clean);
+        return guard(update(ref(database), clean), 'updatePaths');
     },
 
     // Prep items

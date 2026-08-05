@@ -461,6 +461,29 @@ def run_pm(browser):
 
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
 
+    # Bloc M — une ecriture qui echoue doit se VOIR. firebase-config emet
+    # `db-write-failed` pour toute ecriture ratee, meme quand l'appelant a oublie son
+    # .catch ; ici on verifie le maillon qui compte pour l'equipe : evenement -> message
+    # a l'ecran. Sans lui, l'ecran affiche la nouvelle valeur et la base garde l'ancienne.
+    def pm_write_failure_is_visible():
+        pg.evaluate("""() => {
+            window.dispatchEvent(new CustomEvent('db-write-failed',
+                { detail: { label: 'test/smoke', error: new Error('simule') } }));
+        }""")
+        pg.wait_for_timeout(500)
+        seen = pg.evaluate("() => document.body.innerText.indexOf('Not saved') !== -1")
+        # Et le garde-fou anti-rafale : un incident reseau fait echouer plusieurs
+        # ecritures d'affilee, l'ecran ne doit pas se couvrir de toasts identiques.
+        pg.evaluate("""() => {
+            for (let i = 0; i < 4; i++)
+                window.dispatchEvent(new CustomEvent('db-write-failed', { detail: {} }));
+        }""")
+        pg.wait_for_timeout(400)
+        count = pg.evaluate(
+            "() => (document.body.innerText.match(/Not saved/g) || []).length")
+        return seen and count <= 1
+    safe("shared/write-failure-is-visible", pm_write_failure_is_visible)
+
     # Sonneries — un AudioContext non debloque ne produit NI son NI erreur. C'est ce qui
     # rendait les messages d'equipe muets sur la tablette : messageAlert et taskAppear
     # sont les deux seules sonneries qui partent sans que personne ne touche l'ecran.
