@@ -1492,6 +1492,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Same reason: pure, and the one answer to "how much are we short" that every
     // screen must agree on.
     window.__icShortfall = shortfallOf;
+    // Idem : la regle unique qui decide ce qu on accepte d enregistrer. Exposee pour
+    // que le test constate qu elle refuse bien, plutot que de la relire des yeux.
+    window.__icValidateItemForm = validateItemForm;
     
     // Set up event listeners for navigation
     function setupNavigation() {
@@ -2362,6 +2365,213 @@ document.addEventListener('DOMContentLoaded', function() {
         return group;
     }
 
+    // Section "Providers" des deux modals article : chips + champ + bouton Add.
+    // Contrairement aux deux constructeurs ci-dessus elle renvoie un COUPLE, parce
+    // que l appelant a besoin du tableau : c est lui que la sauvegarde enregistre.
+    // Le tableau renvoye est VIVANT (mute en place par push/splice), donc il reste
+    // a jour sans que l appelant ait a le relire.
+    function createProvidersGroup(idPrefix, initialProviders) {
+        const providersGroup = document.createElement('div');
+        providersGroup.style.display = 'flex';
+        providersGroup.style.flexDirection = 'column';
+        providersGroup.style.gap = '5px';
+        providersGroup.style.marginTop = '10px';
+
+        const providersLabel = document.createElement('label');
+        providersLabel.textContent = 'Providers';
+        providersLabel.style.fontWeight = '500';
+
+        const providersChips = document.createElement('div');
+        providersChips.className = 'provider-chips';
+        providersChips.id = idPrefix + 'providers-chips';
+
+        const addProviderInput = document.createElement('div');
+        addProviderInput.className = 'add-provider-input';
+
+        const providerInput = document.createElement('input');
+        providerInput.type = 'text';
+        providerInput.id = idPrefix + 'provider-input';
+        providerInput.placeholder = 'Add a provider';
+
+        const addProviderButton = document.createElement('button');
+        addProviderButton.textContent = 'Add';
+        addProviderButton.type = 'button';
+
+        const providers = [...(initialProviders || [])];
+
+        function addProvider() {
+            const providerName = providerInput.value.trim();
+            if (providerName && !providers.includes(providerName)) {
+                providers.push(providerName);
+                updateProviderChips();
+                providerInput.value = '';
+            }
+        }
+
+        function updateProviderChips() {
+            providersChips.innerHTML = '';
+
+            providers.forEach(provider => {
+                const chip = document.createElement('div');
+                chip.className = 'provider-chip';
+
+                const chipText = document.createElement('span');
+                chipText.textContent = provider;
+
+                const removeButton = document.createElement('button');
+                removeButton.className = 'remove-provider';
+                removeButton.textContent = '\u00d7';
+                removeButton.addEventListener('click', () => {
+                    const index = providers.indexOf(provider);
+                    if (index !== -1) {
+                        providers.splice(index, 1);
+                        updateProviderChips();
+                    }
+                });
+
+                chip.appendChild(chipText);
+                chip.appendChild(removeButton);
+                providersChips.appendChild(chip);
+            });
+        }
+
+        addProviderButton.addEventListener('click', addProvider);
+        providerInput.addEventListener('keypress', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addProvider();
+            }
+        });
+
+        addProviderInput.appendChild(providerInput);
+        addProviderInput.appendChild(addProviderButton);
+
+        providersGroup.appendChild(providersLabel);
+        providersGroup.appendChild(providersChips);
+        providersGroup.appendChild(addProviderInput);
+
+        updateProviderChips();
+
+        return { group: providersGroup, providers: providers };
+    }
+
+    // Selecteur de lieu des deux modals article, avec l option "+ Add New Location"
+    // qui fait apparaitre le champ de saisie. Les appelants relisent la valeur par
+    // getElementById, d ou les ids construits a partir du prefixe.
+    function createLocationGroup(idPrefix, selectedLocation) {
+        const locationGroup = document.createElement('div');
+        locationGroup.style.display = 'flex';
+        locationGroup.style.flexDirection = 'column';
+        locationGroup.style.gap = '5px';
+
+        const locationLabel = document.createElement('label');
+        locationLabel.htmlFor = idPrefix + 'item-location';
+        locationLabel.textContent = 'Location *';
+        locationLabel.style.fontWeight = '500';
+
+        const locationSelect = document.createElement('select');
+        locationSelect.id = idPrefix + 'item-location';
+        locationSelect.required = true;
+        locationSelect.style.padding = '10px';
+        locationSelect.style.borderRadius = '4px';
+        locationSelect.style.border = '1px solid var(--border-light)';
+
+        // First option is to create a new location
+        const newLocationOption = document.createElement('option');
+        newLocationOption.value = 'new';
+        newLocationOption.textContent = '+ Add New Location';
+        locationSelect.appendChild(newLocationOption);
+
+        // Add existing locations
+        [...allLocations].filter(loc => loc !== 'All').sort().forEach(location => {
+            const option = document.createElement('option');
+            option.value = location;
+            option.textContent = location;
+
+            if (location === selectedLocation) {
+                option.selected = true;
+            }
+
+            locationSelect.appendChild(option);
+        });
+
+        // New location input (hidden initially)
+        const newLocationInput = document.createElement('input');
+        newLocationInput.type = 'text';
+        newLocationInput.id = idPrefix + 'location-input';
+        newLocationInput.placeholder = 'Enter new location name';
+        newLocationInput.style.padding = '10px';
+        newLocationInput.style.borderRadius = '4px';
+        newLocationInput.style.border = '1px solid var(--border-light)';
+        newLocationInput.style.marginTop = '8px';
+        newLocationInput.style.display = 'none';
+
+        // Show/hide new location input based on selection
+        locationSelect.addEventListener('change', () => {
+            if (locationSelect.value === 'new') {
+                newLocationInput.style.display = 'block';
+                newLocationInput.required = true;
+            } else {
+                newLocationInput.style.display = 'none';
+                newLocationInput.required = false;
+            }
+        });
+
+        locationGroup.appendChild(locationLabel);
+        locationGroup.appendChild(locationSelect);
+        locationGroup.appendChild(newLocationInput);
+
+        return {
+            group: locationGroup,
+            // Le lieu retenu : celui qu on vient de saisir, ou celui choisi dans la
+            // liste. Les deux modals refaisaient ce test chacun de leur cote.
+            value: function () {
+                return locationSelect.value === 'new'
+                    ? newLocationInput.value.trim()
+                    : locationSelect.value;
+            }
+        };
+    }
+
+    // Champ Categories des deux modals article. Renvoie aussi l editeur : c est lui
+    // qui detient les categories choisies, que la sauvegarde relit par .get().
+    // Le modal rapide en a une variante au style different : elle reste chez lui.
+    function createCategoriesGroup(initialCategories) {
+        const categoriesGroup = document.createElement('div');
+        categoriesGroup.style.display = 'flex';
+        categoriesGroup.style.flexDirection = 'column';
+        categoriesGroup.style.gap = '5px';
+
+        const categoriesLabel = document.createElement('label');
+        categoriesLabel.textContent = 'Categories';
+        categoriesLabel.style.fontWeight = '500';
+
+        const categoriesBox = document.createElement('div');
+        const editor = buildCategoryChipEditor(categoriesBox, initialCategories || []);
+
+        categoriesGroup.appendChild(categoriesLabel);
+        categoriesGroup.appendChild(categoriesBox);
+
+        return { group: categoriesGroup, editor: editor };
+    }
+
+    // Validation commune aux deux modals article : renvoie le message d erreur, ou
+    // null si la saisie est bonne. Elle etait ecrite deux fois, mot pour mot ; les
+    // deux ecrans doivent refuser exactement les memes saisies, sinon une valeur
+    // passe d un cote et bloque de l autre.
+    function validateItemForm(fields) {
+        if (!fields.name) return 'Please enter an item name';
+        if (isNaN(fields.currentLevel) || fields.currentLevel < 0) {
+            return 'Current level must be a valid number (0 or greater)';
+        }
+        if (isNaN(fields.targetLevel) || fields.targetLevel <= 0) {
+            return 'Target level must be a valid number (greater than 0)';
+        }
+        if (!fields.unit) return 'Please enter a unit';
+        if (!fields.location) return 'Please select or enter a location';
+        return null;
+    }
+
     function showAddNewItemModal() {
         const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
@@ -2409,173 +2619,15 @@ document.addEventListener('DOMContentLoaded', function() {
         formFields.appendChild(createFormGroup('new-item-unit', 'Unit *', 'text', 'units', true, 'units, bottles, kg, etc.'));
 
         // Location field - with both dropdown of existing and option to create new
-        const locationGroup = document.createElement('div');
-        locationGroup.style.display = 'flex';
-        locationGroup.style.flexDirection = 'column';
-        locationGroup.style.gap = '5px';
-
-        const locationLabel = document.createElement('label');
-        locationLabel.htmlFor = 'new-item-location';
-        locationLabel.textContent = 'Location *';
-        locationLabel.style.fontWeight = '500';
-
-        const locationSelect = document.createElement('select');
-        locationSelect.id = 'new-item-location';
-        locationSelect.required = true;
-        locationSelect.style.padding = '10px';
-        locationSelect.style.borderRadius = '4px';
-        locationSelect.style.border = '1px solid var(--border-light)';
-
-        // First option is to create a new location
-        const newLocationOption = document.createElement('option');
-        newLocationOption.value = 'new';
-        newLocationOption.textContent = '+ Add New Location';
-        locationSelect.appendChild(newLocationOption);
-
-        // Add existing locations
-        [...allLocations].filter(loc => loc !== 'All').sort().forEach(location => {
-            const option = document.createElement('option');
-            option.value = location;
-            option.textContent = location;
-
-            // Preselect current location if not "All"
-            if (location === currentLocation && currentLocation !== 'All') {
-                option.selected = true;
-            }
-
-            locationSelect.appendChild(option);
-        });
-
-        // New location input (hidden initially)
-        const newLocationInput = document.createElement('input');
-        newLocationInput.type = 'text';
-        newLocationInput.id = 'new-location-input';
-        newLocationInput.placeholder = 'Enter new location name';
-        newLocationInput.style.padding = '10px';
-        newLocationInput.style.borderRadius = '4px';
-        newLocationInput.style.border = '1px solid var(--border-light)';
-        newLocationInput.style.marginTop = '8px';
-        newLocationInput.style.display = 'none';
-
-        // Show/hide new location input based on selection
-        locationSelect.addEventListener('change', () => {
-            if (locationSelect.value === 'new') {
-                newLocationInput.style.display = 'block';
-                newLocationInput.required = true;
-            } else {
-                newLocationInput.style.display = 'none';
-                newLocationInput.required = false;
-            }
-        });
-
-        locationGroup.appendChild(locationLabel);
-        locationGroup.appendChild(locationSelect);
-        locationGroup.appendChild(newLocationInput);
-
-        formFields.appendChild(locationGroup);
+        const locationField = createLocationGroup('new-', currentLocation !== 'All' ? currentLocation : '');
+        formFields.appendChild(locationField.group);
 
         // Categories field (multi-badge, closed vocabulary)
-        const sublocationGroup = document.createElement('div');
-        sublocationGroup.style.display = 'flex';
-        sublocationGroup.style.flexDirection = 'column';
-        sublocationGroup.style.gap = '5px';
-
-        const sublocationLabel = document.createElement('label');
-        sublocationLabel.textContent = 'Categories';
-        sublocationLabel.style.fontWeight = '500';
-
-        const categoriesBox = document.createElement('div');
-        const catEditorAdd = buildCategoryChipEditor(categoriesBox, []);
-
-        sublocationGroup.appendChild(sublocationLabel);
-        sublocationGroup.appendChild(categoriesBox);
-
-        formFields.appendChild(sublocationGroup);
+        const { group: categoriesGroup, editor: catEditorAdd } = createCategoriesGroup([]);
+        formFields.appendChild(categoriesGroup);
 
         // Providers section
-        const providersGroup = document.createElement('div');
-        providersGroup.style.display = 'flex';
-        providersGroup.style.flexDirection = 'column';
-        providersGroup.style.gap = '5px';
-        providersGroup.style.marginTop = '10px';
-
-        const providersLabel = document.createElement('label');
-        providersLabel.textContent = 'Providers';
-        providersLabel.style.fontWeight = '500';
-
-        const providersChips = document.createElement('div');
-        providersChips.className = 'provider-chips';
-        providersChips.id = 'providers-chips';
-
-        const addProviderInput = document.createElement('div');
-        addProviderInput.className = 'add-provider-input';
-
-        const providerInput = document.createElement('input');
-        providerInput.type = 'text';
-        providerInput.id = 'provider-input';
-        providerInput.placeholder = 'Add a provider';
-
-        const addProviderButton = document.createElement('button');
-        addProviderButton.textContent = 'Add';
-        addProviderButton.type = 'button';
-
-        // Current providers array
-        const providers = [];
-
-        // Function to add a provider
-        function addProvider() {
-            const providerName = providerInput.value.trim();
-            if (providerName && !providers.includes(providerName)) {
-                providers.push(providerName);
-                updateProviderChips();
-                providerInput.value = '';
-            }
-        }
-
-        // Function to update provider chips display
-        function updateProviderChips() {
-            providersChips.innerHTML = '';
-
-            providers.forEach(provider => {
-                const chip = document.createElement('div');
-                chip.className = 'provider-chip';
-
-                const chipText = document.createElement('span');
-                chipText.textContent = provider;
-
-                const removeButton = document.createElement('button');
-                removeButton.className = 'remove-provider';
-                removeButton.textContent = '\u00d7';
-                removeButton.addEventListener('click', () => {
-                    const index = providers.indexOf(provider);
-                    if (index !== -1) {
-                        providers.splice(index, 1);
-                        updateProviderChips();
-                    }
-                });
-
-                chip.appendChild(chipText);
-                chip.appendChild(removeButton);
-                providersChips.appendChild(chip);
-            });
-        }
-
-        // Add event listeners
-        addProviderButton.addEventListener('click', addProvider);
-        providerInput.addEventListener('keypress', event => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                addProvider();
-            }
-        });
-
-        addProviderInput.appendChild(providerInput);
-        addProviderInput.appendChild(addProviderButton);
-
-        providersGroup.appendChild(providersLabel);
-        providersGroup.appendChild(providersChips);
-        providersGroup.appendChild(addProviderInput);
-
+        const { group: providersGroup, providers } = createProvidersGroup('', []);
         formFields.appendChild(providersGroup);
 
         // Create buttons
@@ -2612,39 +2664,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const unit = document.getElementById('new-item-unit').value.trim();
 
             // Get location
-            let location;
-            if (locationSelect.value === 'new') {
-                location = newLocationInput.value.trim();
-            } else {
-                location = locationSelect.value;
-            }
+            const location = locationField.value();
 
             // Get categories (multi-badge)
             const categories = catEditorAdd.get();
 
             // Validation
-            if (!name) {
-                showMessage('Please enter an item name', 'error');
-                return;
-            }
-
-            if (isNaN(currentLevel) || currentLevel < 0) {
-                showMessage('Current level must be a valid number (0 or greater)', 'error');
-                return;
-            }
-
-            if (isNaN(targetLevel) || targetLevel <= 0) {
-                showMessage('Target level must be a valid number (greater than 0)', 'error');
-                return;
-            }
-
-            if (!unit) {
-                showMessage('Please enter a unit', 'error');
-                return;
-            }
-
-            if (!location) {
-                showMessage('Please select or enter a location', 'error');
+            const invalid = validateItemForm({ name, currentLevel, targetLevel, unit, location });
+            if (invalid) {
+                showMessage(invalid, 'error');
                 return;
             }
 
@@ -2753,177 +2781,16 @@ document.addEventListener('DOMContentLoaded', function() {
         formFields.appendChild(createFormGroup('edit-item-display-order', 'Display Order', 'number', item.displayOrder || item.id, false, 'Order for display'));
 
         // Location field - with both dropdown of existing and option to create new
-        const locationGroup = document.createElement('div');
-        locationGroup.style.display = 'flex';
-        locationGroup.style.flexDirection = 'column';
-        locationGroup.style.gap = '5px';
-
-        const locationLabel = document.createElement('label');
-        locationLabel.htmlFor = 'edit-item-location';
-        locationLabel.textContent = 'Location *';
-        locationLabel.style.fontWeight = '500';
-
-        const locationSelect = document.createElement('select');
-        locationSelect.id = 'edit-item-location';
-        locationSelect.required = true;
-        locationSelect.style.padding = '10px';
-        locationSelect.style.borderRadius = '4px';
-        locationSelect.style.border = '1px solid var(--border-light)';
-
-        // First option is to create a new location
-        const newLocationOption = document.createElement('option');
-        newLocationOption.value = 'new';
-        newLocationOption.textContent = '+ Add New Location';
-        locationSelect.appendChild(newLocationOption);
-
-        // Add existing locations
-        [...allLocations].filter(loc => loc !== 'All').sort().forEach(location => {
-            const option = document.createElement('option');
-            option.value = location;
-            option.textContent = location;
-
-            // Preselect current location
-            if (location === item.location) {
-                option.selected = true;
-            }
-
-            locationSelect.appendChild(option);
-        });
-
-        // New location input (hidden initially)
-        const newLocationInput = document.createElement('input');
-        newLocationInput.type = 'text';
-        newLocationInput.id = 'edit-location-input';
-        newLocationInput.placeholder = 'Enter new location name';
-        newLocationInput.style.padding = '10px';
-        newLocationInput.style.borderRadius = '4px';
-        newLocationInput.style.border = '1px solid var(--border-light)';
-        newLocationInput.style.marginTop = '8px';
-        newLocationInput.style.display = 'none';
-
-        // Show/hide new location input based on selection
-        locationSelect.addEventListener('change', () => {
-            if (locationSelect.value === 'new') {
-                newLocationInput.style.display = 'block';
-                newLocationInput.required = true;
-            } else {
-                newLocationInput.style.display = 'none';
-                newLocationInput.required = false;
-            }
-        });
-
-        locationGroup.appendChild(locationLabel);
-        locationGroup.appendChild(locationSelect);
-        locationGroup.appendChild(newLocationInput);
-
-        formFields.appendChild(locationGroup);
+        const locationField = createLocationGroup('edit-', item.location);
+        formFields.appendChild(locationField.group);
 
         // Categories field (multi-badge, closed vocabulary)
-        const sublocationGroup = document.createElement('div');
-        sublocationGroup.style.display = 'flex';
-        sublocationGroup.style.flexDirection = 'column';
-        sublocationGroup.style.gap = '5px';
-
-        const sublocationLabel = document.createElement('label');
-        sublocationLabel.textContent = 'Categories';
-        sublocationLabel.style.fontWeight = '500';
-
-        const categoriesBox = document.createElement('div');
-        const catEditorEdit = buildCategoryChipEditor(categoriesBox, item.categories || []);
-
-        sublocationGroup.appendChild(sublocationLabel);
-        sublocationGroup.appendChild(categoriesBox);
-
-        formFields.appendChild(sublocationGroup);
+        const { group: categoriesGroup, editor: catEditorEdit } = createCategoriesGroup(item.categories);
+        formFields.appendChild(categoriesGroup);
 
         // Providers section
-        const providersGroup = document.createElement('div');
-        providersGroup.style.display = 'flex';
-        providersGroup.style.flexDirection = 'column';
-        providersGroup.style.gap = '5px';
-        providersGroup.style.marginTop = '10px';
-
-        const providersLabel = document.createElement('label');
-        providersLabel.textContent = 'Providers';
-        providersLabel.style.fontWeight = '500';
-
-        const providersChips = document.createElement('div');
-        providersChips.className = 'provider-chips';
-        providersChips.id = 'edit-providers-chips';
-
-        const addProviderInput = document.createElement('div');
-        addProviderInput.className = 'add-provider-input';
-
-        const providerInput = document.createElement('input');
-        providerInput.type = 'text';
-        providerInput.id = 'edit-provider-input';
-        providerInput.placeholder = 'Add a provider';
-
-        const addProviderButton = document.createElement('button');
-        addProviderButton.textContent = 'Add';
-        addProviderButton.type = 'button';
-
-        // Current providers array
-        const providers = [...(item.providers || [])];
-
-        // Function to add a provider
-        function addProvider() {
-            const providerName = providerInput.value.trim();
-            if (providerName && !providers.includes(providerName)) {
-                providers.push(providerName);
-                updateProviderChips();
-                providerInput.value = '';
-            }
-        }
-
-        // Function to update provider chips display
-        function updateProviderChips() {
-            providersChips.innerHTML = '';
-
-            providers.forEach(provider => {
-                const chip = document.createElement('div');
-                chip.className = 'provider-chip';
-
-                const chipText = document.createElement('span');
-                chipText.textContent = provider;
-
-                const removeButton = document.createElement('button');
-                removeButton.className = 'remove-provider';
-                removeButton.textContent = '\u00d7';
-                removeButton.addEventListener('click', () => {
-                    const index = providers.indexOf(provider);
-                    if (index !== -1) {
-                        providers.splice(index, 1);
-                        updateProviderChips();
-                    }
-                });
-
-                chip.appendChild(chipText);
-                chip.appendChild(removeButton);
-                providersChips.appendChild(chip);
-            });
-        }
-
-        // Add event listeners
-        addProviderButton.addEventListener('click', addProvider);
-        providerInput.addEventListener('keypress', event => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                addProvider();
-            }
-        });
-
-        addProviderInput.appendChild(providerInput);
-        addProviderInput.appendChild(addProviderButton);
-
-        providersGroup.appendChild(providersLabel);
-        providersGroup.appendChild(providersChips);
-        providersGroup.appendChild(addProviderInput);
-
+        const { group: providersGroup, providers } = createProvidersGroup('edit-', item.providers);
         formFields.appendChild(providersGroup);
-
-        // Initialize provider chips
-        updateProviderChips();
 
         // Create buttons
         const buttonGroup = document.createElement('div');
@@ -2972,39 +2839,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const displayOrder = parseInt(document.getElementById('edit-item-display-order').value) || item.id;
 
             // Get location
-            let location;
-            if (locationSelect.value === 'new') {
-                location = newLocationInput.value.trim();
-            } else {
-                location = locationSelect.value;
-            }
+            const location = locationField.value();
 
             // Get categories (multi-badge)
             const categories = catEditorEdit.get();
 
             // Validation
-            if (!name) {
-                showMessage('Please enter an item name', 'error');
-                return;
-            }
-
-            if (isNaN(currentLevel) || currentLevel < 0) {
-                showMessage('Current level must be a valid number (0 or greater)', 'error');
-                return;
-            }
-
-            if (isNaN(targetLevel) || targetLevel <= 0) {
-                showMessage('Target level must be a valid number (greater than 0)', 'error');
-                return;
-            }
-
-            if (!unit) {
-                showMessage('Please enter a unit', 'error');
-                return;
-            }
-
-            if (!location) {
-                showMessage('Please select or enter a location', 'error');
+            const invalid = validateItemForm({ name, currentLevel, targetLevel, unit, location });
+            if (invalid) {
+                showMessage(invalid, 'error');
                 return;
             }
 

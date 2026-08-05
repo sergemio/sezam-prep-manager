@@ -940,6 +940,36 @@ def run_ic(browser):
                 and d["covered"] == 0 and d["never_negative"] == 0)
     safe("IC/shortfall-nets-pending", ic_shortfall_nets_pending)
 
+    # Bloc Q — les modals "ajouter" et "modifier" validaient chacun de leur cote, avec
+    # les memes 25 lignes recopiees. Une seule regle desormais : ce check verifie qu'elle
+    # refuse bien, sinon une saisie passerait d'un ecran et bloquerait sur l'autre.
+    def ic_validation_is_shared():
+        d = pg.evaluate("""() => {
+            const v = window.__icValidateItemForm;
+            if (typeof v !== 'function') return null;
+            const ok = {name: 'X', currentLevel: 0, targetLevel: 1, unit: 'kg', location: 'Fridge'};
+            const ko = (patch) => v(Object.assign({}, ok, patch));
+            return {
+                accepts_valid:  v(ok),
+                zero_stock_ok:  ko({currentLevel: 0}),
+                no_name:        ko({name: ''}),
+                stock_nan:      ko({currentLevel: NaN}),
+                stock_negative: ko({currentLevel: -1}),
+                target_zero:    ko({targetLevel: 0}),
+                no_unit:        ko({unit: ''}),
+                no_location:    ko({location: ''})
+            }; }""")
+        if not d:
+            return False
+        # accepte ce qui est bon (stock a 0 compris : un article peut etre vide)
+        if d["accepts_valid"] is not None or d["zero_stock_ok"] is not None:
+            return False
+        # et refuse chacun des cas fautifs, avec un message
+        return all(isinstance(d[k], str) and d[k] for k in
+                   ("no_name", "stock_nan", "stock_negative", "target_zero",
+                    "no_unit", "no_location"))
+    safe("IC/item-validation-is-shared", ic_validation_is_shared)
+
     # Rejouer une reception (2 ecrans portent la banniere, la tablette peut dormir)
     # ne doit rien reecrire : sinon second litige et commande fraiche ecrasee.
     def ic_receive_replay_blocked():
