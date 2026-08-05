@@ -186,6 +186,25 @@ def capture(out):
             nav(pg, "overview"); clear_overlays(pg); snap("pending-banner")
             pg.evaluate("() => { const b=document.querySelector('.pending-banner__btn'); if(b) b.click(); }")
             pg.wait_for_timeout(800); snap("modal-reception")
+            clear_overlays(pg)
+
+            # Les deux modals « article » : 80 % de code commun, et c'est justement ce
+            # qu'on s'apprete a fusionner. Sans reference AVANT/APRES sur ces deux ecrans
+            # precis, la fusion serait de la devinette.
+            #
+            # OBLIGATOIREMENT par l'UI : ces fonctions vivent dans le DOMContentLoaded de
+            # ic-inventory-app.js, donc elles ne sont PAS globales. Les appeler depuis
+            # evaluate() echoue en silence et produit deux captures identiques — une
+            # reference qui ne prouve rien.
+            nav(pg, "overview")
+            pg.evaluate("() => { const b=document.getElementById('overview-add-item-btn'); if(b) b.click(); }")
+            pg.wait_for_timeout(900); snap("modal-item-add")
+            clear_overlays(pg)
+
+            open_first_item(pg, ".overview-table .level-bar-container")
+            pg.evaluate("() => { const b=document.getElementById('modal-edit-details'); if(b) b.click(); }")
+            pg.wait_for_timeout(900); snap("modal-item-edit")
+            clear_overlays(pg)
             pg.close()
 
             # ---------- DB editor ----------

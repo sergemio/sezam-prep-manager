@@ -2293,6 +2293,75 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Show the modal for adding a new item
+    // Constructeurs de champs partages par les deux modals article (ajout et
+    // edition). Ils etaient declares DEUX FOIS, a l identique : toute correction
+    // devait etre faite en double, et la premiere oubliee les faisait diverger.
+    // Purs : ils ne lisent rien de la portee englobante.
+
+    function createFormGroup(id, label, type = 'text', value = '', required = true, placeholder = '') {
+        const group = document.createElement('div');
+        group.style.display = 'flex';
+        group.style.flexDirection = 'column';
+        group.style.gap = '5px';
+
+        const labelEl = document.createElement('label');
+        labelEl.htmlFor = id;
+        labelEl.textContent = label;
+        labelEl.style.fontWeight = '500';
+
+        const input = document.createElement('input');
+        input.type = type;
+        input.id = id;
+        input.value = value;
+        input.required = required;
+        input.placeholder = placeholder;
+        input.style.padding = '10px';
+        input.style.borderRadius = '4px';
+        input.style.border = '1px solid var(--border-light)';
+
+        group.appendChild(labelEl);
+        group.appendChild(input);
+
+        return group;
+    }
+
+    function createSelectGroup(id, label, options, value = '', required = true) {
+        const group = document.createElement('div');
+        group.style.display = 'flex';
+        group.style.flexDirection = 'column';
+        group.style.gap = '5px';
+
+        const labelEl = document.createElement('label');
+        labelEl.htmlFor = id;
+        labelEl.textContent = label;
+        labelEl.style.fontWeight = '500';
+
+        const select = document.createElement('select');
+        select.id = id;
+        select.required = required;
+        select.style.padding = '10px';
+        select.style.borderRadius = '4px';
+        select.style.border = '1px solid var(--border-light)';
+
+        // Add options
+        options.forEach(option => {
+            const optionEl = document.createElement('option');
+            optionEl.value = option;
+            optionEl.textContent = option;
+
+            if (option === value) {
+                optionEl.selected = true;
+            }
+
+            select.appendChild(optionEl);
+        });
+
+        group.appendChild(labelEl);
+        group.appendChild(select);
+
+        return group;
+    }
+
     function showAddNewItemModal() {
         const { backdrop: modalBackdrop, box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
@@ -2317,70 +2386,8 @@ document.addEventListener('DOMContentLoaded', function() {
             : 1;
 
         // Helper function to create a form group
-        function createFormGroup(id, label, type = 'text', value = '', required = true, placeholder = '') {
-            const group = document.createElement('div');
-            group.style.display = 'flex';
-            group.style.flexDirection = 'column';
-            group.style.gap = '5px';
-
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = id;
-            labelEl.textContent = label;
-            labelEl.style.fontWeight = '500';
-
-            const input = document.createElement('input');
-            input.type = type;
-            input.id = id;
-            input.value = value;
-            input.required = required;
-            input.placeholder = placeholder;
-            input.style.padding = '10px';
-            input.style.borderRadius = '4px';
-            input.style.border = '1px solid var(--border-light)';
-
-            group.appendChild(labelEl);
-            group.appendChild(input);
-
-            return group;
-        }
 
         // Helper function to create a select group
-        function createSelectGroup(id, label, options, value = '', required = true) {
-            const group = document.createElement('div');
-            group.style.display = 'flex';
-            group.style.flexDirection = 'column';
-            group.style.gap = '5px';
-
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = id;
-            labelEl.textContent = label;
-            labelEl.style.fontWeight = '500';
-
-            const select = document.createElement('select');
-            select.id = id;
-            select.required = required;
-            select.style.padding = '10px';
-            select.style.borderRadius = '4px';
-            select.style.border = '1px solid var(--border-light)';
-
-            // Add options
-            options.forEach(option => {
-                const optionEl = document.createElement('option');
-                optionEl.value = option;
-                optionEl.textContent = option;
-
-                if (option === value) {
-                    optionEl.selected = true;
-                }
-
-                select.appendChild(optionEl);
-            });
-
-            group.appendChild(labelEl);
-            group.appendChild(select);
-
-            return group;
-        }
 
         // ID field (hidden)
         const idField = document.createElement('input');
@@ -2720,70 +2727,8 @@ document.addEventListener('DOMContentLoaded', function() {
         formFields.style.gap = '15px';
 
         // Helper function to create a form group
-        function createFormGroup(id, label, type = 'text', value = '', required = true, placeholder = '') {
-            const group = document.createElement('div');
-            group.style.display = 'flex';
-            group.style.flexDirection = 'column';
-            group.style.gap = '5px';
-
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = id;
-            labelEl.textContent = label;
-            labelEl.style.fontWeight = '500';
-
-            const input = document.createElement('input');
-            input.type = type;
-            input.id = id;
-            input.value = value;
-            input.required = required;
-            input.placeholder = placeholder;
-            input.style.padding = '10px';
-            input.style.borderRadius = '4px';
-            input.style.border = '1px solid var(--border-light)';
-
-            group.appendChild(labelEl);
-            group.appendChild(input);
-
-            return group;
-        }
 
         // Helper function to create a select group
-        function createSelectGroup(id, label, options, value = '', required = true) {
-            const group = document.createElement('div');
-            group.style.display = 'flex';
-            group.style.flexDirection = 'column';
-            group.style.gap = '5px';
-
-            const labelEl = document.createElement('label');
-            labelEl.htmlFor = id;
-            labelEl.textContent = label;
-            labelEl.style.fontWeight = '500';
-
-            const select = document.createElement('select');
-            select.id = id;
-            select.required = required;
-            select.style.padding = '10px';
-            select.style.borderRadius = '4px';
-            select.style.border = '1px solid var(--border-light)';
-
-            // Add options
-            options.forEach(option => {
-                const optionEl = document.createElement('option');
-                optionEl.value = option;
-                optionEl.textContent = option;
-
-                if (option === value) {
-                    optionEl.selected = true;
-                }
-
-                select.appendChild(optionEl);
-            });
-
-            group.appendChild(labelEl);
-            group.appendChild(select);
-
-            return group;
-        }
 
         // ID field (hidden)
         const idField = document.createElement('input');
