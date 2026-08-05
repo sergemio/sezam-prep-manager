@@ -36,7 +36,8 @@ STUB = """() => {
    'saveAllIcItems','saveIcActivityLog','updatePaths',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
-   'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
+   'saveDeliveryIssue','deleteDeliveryIssue',
+   'createItemUnique','createIcItemUnique'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () { return Promise.resolve(); };
   });
   if (typeof db.loadDeliveryIssues === 'function')

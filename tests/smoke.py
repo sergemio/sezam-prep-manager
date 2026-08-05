@@ -39,6 +39,14 @@ STUB = """() => {
    'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () { rec(fn, [].slice.call(arguments)); return Promise.resolve(); };
   });
+  // Les creations transactionnelles ECRIVENT (runTransaction) : elles doivent etre
+  // stubbees comme les autres, mais en rendant l'article cree, que l'appelant fusionne.
+  ['createItemUnique','createIcItemUnique'].forEach(function (fn) {
+    if (typeof db[fn] === 'function') db[fn] = function (item, startId) {
+      rec(fn, [].slice.call(arguments));
+      return Promise.resolve(Object.assign({}, item, { id: startId }));
+    };
+  });
   // Claims are READ from prod (harmless), but tests need a deterministic list.
   if (typeof db.loadDeliveryIssues === 'function')
     db.loadDeliveryIssues = function () { return Promise.resolve(window.__fakeClaims || []); };
@@ -1068,6 +1076,25 @@ def run_db(browser):
                      "currentLevel", "lastCheckedTime", "lastCheckedBy"}
         return not (forbidden & set(d["keys"])) and "targetLevel" in d["keys"]
     safe("DB/ic-edit-preserves-pending", db_ic_edit_keeps_pending)
+
+    # Bloc N — creer un article doit passer par la transaction, jamais par un set().
+    # L'id venait d'un max(ids)+1 calcule A L'OUVERTURE du formulaire, verifie contre le
+    # tableau LOCAL : deux personnes qui ajoutent en meme temps obtenaient le meme numero
+    # et le second ecrasait le premier, les deux ecrans affichant "added successfully".
+    def db_add_uses_transaction():
+        d = pg.evaluate("""() => {
+            window.__saveCalls = [];
+            showAddNewForm();
+            document.getElementById('item-name').value = 'ZZ Smoke Test';
+            document.getElementById('item-target').value = '5';
+            document.getElementById('item-current').value = '1';
+            saveItem();
+            const calls = (window.__saveCalls || []).map(c => c.fn);
+            return { tx: calls.indexOf('createItemUnique') !== -1,
+                     plainSet: calls.indexOf('saveItem') !== -1 }; }""")
+        pg.evaluate("() => { if (typeof cancelEdit === 'function') cancelEdit(); }")
+        return bool(d) and d["tx"] and not d["plainSet"]
+    safe("DB/add-uses-transaction", db_add_uses_transaction)
 
     rec("DB/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()

@@ -3,7 +3,7 @@
 // Formes des données (prepItem / icItem / task / log) documentées dans ARCHITECTURE.md
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, get, update, remove, query, orderByKey, startAt, endBefore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, get, update, remove, query, orderByKey, startAt, endBefore, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDhp7efZHDj2fw3qx9XOW41YcaR3pWu3Hs",
@@ -91,6 +91,32 @@ function createCrudHelpers(basePath, idPrefix) {
                 }
                 return [];
             });
+        },
+        // Creation d'un article NEUF, a l'abri des collisions d'identifiant.
+        //
+        // L'id etait calcule en max(ids)+1 A L'OUVERTURE du formulaire, et son unicite
+        // verifiee contre le tableau LOCAL — deux photos du meme instant. Deux personnes
+        // qui ajoutent un article en meme temps obtenaient donc le meme numero, et le
+        // second ecrasait le premier : les deux ecrans affichaient "added successfully"
+        // et un article disparaissait sans que personne ne le sache.
+        //
+        // La transaction tranche cote SERVEUR : si le noeud est deja pris, elle avorte
+        // et on essaie le suivant. Aucun nouveau noeud, donc aucune regle a deployer.
+        createUnique: function(item, startId) {
+            var maxTries = 50;
+            function attempt(id, tries) {
+                if (tries >= maxTries) {
+                    return Promise.reject(new Error('No free id after ' + maxTries + ' tries'));
+                }
+                var candidate = Object.assign({}, item, { id: id });
+                return runTransaction(ref(database, basePath + '/' + id), function (current) {
+                    if (current !== null) return;          // occupe -> abandon, on reessaie
+                    return stripUndefined(candidate);
+                }).then(function (res) {
+                    return res.committed ? candidate : attempt(id + 1, tries + 1);
+                });
+            }
+            return guard(attempt(startId, 0), basePath + '/createUnique');
         },
         delete: function(itemId) {
             return guard(remove(ref(database, basePath + '/' + itemId)), basePath + '/delete');
@@ -186,6 +212,7 @@ window.firebaseDb = {
 
     // Prep items
     saveItem: prepItems.save,
+    createItemUnique: prepItems.createUnique,
     saveItemFields: prepItems.saveFields,
     saveAllItems: prepItems.saveAll,
     loadItems: prepItems.load,
@@ -209,6 +236,7 @@ window.firebaseDb = {
 
     // I&C items
     saveIcItem: icItems.save,
+    createIcItemUnique: icItems.createUnique,
     saveIcItemFields: icItems.saveFields,
     saveAllIcItems: icItems.saveAll,
     loadIcItems: icItems.load,

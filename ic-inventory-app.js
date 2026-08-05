@@ -2659,11 +2659,30 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add to icItems array
             window.icItems.push(newItem);
 
-            // Save to Firebase and local storage
-            saveData(newItem);
-
-            // Log the activity
-            logActivityChange(newItem, null, newItem.currentLevel, 'add');
+            // Creation transactionnelle plutot que saveData() : l'id vient d'un
+            // max(ids)+1 calcule a l'ouverture du formulaire, donc deux personnes qui
+            // ajoutent un article en meme temps obtenaient le meme numero et le second
+            // ecrasait le premier — les deux ecrans affichant "added successfully".
+            // Si le numero est pris, l'id glisse au suivant libre.
+            const db = window.firebaseDb;
+            if (db && typeof db.createIcItemUnique === 'function') {
+                db.createIcItemUnique(newItem, newItem.id)
+                    .then(created => {
+                        Object.assign(newItem, created);
+                        try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
+                        logActivityChange(newItem, null, newItem.currentLevel, 'add');
+                        if (typeof updateOverviewTable === 'function') updateOverviewTable();
+                    })
+                    .catch(() => {
+                        // guard() a deja prevenu l'utilisateur ; on retire l'article
+                        // fantome plutot que de laisser l'ecran mentir.
+                        const i = window.icItems.indexOf(newItem);
+                        if (i !== -1) window.icItems.splice(i, 1);
+                        updateDashboardLists();
+                        updateStats();
+                        if (typeof updateOverviewTable === 'function') updateOverviewTable();
+                    });
+            }
 
             // Extract locations and update UI
             extractLocationsAndSublocations();
@@ -3100,34 +3119,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Store item for logging
                     const deletedItem = {...window.icItems[itemIndex]};
 
-                    // Remove the item
-                    window.icItems.splice(itemIndex, 1);
-
-                    // Local backup only — the DB write is the targeted delete below,
-                    // not a full-array rewrite
-                    localStorage.setItem('icItems', JSON.stringify(window.icItems));
-
-                    // If Firebase has a specific delete function, use it
-                    if (window.firebaseDb && window.firebaseDb.deleteIcItem) {
-                        window.firebaseDb.deleteIcItem(item.id)
-                            .then(() => {
-                            })
-                            .catch(error => {
-                                console.error(`Error deleting I&C item ${item.id}:`, error);
-                            });
+                    // Rien n'est retire de l'ecran avant que le serveur ait confirme.
+                    // Avant, la suppression locale et le message "deleted successfully"
+                    // partaient hors de toute promesse : un refus de la base laissait
+                    // l'article disparu ici, toujours present sur les autres postes, et
+                    // de retour au prochain rechargement — un article zombie.
+                    const db = window.firebaseDb;
+                    if (!db || typeof db.deleteIcItem !== 'function') {
+                        showMessage('Database not ready — try again', 'error');
+                        closeModal();
+                        return;
                     }
+                    db.deleteIcItem(item.id)
+                        .then(() => {
+                            const idx = window.icItems.findIndex(i => i.id === item.id);
+                            if (idx !== -1) window.icItems.splice(idx, 1);
+                            try { localStorage.setItem('icItems', JSON.stringify(window.icItems)); } catch (e) {}
 
-                    // Log the deletion
-                    logActivityChange(deletedItem, deletedItem.currentLevel, null, 'delete');
+                            logActivityChange(deletedItem, deletedItem.currentLevel, null, 'delete');
 
-                    // Extract locations and update UI
-                    extractLocationsAndSublocations();
-                    updateLocationFilters();
-                    updateDashboardLists();
-                    updateStats();
+                            extractLocationsAndSublocations();
+                            updateLocationFilters();
+                            updateDashboardLists();
+                            updateStats();
+                            if (typeof updateOverviewTable === 'function') updateOverviewTable();
 
-                    // Show success message
-                    showMessage(`Item "${item.name}" deleted successfully`, "success");
+                            showMessage(`Item "${item.name}" deleted successfully`, "success");
+                        })
+                        .catch(error => {
+                            // guard() a deja affiche l'echec ; ici on garantit surtout
+                            // que l'article n'a PAS disparu de l'ecran.
+                            console.error(`Error deleting I&C item ${item.id}:`, error);
+                        });
                 }
 
                 // Close modal

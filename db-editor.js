@@ -403,7 +403,10 @@ function saveItem() {
         }, config);
         prepItems.push(updatedItem);
         actionType = 'add';
-        write = window.firebaseDb.saveItem(updatedItem);
+        // Creation transactionnelle : si un autre poste a pris ce numero entre l'ouverture
+        // du formulaire et maintenant, l'id glisse au suivant libre au lieu d'ecraser.
+        write = window.firebaseDb.createItemUnique(updatedItem, itemId)
+            .then(function (created) { Object.assign(updatedItem, created); return created; });
     } else {
         // Update existing item
         const index = prepItems.findIndex(item => item.id === currentEditingId);

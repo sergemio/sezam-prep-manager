@@ -458,7 +458,10 @@ updatedItem = Object.assign({
 }, config);
 icItems.push(updatedItem);
 actionType = 'add';
-write = window.firebaseDb.saveIcItem(updatedItem);
+// Creation transactionnelle : si un autre poste a pris ce numero entre l'ouverture du
+// formulaire et maintenant, l'id glisse au suivant libre au lieu d'ecraser son article.
+write = window.firebaseDb.createIcItemUnique(updatedItem, itemId)
+    .then(function (created) { Object.assign(updatedItem, created); return created; });
     } else {
 // Update existing item
 const index = icItems.findIndex(item => item.id === currentEditingIcId);
