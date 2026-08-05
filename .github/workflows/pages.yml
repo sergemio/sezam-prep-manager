@@ -14,6 +14,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Tampon de version, derive du SHA du commit : impossible d'oublier de le monter,
+      # contrairement a un numero edite a la main. build-info.js part avec les autres
+      # scripts (donc il dit quelle version le navigateur EXECUTE) ; version.json est lu
+      # sans cache (donc il dit quelle version est PUBLIEE). Voir version-check.js.
+      - name: Stamp build version
+        run: |
+          BUILD="${GITHUB_SHA::7}"
+          printf '{"build":"%s"}\n' "$BUILD" > version.json
+          printf "window.__BUILD__ = '%s';\n" "$BUILD" > build-info.js
+          echo "Build stamped: $BUILD"
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:

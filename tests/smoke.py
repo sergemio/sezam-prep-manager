@@ -417,7 +417,77 @@ def run_pm(browser):
                 and d["newItemKept"] and d["length"] == 2)
     safe("shared/mergeById-keeps-identity", shared_merge_by_id)
 
+    # Auto-update — la garantie qui compte : ne JAMAIS recharger sous les doigts de
+    # quelqu'un. Un rechargement pendant un comptage ferait perdre le travail en cours.
+    def pm_update_guard():
+        d = pg.evaluate("""() => {
+            if (typeof window.__updateIsBusy !== 'function') return null;
+
+            // Repartir d'un ecran calme (les tests precedents laissent le check ouvert).
+            const prep = document.getElementById('prep-check-interface');
+            const restore = prep ? prep.style.display : null;
+            if (prep) prep.style.display = 'none';
+            document.querySelectorAll('.modal-backdrop').forEach(n => n.remove());
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            const idle = window.__updateIsBusy();
+
+            const bd = document.createElement('div');
+            bd.className = 'modal-backdrop';
+            document.body.appendChild(bd);
+            const busyModal = window.__updateIsBusy();
+            bd.remove();
+
+            const inp = document.createElement('input');
+            document.body.appendChild(inp);
+            inp.focus();
+            const busyInput = window.__updateIsBusy();
+            inp.blur(); inp.remove();
+
+            let busyCount = null;
+            if (prep) {
+                prep.style.display = 'block';
+                busyCount = window.__updateIsBusy();
+                prep.style.display = restore;
+            }
+
+            return { idle, busyModal, busyInput, busyCount,
+                     build: window.__BUILD__,
+                     hasCheck: typeof window.__checkForUpdate === 'function' }; }""")
+        return (bool(d) and d["idle"] is False and d["busyModal"] is True
+                and d["busyInput"] is True and d["busyCount"] is True
+                and isinstance(d["build"], str) and d["build"] != ""
+                and d["hasCheck"])
+    safe("shared/update-defers-while-busy", pm_update_guard)
+
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
+
+    # EN DERNIER : ce test recharge reellement la page. Il prouve le bout en bout —
+    # une version publiee differente de celle qui tourne declenche le rechargement.
+    # Le marqueur pose sur window disparait si et seulement si la page a bien recharge.
+    def pm_update_reloads():
+        pg.evaluate("""() => {
+            // Les tests precedents laissent l'ecran de check ouvert, donc l'app se
+            // considere occupee — a raison. On la remet au calme pour tester le
+            // rechargement lui-meme ; le report en cas d'activite a son propre test.
+            const prep = document.getElementById('prep-check-interface');
+            if (prep) prep.style.display = 'none';
+            document.querySelectorAll('.modal-backdrop').forEach(n => n.remove());
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+            localStorage.removeItem('pmUpdateTriedBuild');
+            localStorage.removeItem('pmUpdateTriedAt');
+            window.__reloadMarker = 'still-here';
+            window.__BUILD__ = 'une-vieille-version';   // version.json local vaut "dev"
+        }""")
+        pg.evaluate("() => { window.__checkForUpdate(); }")
+        pg.wait_for_timeout(2000)
+        reloaded = pg.evaluate("() => window.__reloadMarker === undefined")
+        tried = pg.evaluate("() => localStorage.getItem('pmUpdateTriedBuild')")
+        # Et la trace anti-boucle doit avoir ete posee, sinon la tablette rechargerait
+        # en rond tant que le cache navigateur sert encore l'ancien script.
+        return reloaded and tried == "dev"
+    safe("shared/update-reloads-when-stale", pm_update_reloads)
+
     pg.close()
 
 
