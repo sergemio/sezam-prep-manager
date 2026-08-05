@@ -213,7 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // saveData is built from the shared makeSaver (ui-helpers.js). Writes only
     // the changed item when passed one (concurrent-safe); else the whole array.
     const saveData = makeSaver({
-        key: 'icItems',
+        // Pas de cache local : aucun getItem('icItems') n'existe dans le projet. Le jour
+        // ou l'on voudra un repli hors ligne cote inventaire (comme les preps en ont un),
+        // il faudra le LIRE au demarrage — l'ecrire seul n'a jamais servi a rien.
+        key: null,
         getItems: function () { return window.icItems; },
         one: 'saveIcItem',
         all: 'saveAllIcItems',
@@ -510,7 +513,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         return write
             .then(() => {
-                try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
 
                 // Logs are the only secondary write left: losing one costs traceability,
                 // not money, so it must never roll back a good reception.
@@ -1080,7 +1082,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 icItems[itemIndex].lastCheckedTime = new Date().toISOString();
                 
                 // Save to local storage
-                localStorage.setItem('icItems', JSON.stringify(icItems));
 
                 // Save to Firebase if available — only the edited item, a full-array
                 // write would overwrite concurrent edits from other devices
@@ -2138,7 +2139,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             write
                 .then(() => {
-                    try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
                     // `stock` lets the history line state what did NOT move — the
                     // whole point being that ordering never touches currentLevel.
                     logIcEvent(item, 'order', previous, orderQty, {
@@ -2669,7 +2669,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 db.createIcItemUnique(newItem, newItem.id)
                     .then(created => {
                         Object.assign(newItem, created);
-                        try { localStorage.setItem('icItems', JSON.stringify(window.icItems || [])); } catch (e) {}
                         logActivityChange(newItem, null, newItem.currentLevel, 'add');
                         if (typeof updateOverviewTable === 'function') updateOverviewTable();
                     })
@@ -3134,7 +3133,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(() => {
                             const idx = window.icItems.findIndex(i => i.id === item.id);
                             if (idx !== -1) window.icItems.splice(idx, 1);
-                            try { localStorage.setItem('icItems', JSON.stringify(window.icItems)); } catch (e) {}
 
                             logActivityChange(deletedItem, deletedItem.currentLevel, null, 'delete');
 

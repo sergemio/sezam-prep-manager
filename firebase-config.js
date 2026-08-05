@@ -195,7 +195,6 @@ window.firebaseDb = {
     set: function(dbRef, data) { return set(dbRef, data); },
     get: function(dbRef) { return get(dbRef); },
     onValue: function(query, callback, errorCallback) { return onValue(query, callback, errorCallback); },
-    remove: function(dbRef) { return remove(dbRef); },
 
     // ONE atomic write spanning DIFFERENT nodes: Firebase applies it all or not at all.
     // Needed whenever two records only make sense together — crediting a delivery's
@@ -225,7 +224,6 @@ window.firebaseDb = {
     loadRecentActivityLogs: activityLogs.loadSince,
     deleteOldActivityLogs: activityLogs.deleteOlderThan,
     deleteActivityLog: activityLogs.delete,
-    onActivityLogsChange: activityLogs.onChange,
 
     // Staff
     saveStaffMember: staffMembers.save,
@@ -247,26 +245,20 @@ window.firebaseDb = {
     saveIcActivityLog: icActivityLogs.save,
     loadIcActivityLogs: icActivityLogs.load,
     deleteIcActivityLogs: icActivityLogs.delete,
-    onIcActivityLogsChange: icActivityLogs.onChange,
 
     // Tasks
     saveTask: tasks.save,
-    saveAllTasks: tasks.saveAll,
-    loadTasks: tasks.load,
     deleteTasks: tasks.delete,
     onTasksChange: tasks.onChange,
 
     // Team messages (broadcast to the kitchen dashboard)
     saveTeamMessage: teamMessages.save,
-    loadTeamMessages: teamMessages.load,
     deleteTeamMessage: teamMessages.delete,
     onTeamMessagesChange: teamMessages.onChange,
 
     // Delivery issues — ordered but never delivered. Feeds the supplier claim list.
     saveDeliveryIssue: deliveryIssues.save,
-    loadDeliveryIssues: deliveryIssues.load,
-    deleteDeliveryIssue: deliveryIssues.delete,
-    onDeliveryIssuesChange: deliveryIssues.onChange
+    loadDeliveryIssues: deliveryIssues.load
 };
 
 // Dispatch event so pages know Firebase is ready

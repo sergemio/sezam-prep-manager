@@ -48,7 +48,6 @@ function currentCheckItem() {
 }
 // The user-switch toast now lives entirely in UserSession.showSwitchToast (user.js);
 // every identity change routes through UserSession.set which fires it.
-let isChecking = false;
 let tasks = [];
 let teamMessages = [];
 
@@ -68,7 +67,6 @@ const navButtons = document.querySelectorAll('.nav-button');
 const contentSections = document.querySelectorAll('.content-section');
 const inventoryTableBody = document.getElementById('inventory-table-body');
 const todoListContainer = document.getElementById('todo-list-container');
-const totalItemsElement = document.getElementById('total-items');
 const itemsNeededElement = document.getElementById('items-needed');
 const startCheckButton = document.getElementById('start-check-btn');
 const updateSingleBtn = document.getElementById('update-single-btn');
@@ -1099,7 +1097,6 @@ function updateTodoList() {
     const sortedItems = sortItemsByDisplayOrder(prepItems);
 
     const itemsMarkedAsCantPrep = sortedItems.filter(item => item.canPrep === false);
-    const cantPrepCount = itemsMarkedAsCantPrep.length;
 
 
     // Build unified todo array
@@ -1661,7 +1658,6 @@ function startPrepCheck() {
 
 // Function that handles the actual prep check process (formerly startPrepCheck)
 function startPrepCheckProcess() {
-    isChecking = true;
     currentItemIndex = 0;
 
     // Sort items using our helper function
@@ -1687,7 +1683,6 @@ function sortItemsByDisplayOrder(items) {
 }
 
 function completePrepCheck() {
-    isChecking = false;
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
     
@@ -1703,7 +1698,6 @@ function completePrepCheck() {
 }
 
 function cancelPrepCheck() {
-    isChecking = false;
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
 }

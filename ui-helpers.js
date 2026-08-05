@@ -256,7 +256,12 @@
   function makeSaver(opts) {
     return function saveData(specificItem) {
       var items = opts.getItems() || [];
-      try { localStorage.setItem(opts.key, JSON.stringify(items)); } catch (e) {}
+      // Cache local seulement si quelqu'un le RELIT au demarrage. script.js le fait
+      // pour 'prepItems' (repli hors ligne) ; cote I&C rien ne le relisait, donc chaque
+      // sauvegarde serialisait les 102 articles en pure perte, a chaque tap du curseur.
+      if (opts.key) {
+        try { localStorage.setItem(opts.key, JSON.stringify(items)); } catch (e) {}
+      }
       var db = window.firebaseDb;
       var report = opts.onError || function () {};
       if (specificItem && db && db[opts.one]) {
