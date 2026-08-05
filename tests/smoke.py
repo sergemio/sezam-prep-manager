@@ -461,6 +461,32 @@ def run_pm(browser):
 
     rec("PM/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
 
+    # Sonneries — un AudioContext non debloque ne produit NI son NI erreur. C'est ce qui
+    # rendait les messages d'equipe muets sur la tablette : messageAlert et taskAppear
+    # sont les deux seules sonneries qui partent sans que personne ne touche l'ecran.
+    # Page NEUVE obligatoire : les clics des tests precedents ont deja debloque l'audio,
+    # sur la page partagee ce test ne prouverait rien.
+    def pm_audio_unlock():
+        fresh = browser.new_page()
+        try:
+            fresh.goto(BASE + "/index.html", wait_until="networkidle")
+            fresh.wait_for_timeout(1500)
+            sel = 'button[aria-label="Enable notification sounds"]'
+            before = fresh.evaluate("() => SoundFX.audioState()")
+            badge_before = fresh.evaluate("() => !!document.querySelector(%r)" % sel)
+            fresh.mouse.click(200, 300)          # n'importe quel geste debloque
+            fresh.wait_for_timeout(600)
+            after = fresh.evaluate("() => SoundFX.audioState()")
+            badge_after = fresh.evaluate("() => !!document.querySelector(%r)" % sel)
+            # Et une sonnerie mains libres doit desormais partir sans lever.
+            rang = fresh.evaluate(
+                "() => { try { SoundFX.messageAlert(); return true; } catch(e) { return false; } }")
+            return (before == "suspended" and badge_before is True
+                    and after == "running" and badge_after is False and rang)
+        finally:
+            fresh.close()
+    safe("PM/audio-unlocks-on-first-gesture", pm_audio_unlock)
+
     # EN DERNIER : ce test recharge reellement la page. Il prouve le bout en bout —
     # une version publiee differente de celle qui tourne declenche le rechargement.
     # Le marqueur pose sur window disparait si et seulement si la page a bien recharge.

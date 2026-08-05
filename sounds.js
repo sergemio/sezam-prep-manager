@@ -1,14 +1,51 @@
 // Web Audio API sound system — no files needed
+//
+// POURQUOI TOUT CE QUI SUIT. Un AudioContext cree sans geste utilisateur demarre en etat
+// "suspended", et sur iOS il y RETOURNE apres chaque mise en veille. Dans cet etat,
+// osc.start() ne produit ni son NI erreur : le silence est total et invisible.
+// C'est ce qui faisait qu'un message d'equipe ne sonnait jamais sur la tablette de la
+// cuisine — les deux seules sonneries "mains libres" (messageAlert, taskAppear) sont
+// justement celles qui partent sans que personne ne touche l'ecran, donc les seules a
+// tomber systematiquement dans le vide.
+//
+// Trois filets : deblocage au premier geste, reprise au retour de veille, et reprise
+// opportuniste juste avant de jouer.
 const SoundFX = (() => {
     let ctx = null;
 
     function getCtx() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!ctx) {
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // iPad : le bouton silencieux physique coupe le Web Audio, meme contexte
+            // actif — une tablette posee en cuisine peut donc rester muette sans que
+            // rien ne le montre. Depuis Safari 16.4 on peut declarer la session comme
+            // "playback" (au sens musique/alerte) pour passer outre. Absent ailleurs,
+            // d'ou le test : c'est un bonus, pas une dependance.
+            try {
+                if (navigator.audioSession) navigator.audioSession.type = 'playback';
+            } catch (e) { /* non supporte : on garde le comportement par defaut */ }
+        }
         return ctx;
     }
 
-    function playTone(freq, duration, type = 'sine', volume = 0.15, delay = 0) {
+    // Etat reel du moteur audio. Expose pour le diagnostic : "ca ne sonne pas" doit
+    // pouvoir se verifier au lieu de se deviner.
+    function audioState() {
+        if (!ctx) return 'not-created';
+        return ctx.state;   // 'running' | 'suspended' | 'closed'
+    }
+
+    function unlock() {
         const ac = getCtx();
+        if (ac.state === 'suspended') {
+            // refreshIndicator est hoistee ; au moment ou unlock() s'execute (sur
+            // evenement) le module est entierement evalue.
+            ac.resume().then(refreshIndicator).catch(() => {});
+        }
+        return ac.state;
+    }
+
+    function emit(ac, freq, duration, type, volume, delay) {
         const osc = ac.createOscillator();
         const gain = ac.createGain();
         osc.type = type;
@@ -21,7 +58,78 @@ const SoundFX = (() => {
         osc.stop(ac.currentTime + delay + duration);
     }
 
+    function playTone(freq, duration, type = 'sine', volume = 0.15, delay = 0) {
+        const ac = getCtx();
+        if (ac.state === 'suspended') {
+            // resume() n'aboutit que si l'audio a deja ete debloque par un geste ;
+            // sinon la promesse traine ou echoue, d'ou le .catch muet. Le son part
+            // APRES la reprise : quelques dizaines de ms, imperceptible.
+            ac.resume().then(() => emit(ac, freq, duration, type, volume, delay))
+                       .catch(() => {});
+            return;
+        }
+        emit(ac, freq, duration, type, volume, delay);
+    }
+
+    // Le tout premier geste de la session debloque l'audio pour de bon. On ecoute large
+    // (tap, clic, touche) et en capture, pour ne dependre d'aucun handler applicatif.
+    ['pointerdown', 'touchend', 'mousedown', 'keydown'].forEach(function (ev) {
+        document.addEventListener(ev, unlock, { capture: true, passive: true });
+    });
+
+    // Retour de veille : cas typique de la tablette de cuisine reprise le matin. iOS
+    // suspend le contexte pendant la veille et ne le relance pas tout seul.
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') unlock();
+        setTimeout(refreshIndicator, 300);
+    });
+
+    // --- Indicateur "son coupe" -------------------------------------------------
+    // Tant qu'aucun geste n'a eu lieu, AUCUN son ne peut sortir : c'est une regle du
+    // navigateur, pas un reglage. Le seul tort serait de laisser ce silence invisible —
+    // une tablette qui ne sonnera pas doit le DIRE, sinon on croit les messages passes.
+    // Le bouton s'efface de lui-meme des que l'audio repart.
+    let indicator = null;
+
+    function refreshIndicator() {
+        const blocked = ctx && ctx.state === 'suspended';
+        if (!blocked) {
+            if (indicator) { indicator.remove(); indicator = null; }
+            return;
+        }
+        if (indicator) return;
+        indicator = document.createElement('button');
+        indicator.type = 'button';
+        indicator.textContent = '🔇 Tap to enable sound';
+        indicator.setAttribute('aria-label', 'Enable notification sounds');
+        indicator.style.cssText = [
+            'position:fixed', 'right:12px', 'bottom:12px', 'z-index:9999',
+            'padding:10px 14px', 'border-radius:999px', 'border:none',
+            'background:#8a6100', 'color:#fff', 'font-size:14px', 'font-weight:600',
+            'box-shadow:0 2px 8px rgba(0,0,0,0.3)', 'cursor:pointer'
+        ].join(';');
+        indicator.addEventListener('click', function () {
+            unlock();
+            setTimeout(refreshIndicator, 200);
+        });
+        document.body.appendChild(indicator);
+    }
+
+    // Le contexte doit exister pour que son etat soit lisible. Le creer au chargement
+    // est sans effet audible et permet de savoir tout de suite si l'on est muet.
+    window.addEventListener('load', function () {
+        getCtx();
+        unlock();                       // parfois suffisant (Android, desktop)
+        setTimeout(refreshIndicator, 400);
+    });
+    setInterval(refreshIndicator, 5000);
+
     return {
+        // Diagnostic : SoundFX.audioState() en console dit si le moteur audio tourne
+        // vraiment. 'suspended' = la tablette attend un geste, aucun son ne sortira.
+        audioState,
+        unlock,
+
         // Satisfying ascending chime — prep/task completed
         complete() {
             playTone(523, 0.15, 'sine', 0.12, 0);      // C5
