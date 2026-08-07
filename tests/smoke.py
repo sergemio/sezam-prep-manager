@@ -679,6 +679,69 @@ def run_ic(browser):
         return n >= 1
     safe("IC/save-quick-update", ic_save)
 
+    # Repli hors ligne : l'inventaire recu de Firebase doit etre depose dans
+    # localStorage, sinon une tablette qui recharge sans reseau affiche un ecran VIDE
+    # (ce qu'elle faisait). Le navigateur demarre avec un localStorage propre : si la
+    # cle est remplie, c'est que l'app l'a ecrite, personne d'autre.
+    def ic_offline_cache():
+        n = pg.evaluate("""() => {
+            try { return JSON.parse(localStorage.getItem('icItems') || '[]').length; }
+            catch (e) { return -1; }
+        }""")
+        attendu = pg.evaluate("() => (window.icItems || []).length")
+        return attendu > 0 and n == attendu
+    safe("IC/offline-cache-written", ic_offline_cache)
+
+    # File d'attente hors ligne. Hors reseau, Firebase n'ECHOUE pas : il attend. Une
+    # promesse qui ne se resout jamais reproduit donc exactement le cas reel, et sans
+    # toucher a la base de production.
+    def queue_survit():
+        return pg.evaluate("""async () => {
+            const q = window.__pmQueue;
+            if (!q) return false;
+            q.vider();
+            let debloquer, casser;
+            const enAttente = new Promise(function (r) { debloquer = r; });
+            q.guard(enAttente, 'test-attente', {method:'set', path:'test/a', value:{a:1}, trace:true});
+            const pendant = q.lire().length;              // inscrite AVANT confirmation
+            debloquer();
+            await enAttente;
+            await new Promise(function (r) { setTimeout(r, 60); });
+            const apresSucces = q.lire().length;          // retiree une fois confirmee
+
+            // Ce refus est PROVOQUE : on fait taire le signalement pendant sa duree,
+            // sinon le check "aucune erreur console" tomberait sur notre propre test.
+            const vraiErr = console.error;
+            console.error = function () {};
+            const echec = new Promise(function (_, rej) { casser = rej; });
+            q.guard(echec, 'test-echec', {method:'set', path:'test/b', value:{b:1}}).catch(function () {});
+            casser(new Error('refus'));
+            await new Promise(function (r) { setTimeout(r, 60); });
+            console.error = vraiErr;
+            const apresEchec = q.lire().length;           // un vrai refus ne se rejoue pas
+            q.vider();
+            document.querySelectorAll('.app-notification').forEach(function (n) { n.remove(); });
+            return pendant === 1 && apresSucces === 0 && apresEchec === 0;
+        }""")
+    safe("shared/queue-holds-unconfirmed-write", queue_survit)
+
+    # La regle qui peut detruire du travail : une saisie faite a 14h et poussee a 18h
+    # ne doit pas ecraser le comptage que quelqu'un d'autre a fait a 16h.
+    def queue_regle():
+        return pg.evaluate("""() => {
+            const d = window.__pmQueue && window.__pmQueue.doitEcraser;
+            if (!d) return false;
+            const mien  = { lastCheckedTime: '2026-08-05T14:00:00.000Z' };
+            const apres = { lastCheckedTime: '2026-08-05T16:00:00.000Z' };
+            const avant = { lastCheckedTime: '2026-08-05T10:00:00.000Z' };
+            return d(mien, apres) === false      // quelqu'un est passe apres nous
+                && d(mien, avant) === true       // notre saisie est la plus recente
+                && d(mien, mien)  === true       // notre propre ecriture deja arrivee
+                && d(mien, null)  === true       // rien en base
+                && d({ text: 'log' }, apres) === true;  // pas un comptage : pas de conflit
+        }""")
+    safe("shared/replay-refuses-older-count", queue_regle)
+
     # --- Ordered / Received -------------------------------------------------
     OPEN_QU = "() => { const el=document.querySelector('.overview-table .level-bar-container'); if(el) el.click(); }"
     PANES = """() => ({
@@ -1146,6 +1209,51 @@ def run_ic(browser):
                 and "order-status--under" in down["cls"]
                 and up["status"] == "OVER TARGET" and down["status"] == "UNDER TARGET")
     safe("IC/order-whole-units-and-status", ic_order_whole_units)
+
+    # Au bout de l'echelle, "+" doit la FAIRE GRANDIR. Avant le 07/08 il ne faisait
+    # rien : commander 10 boites de gants etait impossible sur une echelle calculee
+    # a 5 a l'ouverture (cas remonte par Serge). On verifie AUSSI que la poignee
+    # reste sur la valeur affichee — une poignee bloquee au bout pendant que le
+    # nombre grimpe, c'est exactement par la que commence le stock fantome.
+    def plus_grows_scale(pane):
+        ids = {
+            "order": ("order-plus", "order-qty", "order-level", "#order-ticks", "order-handle"),
+            "stock": ("modal-increase", "modal-current-value", "modal-current-level",
+                      "#modal-ticks", "modal-handle"),
+        }[pane]
+        plus, label, raw, ticks, handle = ids
+        clear_modals(pg)
+        pg.evaluate("""() => { (window.icItems||[]).forEach(it => {
+            it.currentLevel = 1; it.targetLevel = 2; it.pendingQty = 0; });
+            const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='overview');
+            if (n) n.click(); }""")
+        pg.wait_for_timeout(500)
+        pg.evaluate(OPEN_QU); pg.wait_for_timeout(700)
+        pick_tab(pane)
+        read = """() => ({ val: parseFloat(document.getElementById('%s').value),
+                           shown: parseFloat(document.getElementById('%s').textContent),
+                           ticks: document.querySelectorAll('%s .tick').length,
+                           left: document.getElementById('%s').style.left })""" % (
+            raw, label, ticks, handle)
+        click = "() => { const b=document.getElementById('%s'); if (b) b.click(); }" % plus
+        a = pg.evaluate(read)
+        pg.evaluate(click); pg.wait_for_timeout(120)
+        b = pg.evaluate(read)
+        pas = round(b["val"] - a["val"], 4)
+        # Un clic de plus qu'il n'y a de crans : on depasse forcement l'ancien bout.
+        n = a["ticks"] + 1
+        pg.evaluate("() => { const b=document.getElementById('%s');"
+                    "  for (let i=0;i<%d;i++) b.click(); }" % (plus, n))
+        pg.wait_for_timeout(400)
+        c = pg.evaluate(read)
+        clear_modals(pg)
+        attendu = round(a["val"] + (n + 1) * pas, 4)
+        return (pas > 0 and c["ticks"] > a["ticks"]
+                and abs(c["val"] - attendu) < 1e-6      # aucun clic perdu au plafond
+                and abs(c["shown"] - c["val"]) < 1e-6   # affichage == valeur reelle
+                and c["left"] == "100%")                # poignee au bout de la NOUVELLE echelle
+    safe("IC/order-plus-grows-scale", lambda: plus_grows_scale("order"))
+    safe("IC/stock-plus-grows-scale", lambda: plus_grows_scale("stock"))
 
     # The count card is a sibling of the sections: navigating away mid-count used
     # to strand it at the bottom of History.

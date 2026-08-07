@@ -31,6 +31,18 @@
 (function () {
     'use strict';
 
+    // Le service worker (repli hors ligne) s'enregistre ici parce que ce fichier est le
+    // seul charge par les TROIS pages. La ligne vivait dans index.html : une tablette
+    // ouverte sur l'inventaire ne l'installait donc jamais, et rechargeait sur un ecran
+    // blanc des que le wifi tombait. Meme sujet que la mise a jour ci-dessous : garder
+    // l'app installee dans un etat correct.
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(function () {
+            /* un enregistrement refuse (page non securisee, mode prive) ne doit pas
+               empecher la verification de version de fonctionner */
+        });
+    }
+
     var CHECK_INTERVAL_MS = 15 * 60 * 1000;  // verification periodique
     var CACHE_WINDOW_MS = 11 * 60 * 1000;    // > max-age=600 de GitHub Pages
     var TRIED_BUILD_KEY = 'pmUpdateTriedBuild';

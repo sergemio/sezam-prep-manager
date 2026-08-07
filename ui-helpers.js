@@ -130,7 +130,9 @@
   // stored flat in one array (e.g. bœuf congelé = ["Viande","Congelé"]).
   // Editing this list is the only way to add/rename a tag → no more drift.
   var IC_CATEGORIES = {
-    nature:  ['Viande', 'Fromage', 'Fruit&Légume', 'Boisson', 'Épice', 'Sauce/Condiment', 'Épicerie sèche', 'Pain/Pâte'],
+    // 'Pain/Pâte' retiré le 2026-08-06 : ne portait plus que 3 articles (frites,
+    // falafel → Fruit&Légume ; spéculoos → Épicerie sèche), tous retagués en base.
+    nature:  ['Viande', 'Fromage', 'Fruit&Légume', 'Boisson', 'Épice', 'Sauce/Condiment', 'Épicerie sèche'],
     etat:    ['Congelé', 'Frais', 'Sec/Ambiant'],
     nonalim: ['Packaging', 'Consommable/Papeterie', 'Entretien/Hygiène']
   };

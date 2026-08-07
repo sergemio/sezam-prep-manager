@@ -25,11 +25,9 @@
         });
     </script>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
-    </script>
+    <!-- Le service worker est enregistre par version-check.js, charge par les TROIS
+         pages. Il etait ici, donc seul le tableau de bord l'installait : une tablette
+         ouverte sur l'inventaire n'avait aucun repli hors ligne. -->
 </head>
 <body>
     <div id="app">

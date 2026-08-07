@@ -66,14 +66,49 @@ document.addEventListener('DOMContentLoaded', function() {
         loadItems();
     }
     
+    // Repli hors ligne : une copie de ce que le serveur nous a dit en DERNIER. Ecrite
+    // ici, et pas dans saveData, parce que ce dernier n'est appele qu'a un seul endroit
+    // alors que l'inventaire change par plusieurs chemins — c'est l'arrivee des donnees
+    // fraiches qu'il faut ecouter, pas leur envoi. Retardee d'une seconde : pendant un
+    // comptage les changements s'enchainent, et serialiser une centaine d'articles a
+    // chacun se sentirait sur la tablette. Le premier appel d'une rafale gagne, ce qui
+    // suffit — c'est un repli d'AFFICHAGE, jamais la source de verite.
+    let cacheHorsLigneTimer = null;
+    function memoriserPourHorsLigne() {
+        if (cacheHorsLigneTimer) return;
+        cacheHorsLigneTimer = setTimeout(function () {
+            cacheHorsLigneTimer = null;
+            try {
+                localStorage.setItem('icItems', JSON.stringify(window.icItems || []));
+            } catch (e) { /* quota plein ou mode prive : l'app doit continuer */ }
+        }, 1000);
+    }
+
     // Load inventory items from Firebase
     function loadItems() {
-        
+
+        // Repli hors ligne : on affiche d'abord ce qu'on avait, SANS attendre le reseau.
+        // Si Firebase repond, sa reponse ecrase celle-ci une seconde plus tard ; s'il ne
+        // repond pas, l'ecran n'est pas vide et le comptage reste possible. Ne pas
+        // dependre de la facon dont l'echec se manifeste (rejet, ou attente sans fin)
+        // est justement ce qui rend ce repli fiable.
+        try {
+            const cache = JSON.parse(localStorage.getItem('icItems') || 'null');
+            if (Array.isArray(cache) && cache.length) {
+                window.icItems = cache;
+                extractLocationsAndSublocations();
+                updateLocationFilters();
+                updateDashboardLists();
+                updateStats();
+            }
+        } catch (e) { /* cache illisible : Firebase reste la source, on ne bloque rien */ }
+
         if (window.firebaseDb && window.firebaseDb.loadIcItems) {
             window.firebaseDb.loadIcItems()
                 .then(items => {
                     window.icItems = items;
-                    
+                    memoriserPourHorsLigne();
+
                     // Extract locations and sublocations
                     extractLocationsAndSublocations();
                     
@@ -213,9 +248,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // saveData is built from the shared makeSaver (ui-helpers.js). Writes only
     // the changed item when passed one (concurrent-safe); else the whole array.
     const saveData = makeSaver({
-        // Pas de cache local : aucun getItem('icItems') n'existe dans le projet. Le jour
-        // ou l'on voudra un repli hors ligne cote inventaire (comme les preps en ont un),
-        // il faudra le LIRE au demarrage — l'ecrire seul n'a jamais servi a rien.
+        // Toujours pas de cache ICI : saveData n'est appele qu'a UN endroit (le modal
+        // d'edition complete), alors que la saisie rapide passe ailleurs — le cache
+        // serait donc reste presque toujours vide. Le repli hors ligne est ecrit par
+        // memoriserPourHorsLigne(), branche la ou les donnees fraiches arrivent.
         key: null,
         getItems: function () { return window.icItems; },
         one: 'saveIcItem',
@@ -1612,7 +1648,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.icItems = (typeof mergeById === 'function')
                     ? mergeById(window.icItems, updatedItems)
                     : updatedItems;
-                
+                memoriserPourHorsLigne();
+
+
                 // Extract locations and sublocations
                 extractLocationsAndSublocations();
                 
@@ -2092,7 +2130,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function setOrderQty(v) {
-            const next = Math.max(0, Math.min(orderMax, Math.round(v)));
+            // No upper clamp here: the slider owns the scale and it GROWS at "+"
+            // (slider.js/extendScale), so clamping to the width computed when the
+            // modal opened would silently undo that growth. setValue snaps to the
+            // nearest tick of the CURRENT scale, which is the bound that matters.
+            const next = Math.max(0, Math.round(v));
             if (orderSlider) {
                 orderSlider.setValue(next); // writes the input -> fires syncOrderFromInput
             } else {

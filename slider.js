@@ -14,6 +14,10 @@
 //   target > 5      -> max = ceil(target*1.5), step 1 (integers only)
 // If current > computed max, expand max to ceil(current * 1.2) so the
 // slider always includes the stored value.
+// Ceiling of the elastic scale (see extendScale): past this, a "+" is a slip of the
+// finger rather than a real quantity, and the tick list would grow without end.
+const SLIDER_HARD_MAX = 999;
+
 function computeSliderConfig(targetLevel, currentLevel) {
     const target = parseFloat(targetLevel) || 0;
     const current = parseFloat(currentLevel) || 0;
@@ -214,12 +218,36 @@ function createTouchSlider(options) {
         }
     }
 
+    // The scale built when the modal opened used to be a hard ceiling: at the last
+    // tick "+" simply did nothing, so an order of 10 boxes was impossible on a scale
+    // that stopped at 5 (2026-08-07, reported by Serge on gloves S). It now grows by
+    // one step. The handle therefore always sits ON the value it displays — a handle
+    // pinned at the end while the number kept climbing is how phantom stock starts.
+    function extendScale() {
+        const last = values[values.length - 1];
+        const step = sliderConfig.step || 1; // step null = legacy scale, integer tail
+        const next = Math.round((last + step) * 100) / 100;
+        if (next > SLIDER_HARD_MAX) return false;
+        values = values.concat([next]);
+        sliderConfig = Object.assign({}, sliderConfig, { max: next, values: values });
+        // labelEvery was chosen for the original width; once the scale outgrows it,
+        // hand the spacing back to createTicks so labels thin out instead of piling up.
+        if (sliderConfig.labelEvery && next > 8) sliderConfig.labelEvery = 0;
+        createTicks();
+        renderTargetMarker();
+        return true;
+    }
+
     function increaseValue() {
         const currentIndex = values.indexOf(currentValue);
         if (currentIndex < values.length - 1) {
             currentValue = values[currentIndex + 1];
-            updateSlider();
+        } else if (extendScale()) {
+            currentValue = values[values.length - 1];
+        } else {
+            return; // hard ceiling reached: beyond it a "+" is a typo, not a quantity
         }
+        updateSlider();
     }
 
     handle.addEventListener('mousedown', startDragging);
