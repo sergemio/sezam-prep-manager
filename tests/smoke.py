@@ -1252,6 +1252,110 @@ def run_ic(browser):
                 and abs(c["val"] - attendu) < 1e-6      # aucun clic perdu au plafond
                 and abs(c["shown"] - c["val"]) < 1e-6   # affichage == valeur reelle
                 and c["left"] == "100%")                # poignee au bout de la NOUVELLE echelle
+    # Le bouton "Metro order" range le tableau dans l'ordre du site Metro. Ce qui doit
+    # tenir : l'ordre EXACT de metro-order.js, aucun article masque (les hors-Metro
+    # passent sous un trait), et le mode s'eteint des qu'on trie par colonne — deux
+    # ordres allumes en meme temps afficheraient un etat faux.
+    def ic_metro_order():
+        clear_modals(pg)
+        pg.evaluate("""() => { const n=[...document.querySelectorAll('.nav-button')]
+            .find(b=>b.getAttribute('data-section')==='overview'); if(n) n.click(); }""")
+        pg.wait_for_timeout(600)
+        avant = pg.evaluate("() => document.querySelectorAll('#overview-table-body tr').length")
+        pg.evaluate("() => document.getElementById('metro-order-btn').click()")
+        pg.wait_for_timeout(700)
+        res = pg.evaluate("""() => {
+            const parNom = {};
+            (window.icItems || []).forEach(it => { parNom[(it.name||'').trim()] = it.id; });
+            const lignes = [...document.querySelectorAll('#overview-table-body tr')];
+            const sep = lignes.filter(r => r.classList.contains('metro-separator')).length;
+            const rangs = [], apresSep = [];
+            let vuSep = false;
+            for (const r of lignes) {
+                if (r.classList.contains('metro-separator')) { vuSep = true; continue; }
+                const nom = (r.querySelector('td') || {}).textContent;
+                const id = parNom[(nom || '').trim()];
+                const rang = window.MetroOrder.rang(id);
+                if (vuSep) apresSep.push(rang); else rangs.push(rang);
+            }
+            return { sep: sep, rangs: rangs, apresSep: apresSep,
+                     actif: document.getElementById('metro-order-btn').classList.contains('active'),
+                     lignes: lignes.length };
+        }""")
+        # Trier par colonne doit eteindre le mode Metro.
+        pg.evaluate("""() => { const h=document.querySelector('.overview-table th[data-sort=\"name\"]');
+            if (h) h.click(); }""")
+        pg.wait_for_timeout(500)
+        eteint = pg.evaluate("() => !document.getElementById('metro-order-btn').classList.contains('active')")
+        pg.evaluate("""() => { const h=document.querySelector('.overview-table th[data-sort=\"name\"]');
+            if (h) { h.click(); h.click(); } }""")   # revenir a l'ordre d'origine
+        pg.wait_for_timeout(400)
+        connus = [r for r in res["rangs"] if r is not None]
+        return (res["actif"] and eteint and res["sep"] == 1
+                and res["lignes"] == avant + 1              # rien de masque, +1 pour le trait
+                and len(connus) == len(res["rangs"])        # aucun hors-Metro avant le trait
+                and connus == sorted(connus)                # ordre du site respecte
+                and len(connus) > 50
+                and all(r is None for r in res["apresSep"]))  # que du hors-Metro apres
+    safe("IC/metro-order-button", ic_metro_order)
+
+    # Une commande passee compte comme couverte : sinon, trier par niveau juste apres
+    # avoir commande remonte en tete les articles dont on vient de s'occuper. Mais les
+    # deux parts doivent rester DISTINCTES — une barre pleine sur un frigo vide serait
+    # un mensonge. On verifie le total ET la separation.
+    def ic_level_counts_pending():
+        clear_modals(pg)
+        pg.evaluate("""() => { const n=[...document.querySelectorAll('.nav-button')]
+            .find(b=>b.getAttribute('data-section')==='overview'); if(n) n.click(); }""")
+        pg.wait_for_timeout(500)
+        lire = """() => {
+            const r = document.querySelector('#overview-table-body tr');
+            if (!r) return null;
+            const f = r.querySelector('.level-bar-fill');
+            const p = r.querySelector('.level-bar-pending');
+            return { texte: (r.querySelector('.level-bar-text')||{}).textContent.trim(),
+                     stock: f ? f.style.width : null,
+                     enRoute: p ? p.style.width : null };
+        }"""
+        regler = """(q) => {
+            const it = (window.icItems||[])[0];
+            it.currentLevel = 0; it.targetLevel = 5; it.pendingQty = q;
+            const s = document.getElementById('overview-search');
+            s.value = it.name; s.dispatchEvent(new Event('input'));
+        }"""
+        pg.evaluate(regler, 5)
+        pg.wait_for_timeout(500)
+        commande = pg.evaluate(lire)
+        pg.evaluate(regler, 0)
+        pg.wait_for_timeout(500)
+        sans = pg.evaluate(lire)
+        # tri par niveau : l'article couvert par sa commande ne doit PAS etre en tete
+        pg.evaluate(regler, 5)
+        pg.wait_for_timeout(300)
+        rang = pg.evaluate("""() => {
+            const it = (window.icItems||[])[0];
+            const s = document.getElementById('overview-search');
+            s.value = ''; s.dispatchEvent(new Event('input'));
+            const h = document.querySelector('.overview-table th[data-sort="level"]');
+            if (h) h.click();
+            const noms = [...document.querySelectorAll('#overview-table-body tr td.item-name')]
+                .map(td => td.textContent.trim());
+            return { pos: noms.indexOf((it.name||'').trim()), total: noms.length };
+        }""")
+        pg.wait_for_timeout(400)
+        pg.evaluate("""() => { const h=document.querySelector('.overview-table th[data-sort=\"level\"]');
+            if (h) { h.click(); h.click(); } }""")
+        pg.wait_for_timeout(300)
+        clear_modals(pg)
+        return (commande and sans
+                and commande["texte"] == "100%"          # 0 en stock + 5 commandes = couvert
+                and commande["stock"] == "0%"            # rien sur l'etagere, et ca se voit
+                and commande["enRoute"] == "100%"        # la part hachuree porte tout
+                and sans["texte"] == "0%"                # sans commande, retour a la verite
+                and sans["enRoute"] is None              # pas de segment fantome
+                and rang["pos"] > 0)                     # tri croissant : plus en tete
+    safe("IC/level-counts-pending", ic_level_counts_pending)
+
     safe("IC/order-plus-grows-scale", lambda: plus_grows_scale("order"))
     safe("IC/stock-plus-grows-scale", lambda: plus_grows_scale("stock"))
 

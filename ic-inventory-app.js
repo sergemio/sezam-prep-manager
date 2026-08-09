@@ -281,6 +281,25 @@ document.addEventListener('DOMContentLoaded', function() {
         return (window.icItems || []).filter(it => pendingQtyOf(it) > 0);
     }
 
+    // Taux de couverture = ce qu'on aura une fois la commande arrivee, rapporte a la
+    // cible. C'est LA definition du "niveau" pour la barre ET pour le tri : apres avoir
+    // passe commande, la question n'est plus "qu'y a-t-il sur l'etagere ?" mais "que
+    // reste-t-il a commander ?". Une seule fonction, sinon les deux divergent.
+    function coveragePct(item) {
+        const cible = parseFloat(item && item.targetLevel) || 0;
+        if (cible <= 0) return 0;
+        const stock = parseFloat(item && item.currentLevel) || 0;
+        return Math.min(((stock + pendingQtyOf(item)) / cible) * 100, 100);
+    }
+
+    // La part deja physiquement presente, dans la meme echelle. La difference entre les
+    // deux est ce qui est en route.
+    function shelfPct(item) {
+        const cible = parseFloat(item && item.targetLevel) || 0;
+        if (cible <= 0) return 0;
+        return Math.min(((parseFloat(item && item.currentLevel) || 0) / cible) * 100, 100);
+    }
+
     // What the shelf will hold once the open orders land. THE single answer to "are we
     // short, and by how much" — every screen must use it. When the dashboard computed
     // the shortfall on currentLevel alone, it kept advertising "10 to order" on an item
@@ -762,7 +781,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Apply sorting if active
-        if (currentSortColumn && currentSortDirection) {
+        if (metroOrderActive) {
+            filteredItems = sortMetroOrder(filteredItems);
+        } else if (currentSortColumn && currentSortDirection) {
             filteredItems = sortItems(filteredItems, currentSortColumn, currentSortDirection);
         } else if (originalItemOrder.length > 0) {
             // Restore original order
@@ -781,28 +802,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Create table rows for each item
+        let metroSeen = false;      // au moins un article Metro deja affiche
+        let metroSepDone = false;   // le trait de fin de liste Metro est pose
         filteredItems.forEach(item => {
+            // Trait de separation a la sortie de la liste Metro. Pose seulement si des
+            // articles Metro precedent, sinon un filtre ne laissant que du hors-Metro
+            // afficherait un trait qui ne separe rien.
+            if (metroOrderActive && metroRank(item) === null) {
+                if (metroSeen && !metroSepDone) {
+                    metroSepDone = true;
+                    const sep = document.createElement('tr');
+                    sep.className = 'metro-separator';
+                    const cell = document.createElement('td');
+                    cell.colSpan = 6;
+                    cell.textContent = 'Not on the Metro list';
+                    sep.appendChild(cell);
+                    overviewTableBody.appendChild(sep);
+                }
+            } else if (metroOrderActive) {
+                metroSeen = true;
+            }
+
             const row = document.createElement('tr');
             
-            // Calculate percentage for level bar
-            const percentage = Math.min((item.currentLevel / item.targetLevel) * 100, 100);
-            
-            // Debug logging
-            
+            // Le niveau = ce qui sera couvert une fois la commande arrivee (coveragePct).
+            // Les deux parts restent distinctes dans la barre : une barre pleine et verte
+            // alors que le frigo est vide serait un mensonge — c'est du stock ATTENDU.
+            const pendingQty = pendingQtyOf(item);
+            const percentage = coveragePct(item);
+            const stockPct = shelfPct(item);
+            const pendingPct = Math.max(0, percentage - stockPct);
+
             // Check for data issues
             if (isNaN(item.currentLevel) || isNaN(item.targetLevel)) {
                 console.warn(`Data issue with ${item.name}: currentLevel=${item.currentLevel}, targetLevel=${item.targetLevel}`);
             }
-            
+
             // Apply the 0-5% display rule: show minimum 5% for visual visibility
-            let displayPercentage = percentage;
-            if (percentage >= 0 && percentage <= 5) {
-                displayPercentage = 5; // Show 5% minimum for 0-5% items
+            let stockWidth = stockPct;
+            let pendingWidth = pendingPct;
+            if (percentage <= 5) {
+                if (pendingQty > 0) pendingWidth = Math.max(pendingWidth, 5 - stockWidth);
+                else stockWidth = 5;
             }
             
             // Smooth level colour + matching text colour (shared ui-helpers).
             const levelBarColor = levelColor(percentage);
-            const levelBarTextColor = levelTextColor(percentage);
+            // Le pourcentage est centre : sa lisibilite depend de ce qu'il y a SOUS le
+            // milieu de la barre. Au-dessus des hachures oranges, le blanc passe mal —
+            // on prend l'ambre sombre du badge "en route".
+            const levelBarTextColor = (pendingQty > 0 && stockWidth < 50)
+                ? 'var(--warning-text, #8a5a00)'
+                : levelTextColor(percentage);
             
             row.innerHTML = `
                 <td class="item-name" style="cursor: pointer;" title="Double-click to edit item details">${item.name}</td>
@@ -811,7 +862,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     : ''}</td>
                 <td class="level-bar-container">
                     <div class="level-bar">
-                        <div class="level-bar-fill" style="width: ${displayPercentage}%; background-color: ${levelBarColor};"></div>
+                        <div class="level-bar-fill" style="width: ${stockWidth}%; background-color: ${levelBarColor};${
+                            pendingQty > 0 ? ' border-top-right-radius:0; border-bottom-right-radius:0;' : ''
+                        }"></div>
+                        ${pendingQty > 0 ? `<div class="level-bar-pending" style="width: ${pendingWidth}%;" title="${
+                            fmtQty(pendingQty)} ${item.unit} ordered, not received yet"></div>` : ''}
                         <div class="level-bar-text" style="color: ${levelBarTextColor};">${Math.round(percentage)}%</div>
                     </div>
                 </td>
@@ -822,14 +877,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const levelBarFill = row.querySelector('.level-bar-fill');
             if (levelBarFill) {
-                levelBarFill.setAttribute('style', `width: ${displayPercentage}%; background-color: ${levelBarColor}; height: 100%; border-radius: 4px;`);
-                
-                // Debug: Check if styles were applied
-                if (item.name === 'Viande Meat [Ground beef] Frozen 1KG') {
-                    
-                    // Check if there are any CSS rules affecting this element
-                    const computedStyle = window.getComputedStyle(levelBarFill);
-                }
+                // Le style est deja pose dans le gabarit ci-dessus ; on ne fait qu'ajouter
+                // ce que la feuille de style ne garantit pas. Reecrire l'attribut entier
+                // ici effacerait le coin droit carre du cas "commande en cours".
+                levelBarFill.style.height = '100%';
             }
             
                             // Add click functionality to the entire level bar container for quick updates
@@ -1187,10 +1238,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
                 
             case 'level':
+                // Meme definition que la barre : ce qui est commande compte comme couvert.
+                // Sinon, trier par niveau apres avoir passe commande remonterait en tete
+                // les articles dont on vient justement de s'occuper.
                 sortedItems.sort((a, b) => {
-                    const percentA = (a.currentLevel / a.targetLevel) * 100;
-                    const percentB = (b.currentLevel / b.targetLevel) * 100;
-                    const result = percentA - percentB;
+                    const result = coveragePct(a) - coveragePct(b);
                     return direction === 'asc' ? result : -result;
                 });
                 break;
@@ -1232,7 +1284,61 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // --- Ordre du site Metro -------------------------------------------------
+    // Le site Metro presente toujours ses produits dans le meme ordre (rubriques
+    // alphabetiques, produits alphabetiques dedans). Ce mode range le tableau dans
+    // cet ordre-la pour faire ses courses en parallele du site, sans chercher chaque
+    // article. La correspondance vit dans metro-order.js, pas dans la base : c'est la
+    // mise en page d'un fournisseur, elle change quand Metro change.
+    let metroOrderActive = false;
+
+    function metroRank(item) {
+        if (!item || !window.MetroOrder) return null;
+        return window.MetroOrder.rang(item.id);
+    }
+
+    // Les articles absents de la liste Metro (autres fournisseurs, ou references que
+    // Metro ne vend pas) partent a la fin dans leur ordre habituel. Jamais masques :
+    // le tableau reste l'inventaire complet, il change seulement d'ordre.
+    function sortMetroOrder(items) {
+        return items.slice().sort((a, b) => {
+            const ra = metroRank(a);
+            const rb = metroRank(b);
+            if (ra === null && rb === null) return (a.displayOrder || 0) - (b.displayOrder || 0);
+            if (ra === null) return 1;
+            if (rb === null) return -1;
+            return ra - rb;
+        });
+    }
+
+    function setupMetroOrderButton() {
+        const btn = document.getElementById('metro-order-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            metroOrderActive = !metroOrderActive;
+            btn.classList.toggle('active', metroOrderActive);
+            if (metroOrderActive) {
+                // Les deux ordres s'excluent : garder une fleche de tri allumee pendant
+                // que la table suit l'ordre Metro afficherait un etat faux.
+                currentSortColumn = null;
+                currentSortDirection = null;
+                document.querySelectorAll('.overview-table .sortable').forEach(h => {
+                    h.classList.remove('active', 'asc', 'desc');
+                });
+            }
+            updateOverviewTable();
+        });
+    }
+
     function handleSortClick(column) {
+        // Trier par colonne sort de l'ordre Metro — sinon le clic n'aurait aucun effet
+        // visible et le bouton resterait allume sur un ordre qui n'est plus le sien.
+        if (metroOrderActive) {
+            metroOrderActive = false;
+            const btn = document.getElementById('metro-order-btn');
+            if (btn) btn.classList.remove('active');
+        }
+
         // Remove active class from all headers
         document.querySelectorAll('.overview-table .sortable').forEach(header => {
             header.classList.remove('active', 'asc', 'desc');
@@ -1567,6 +1673,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up search functionality
         setupSearch();
+
+        // Set up the Metro-order toggle
+        setupMetroOrderButton();
     }
     
     // Switch between content sections
