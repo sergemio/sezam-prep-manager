@@ -30,7 +30,7 @@
 }
 
 .ic-stat-label {
-    font-size: 12px;
+    font-size: var(--fs-caption);
     font-weight: 600;
     color: var(--text-light);
     letter-spacing: 1.5px;
@@ -45,7 +45,7 @@
 }
 
 .ic-stat-sub {
-    font-size: 13px;
+    font-size: var(--fs-caption);
     color: var(--text-medium);
     font-weight: 500;
 }
@@ -64,7 +64,7 @@
 .ic-stat-card--check.is-stale .ic-stat-value--check { color: var(--danger-strong); }
 
 .ic-section-label {
-    font-size: 13px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     color: var(--text-light);
     letter-spacing: 1px;
@@ -99,7 +99,7 @@
     padding: 12px 16px;
     border: 2px solid var(--border-light);
     border-radius: 8px;
-    font-size: 16px;
+    font-size: var(--fs-body-lg);
     transition: border-color 0.2s ease;
     box-sizing: border-box;
 }
@@ -152,6 +152,7 @@
     gap: 18px 28px;
     align-content: start;
     max-height: min(48vh, 460px);
+    max-height: min(48dvh, 460px);
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 18px 6px 2px 0;
@@ -164,7 +165,7 @@
 /* Section heading: a filled band so each location reads clearly as its own block */
 .count-preview-group {
     grid-column: 1 / -1;
-    font-size: 14px;
+    font-size: var(--fs-body);
     font-weight: 700;
     color: var(--primary-dark);
     letter-spacing: 1px;
@@ -184,7 +185,7 @@
 }
 
 .count-preview-name {
-    font-size: 15px;
+    font-size: var(--fs-body);
     color: var(--text-dark);
     white-space: nowrap;
     overflow: hidden;
@@ -208,7 +209,7 @@
 
 .count-preview-empty {
     grid-column: 1 / -1;
-    font-size: 14px;
+    font-size: var(--fs-body);
     color: var(--text-medium);
 }
 
@@ -237,13 +238,13 @@
     color: var(--text-dark);
     border: none;
     padding: 10px 18px;
-    min-height: 44px;
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
     border-radius: 9999px;
     cursor: pointer;
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--fs-body);
     transition: all 0.2s;
 }
 
@@ -263,14 +264,14 @@
     color: var(--text-dark);
     border: none;
     padding: 10px 18px;
-    min-height: 44px;
+    min-height: var(--tap-min);
     display: inline-flex;
     align-items: center;
     gap: 8px;
     border-radius: 9999px;
     cursor: pointer;
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--fs-body);
     transition: all 0.2s;
 }
 
@@ -287,7 +288,7 @@
    never hidden — they are pushed below this line. */
 .metro-separator td {
     padding: 14px 12px 10px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .5px;
@@ -301,7 +302,7 @@
     display: inline-block;
     padding: 3px 10px;
     border-radius: var(--r-pill);
-    font-size: 11px;
+    font-size: var(--fs-caption);
     margin-top: 4px;
     margin-right: 4px;
     background-color: var(--accent-yellow);
@@ -472,19 +473,19 @@
 }
 
 .pending-banner__text {
-    font-size: 16px;
+    font-size: var(--fs-body-lg);
     color: var(--primary-dark);
 }
 
 .pending-banner__text strong {
-    font-size: 20px;
+    font-size: var(--fs-title);
 }
 
 /* The app's .btn stretches inside flex rows — pin these back to their content
    width so the banner reads as "info + action", not one giant bar. */
 .pending-banner__btn {
     flex: 0 0 auto;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding-left: 22px;
     padding-right: 22px;
 }
@@ -497,7 +498,7 @@
     border-radius: 10px;
     background-color: var(--accent-orange-light, #ffe6cc);
     color: var(--warning-text, #8a5a00);
-    font-size: 12px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     white-space: nowrap;
 }
@@ -506,13 +507,14 @@
 .order-block {
     margin-top: 18px;
     padding: 14px;
-    border: 1px dashed var(--accent-orange);
+    /* plein, pas pointille : le dashed est le signifiant d'une zone de drop (R6.1) */
+    border: 1px solid #f5d9b8;
     border-radius: 8px;
     background-color: #fffaf4;
 }
 
 .order-block__title {
-    font-size: 13px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .04em;
@@ -535,7 +537,7 @@
     padding: 5px 10px;
     border-radius: 4px;
     border-left: 3px solid currentColor;
-    font-size: 11px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     letter-spacing: .05em;
     white-space: nowrap;
@@ -583,7 +585,7 @@
 }
 
 .order-unit {
-    font-size: 14px;
+    font-size: var(--fs-body);
     color: var(--text-medium);
 }
 
@@ -592,14 +594,14 @@
    must clear the tick labels, which hang OUTSIDE the container (bottom: -30px). */
 .order-slider {
     width: auto;   /* see the note on #count-interface .slider-container */
-    height: 40px;
+    height: 56px;  /* handle is --tap-min (48px); 40px let it overflow the panel */
     margin: 14px 10px 38px;
 }
 
 .order-hint {
     margin-top: 8px;
     text-align: center;
-    font-size: 13px;
+    font-size: var(--fs-caption);
     color: var(--text-medium);
 }
 
@@ -613,18 +615,18 @@
 }
 
 .order-provider__lbl {
-    font-size: 13px;
+    font-size: var(--fs-caption);
     color: var(--text-medium);
 }
 
 .order-provider__select {
     padding: 8px 10px;
-    font-size: 15px;
+    font-size: var(--fs-body-lg); /* jamais <16px sur un champ : iOS zoome au focus et y reste */
     border: 1px solid var(--table-border);
     border-radius: 8px;
     background: var(--surface);
     color: var(--text-dark);
-    min-height: 40px;
+    min-height: var(--tap-min);
 }
 
 .order-reset {
@@ -635,12 +637,13 @@
 .order-save {
     width: 100%;
     margin-top: 12px;
-    min-height: 44px;
+    min-height: var(--tap-min);
 }
 
 /* Reception checklist */
 .receive-list {
     max-height: 55vh;
+    max-height: 55dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -668,7 +671,7 @@
 }
 
 .receive-row__mark {
-    font-size: 16px;
+    font-size: var(--fs-body-lg);
     color: var(--primary-dark);
 }
 
@@ -677,7 +680,7 @@
 }
 
 .receive-row__name {
-    font-size: 15px;
+    font-size: var(--fs-body);
     color: var(--text-dark);
 }
 
@@ -693,7 +696,7 @@
     border: 1px solid var(--border-light);
     border-radius: 8px;
     background-color: #fff;
-    font-size: 20px;
+    font-size: var(--fs-title);
     line-height: 1;
     cursor: pointer;
 }
@@ -705,19 +708,19 @@
 .receive-row__val {
     min-width: 34px;
     text-align: center;
-    font-size: 20px;
+    font-size: var(--fs-title);
     font-weight: 700;
     color: var(--primary-dark);
 }
 
 .receive-row__of {
-    font-size: 13px;
+    font-size: var(--fs-caption);
     color: var(--text-medium);
 }
 
 .receive-row__missing {
     flex-basis: 100%;
-    font-size: 13px;
+    font-size: var(--fs-caption);
     font-weight: 600;
     color: var(--accent-red);
 }
@@ -741,7 +744,7 @@
 }
 
 .claims-card__title {
-    font-size: 15px;
+    font-size: var(--fs-body);
     font-weight: 700;
     color: var(--danger-strong, #a12b2b);
 }
@@ -759,12 +762,12 @@
 
 .qu-tab {
     flex: 1;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 10px 8px;
     border: none;
     border-radius: 8px;
     background: transparent;
-    font-size: 15px;
+    font-size: var(--fs-body);
     font-weight: 600;
     color: var(--text-medium);
     cursor: pointer;
@@ -787,7 +790,7 @@
     border-radius: 9999px;
     background-color: var(--accent-orange);
     color: white;
-    font-size: 12px;
+    font-size: var(--fs-caption);
     font-weight: 700;
 }
 
@@ -810,7 +813,7 @@
 .count-item-location {
     text-align: center;
     margin: -2px 0 6px;
-    font-size: 14px;
+    font-size: var(--fs-body);
     font-weight: 600;
     color: var(--text-light);
 }
@@ -848,12 +851,9 @@
        the track OUTSIDE the panel instead of insetting it. */
     width: auto;
     margin: 15px 10px 40px;
-    height: 48px;
-}
-
-#count-interface .slider-handle {
-    width: 40px;
-    height: 40px;
+    /* 56: the handle is now --tap-min (48px) and must live inside the container
+       without biting the tick labels below (counter-audit guard, 2026-08-18). */
+    height: 56px;
 }
 
 #count-interface .tick-marks {
@@ -863,12 +863,12 @@
 
 #count-interface .tick-label {
     top: 18px;
-    font-size: 15px;
+    font-size: var(--fs-body);
 }
 
 .claims-card__copy {
     flex: 0 0 auto;
-    min-height: 40px;
+    min-height: var(--tap-min);
     padding-left: 18px;
     padding-right: 18px;
 }
@@ -884,7 +884,7 @@
 }
 
 .claim-row__name {
-    font-size: 14px;
+    font-size: var(--fs-body);
     font-weight: 600;
     color: var(--text-dark);
 }
@@ -892,16 +892,16 @@
 .claim-row__detail {
     flex: 1;
     min-width: 180px;
-    font-size: 13px;
+    font-size: var(--fs-caption);
     color: var(--text-medium);
 }
 
 .claim-row__settle {
     flex: 0 0 auto;
-    min-height: 40px;
+    min-height: var(--tap-min);
     padding-left: 16px;
     padding-right: 16px;
-    font-size: 13px;
+    font-size: var(--fs-caption);
 }
 
 .overview-table .level-bar-text {
@@ -909,7 +909,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 13px;
+    font-size: var(--fs-caption);
     font-weight: 700;
 }
 
@@ -921,7 +921,7 @@
 }
 
 .overview-table .last-modified {
-    font-size: 12px;
+    font-size: var(--fs-caption);
     color: var(--text-light);
     min-width: 120px;
 }
@@ -946,7 +946,7 @@
 .overview-table .sort-arrow {
     display: inline-block;
     margin-left: 8px;
-    font-size: 12px;
+    font-size: var(--fs-caption);
     transition: transform 0.2s ease;
 }
 
@@ -965,3 +965,62 @@
     color: var(--text-light);
 }
 
+
+/* ============================================================
+   Formulaires construits en JS (lot 4, 2026-08-18)
+   AVANT : ~100 ecritures .style.* dans ic-inventory-app.js + des listeners
+   hover/focus qui singeaient :hover/:focus. Le JS ne pose plus que des
+   classes ; les etats vivent ici. Une retouche de design se fait desormais
+   dans CE fichier, jamais dans le JS.
+   ============================================================ */
+
+/* -- Edit Item Details (formulaire riche) -- */
+.ic-form { display: grid; gap: 20px; }
+.ic-form__group { display: flex; flex-direction: column; gap: 8px; }
+.ic-form__label { font-weight: 600; color: var(--text-dark); }
+.ic-form__input {
+    padding: 12px;
+    border-radius: 6px;
+    border: 2px solid var(--border-light);
+    font-size: var(--fs-body-lg);
+    transition: border-color 0.2s ease;
+}
+.ic-form__input:focus { border-color: var(--primary-dark); }
+.ic-form__buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.ic-btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s ease; }
+.ic-btn--cancel { background-color: var(--bg-medium); color: var(--text-dark); font-weight: 500; }
+.ic-btn--cancel:hover { background-color: var(--border-light); }
+.ic-btn--save { background-color: var(--primary-dark); color: white; font-weight: 600; }
+.ic-btn--save:hover { background-color: var(--primary-light); }
+
+/* -- Add/Edit item : formulaire compact (groupes a 5px, champs a 10px) -- */
+.ic-form--compact { display: grid; gap: 15px; }
+.ic-form__group--compact { display: flex; flex-direction: column; gap: 5px; }
+.ic-form__label--compact { font-weight: 500; }
+.ic-form__input--compact {
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+.ic-form__input--compact + .ic-form__input--compact { margin-top: 8px; }
+.ic-form__group--compact.ic-form__group--spaced { margin-top: 10px; }
+.ic-form__buttons--split { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+.ic-form__buttons--split > * { flex: 1; }
+.ic-btn--delete { padding: 10px 20px; background-color: var(--danger); color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; }
+
+/* -- Encart d'info des modals (fond clair, lisere bleu) -- */
+.ic-modal-info {
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: var(--bg-light);
+    border-radius: 6px;
+    border-left: 4px solid var(--accent-blue);
+}
+
+/* complements de la migration lot 4 */
+.ic-form__input--stacked { margin-top: 8px; }
+.ic-modal-info p { margin: 0; color: var(--text-medium); font-size: var(--fs-body); }
+/* compteur "below 50%" du dashboard : ambre quand il y a de quoi s'inquieter */
+#items-below-fifty.is-warn { color: var(--sev-warn); }
+/* la barre de niveau de l'overview est cliquable (ouvre le quick-update) */
+.overview-table .level-bar-container { cursor: pointer; }

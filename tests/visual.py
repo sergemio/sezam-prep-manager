@@ -68,7 +68,15 @@ NORMALISE = r"""() => {
   return hits.length;
 }"""
 
-VIEWPORTS = [("pc", 1280, 900), ("ipad", 820, 1180)]
+# La cible n'est pas un appareil mais une PLAGE (parc mixte iPad + Android,
+# audit 2026-08-18) : les deux extremes sont la ou une mise en page casse.
+#   pc        : admin sur PC, et borne haute de la plage
+#   tab-land  : tablette 10" en paysage — c'est la HAUTEUR qui contraint (~600px)
+#   tab-port  : tablette 10" en portrait (l'ancien gabarit "ipad", nom conserve
+#               dans les fichiers de ref existants via le tag)
+#   tab-small : petite tablette 8" en portrait — verifie la version repliee
+VIEWPORTS = [("pc", 1280, 900), ("tab-land", 1024, 600),
+             ("ipad", 820, 1180), ("tab-small", 600, 960)]
 
 
 def nav(pg, section):

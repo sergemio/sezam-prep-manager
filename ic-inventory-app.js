@@ -60,7 +60,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // set the session by the time this runs.
     function showMainInterface() {
         if (staffSelection) staffSelection.style.display = 'none';
-        if (mainInterface) mainInterface.style.display = 'flex';
+        // '' et non 'flex' : le mode d'affichage (grid) appartient au CSS.
+        if (mainInterface) mainInterface.style.display = '';
 
         // Load items
         loadItems();
@@ -725,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const chip = document.createElement('span');
                 chip.textContent = cat;
                 // Touch target >=44px (padding + min-height override categoryStyle's compact base)
-                chip.style.cssText = categoryStyle(cat, on) + 'cursor:pointer;min-height:44px;padding:7px 15px;font-size:14px;';
+                chip.style.cssText = categoryStyle(cat, on) + 'cursor:pointer;min-height:var(--tap-min);padding:7px 15px;font-size:14px;';
                 chip.addEventListener('click', () => {
                     if (activeCategoryFilters.has(cat)) activeCategoryFilters.delete(cat);
                     else activeCategoryFilters.add(cat);
@@ -737,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (activeCategoryFilters.size > 0) {
             const clear = document.createElement('span');
             clear.textContent = '✕ clear all';
-            clear.style.cssText = 'cursor:pointer;color:var(--sev-critical);font-size:13px;margin-left:6px;padding:10px 8px;display:inline-flex;align-items:center;min-height:44px;';
+            clear.style.cssText = 'cursor:pointer;color:var(--sev-critical);font-size:13px;margin-left:6px;padding:10px 8px;display:inline-flex;align-items:center;min-height:var(--tap-min);';
             clear.addEventListener('click', () => { activeCategoryFilters.clear(); updateOverviewTable(); });
             bar.appendChild(clear);
         }
@@ -886,7 +887,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Add click functionality to the entire level bar container for quick updates
             const levelBarContainer = row.querySelector('.level-bar-container');
             if (levelBarContainer) {
-                levelBarContainer.style.cursor = 'pointer';
                 
                 // Create informative tooltip with percentage range
                 let percentageRange;
@@ -974,60 +974,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalHeader = document.createElement('div');
         modalHeader.className = 'modal-header';
         modalHeader.innerHTML = `
-            <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Edit Item Details</h3>
+            <h3 class="modal-title">Edit Item Details</h3>
         `;
-        
-        // Create form fields
+
+        // Toute la mise en forme vit dans ic-inventory-styles.css (.ic-form*) :
+        // le JS construit la STRUCTURE, jamais le style (lot 4, 2026-08-18).
         const formFields = document.createElement('div');
-        formFields.style.display = 'grid';
-        formFields.style.gap = '20px';
-        
+        formFields.className = 'ic-form';
+
         // Item Name field
         const nameGroup = document.createElement('div');
-        nameGroup.style.display = 'flex';
-        nameGroup.style.flexDirection = 'column';
-        nameGroup.style.gap = '8px';
-        
+        nameGroup.className = 'ic-form__group';
+
         const nameLabel = document.createElement('label');
         nameLabel.htmlFor = 'edit-item-name';
         nameLabel.textContent = 'Item Name *';
-        nameLabel.style.fontWeight = '600';
-        nameLabel.style.color = 'var(--text-dark)';
-        
+        nameLabel.className = 'ic-form__label';
+
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
         nameInput.id = 'edit-item-name';
         nameInput.value = item.name;
         nameInput.required = true;
-        nameInput.style.padding = '12px';
-        nameInput.style.borderRadius = '6px';
-        nameInput.style.border = '2px solid var(--border-light)';
-        nameInput.style.fontSize = '16px';
-        nameInput.style.transition = 'border-color 0.2s ease';
-        
-        nameInput.addEventListener('focus', () => {
-            nameInput.style.borderColor = 'var(--primary-dark)';
-        });
-        
-        nameInput.addEventListener('blur', () => {
-            nameInput.style.borderColor = 'var(--border-light)';
-        });
-        
+        nameInput.className = 'ic-form__input';
+
         nameGroup.appendChild(nameLabel);
         nameGroup.appendChild(nameInput);
-        
+
         // Target Level field
         const targetGroup = document.createElement('div');
-        targetGroup.style.display = 'flex';
-        targetGroup.style.flexDirection = 'column';
-        targetGroup.style.gap = '8px';
-        
+        targetGroup.className = 'ic-form__group';
+
         const targetLabel = document.createElement('label');
         targetLabel.htmlFor = 'edit-target-level';
         targetLabel.textContent = 'Target Level *';
-        targetLabel.style.fontWeight = '600';
-        targetLabel.style.color = 'var(--text-dark)';
-        
+        targetLabel.className = 'ic-form__label';
+
         const targetInput = document.createElement('input');
         targetInput.type = 'number';
         targetInput.id = 'edit-target-level';
@@ -1035,33 +1017,18 @@ document.addEventListener('DOMContentLoaded', function() {
         targetInput.required = true;
         targetInput.step = '0.01';
         targetInput.min = '0';
-        targetInput.style.padding = '12px';
-        targetInput.style.borderRadius = '6px';
-        targetInput.style.border = '2px solid var(--border-light)';
-        targetInput.style.fontSize = '16px';
-        targetInput.style.transition = 'border-color 0.2s ease';
-        
-        targetInput.addEventListener('focus', () => {
-            targetInput.style.borderColor = 'var(--primary-dark)';
-        });
-        
-        targetInput.addEventListener('blur', () => {
-            targetInput.style.borderColor = 'var(--border-light)';
-        });
-        
+        targetInput.className = 'ic-form__input';
+
         targetGroup.appendChild(targetLabel);
         targetGroup.appendChild(targetInput);
-        
+
         // Categories field (multi-badge)
         const sublocationGroup = document.createElement('div');
-        sublocationGroup.style.display = 'flex';
-        sublocationGroup.style.flexDirection = 'column';
-        sublocationGroup.style.gap = '8px';
+        sublocationGroup.className = 'ic-form__group';
 
         const sublocationLabel = document.createElement('label');
         sublocationLabel.textContent = 'Categories';
-        sublocationLabel.style.fontWeight = '600';
-        sublocationLabel.style.color = 'var(--text-dark)';
+        sublocationLabel.className = 'ic-form__label';
 
         const categoriesBox = document.createElement('div');
         const catEditor = buildCategoryChipEditor(categoriesBox, item.categories || []);
@@ -1073,52 +1040,19 @@ document.addEventListener('DOMContentLoaded', function() {
         formFields.appendChild(nameGroup);
         formFields.appendChild(targetGroup);
         formFields.appendChild(sublocationGroup);
-        
+
         // Create buttons
         const buttonGroup = document.createElement('div');
-        buttonGroup.style.display = 'flex';
-        buttonGroup.style.justifyContent = 'flex-end';
-        buttonGroup.style.gap = '12px';
-        buttonGroup.style.marginTop = '24px';
-        
+        buttonGroup.className = 'ic-form__buttons';
+
         const cancelButton = document.createElement('button');
         cancelButton.textContent = 'Cancel';
-        cancelButton.style.padding = '12px 24px';
-        cancelButton.style.backgroundColor = 'var(--bg-medium)';
-        cancelButton.style.color = 'var(--text-dark)';
-        cancelButton.style.border = 'none';
-        cancelButton.style.borderRadius = '6px';
-        cancelButton.style.cursor = 'pointer';
-        cancelButton.style.fontWeight = '500';
-        cancelButton.style.transition = 'background-color 0.2s ease';
-        
-        cancelButton.addEventListener('mouseenter', () => {
-            cancelButton.style.backgroundColor = 'var(--border-light)';
-        });
-        
-        cancelButton.addEventListener('mouseleave', () => {
-            cancelButton.style.backgroundColor = 'var(--bg-medium)';
-        });
-        
+        cancelButton.className = 'ic-btn ic-btn--cancel';
+
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Save Changes';
-        saveButton.style.padding = '12px 24px';
-        saveButton.style.backgroundColor = 'var(--primary-dark)';
-        saveButton.style.color = 'white';
-        saveButton.style.border = 'none';
-        saveButton.style.borderRadius = '6px';
-        saveButton.style.cursor = 'pointer';
-        saveButton.style.fontWeight = '600';
-        saveButton.style.transition = 'background-color 0.2s ease';
-        
-        saveButton.addEventListener('mouseenter', () => {
-            saveButton.style.backgroundColor = 'var(--primary-light)';
-        });
-        
-        saveButton.addEventListener('mouseleave', () => {
-            saveButton.style.backgroundColor = 'var(--primary-dark)';
-        });
-        
+        saveButton.className = 'ic-btn ic-btn--save';
+
         buttonGroup.appendChild(cancelButton);
         buttonGroup.appendChild(saveButton);
         
@@ -1536,7 +1470,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // same item, and whoever reads the card orders a second time.
             const _need = shortfallOf(item);
             const _pending = pendingQtyOf(item);
-            const _needColor = item.currentLevel === 0 ? 'var(--danger-strong)' : 'var(--sev-warn)';
+            // Neutre et non rouge/ambre : ce chiffre est une CONSIGNE (« commande 10 »),
+            // pas une alerte — le badge OUT porte deja l'urgence (R5.3, audit 18/08).
+            const _needColor = 'var(--text-dark)';
             todoItem.innerHTML = `
                 <div class="todo-item-name">${item.name}</div>
                 <div class="todo-item-detail">
@@ -1576,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // so it stands out from the neutral totals next to it.
         const belowFifty = window.icItems.filter(item => coveredLevelOf(item) < item.targetLevel * 0.5).length;
         itemsBelowFiftyElement.textContent = belowFifty;
-        itemsBelowFiftyElement.style.color = belowFifty > 0 ? 'var(--sev-warn)' : '';
+        itemsBelowFiftyElement.classList.toggle('is-warn', belowFifty > 0);
 
         updateLastInventoryStat();
     }
@@ -1685,6 +1621,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // bottom of History or the dashboard. Leaving the section leaves the count.
         if (countInterface && countInterface.style.display !== 'none') {
             countInterface.style.display = 'none';
+            document.body.classList.remove('focus-mode');
             if (dashboardSection) dashboardSection.style.display = '';
         }
 
@@ -1873,9 +1810,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show first item
         showCurrentCountItem();
         
-        // Show count interface
-        if (dashboardSection) dashboardSection.style.display = 'none';
+        // Show count interface. TOUTES les sections sont masquees, pas
+        // seulement le dashboard : demarre depuis une autre section, la carte
+        // de comptage s'empilait sous son contenu (defaut pre-existant, rendu
+        // visible par le mode focus le 18/08).
+        document.querySelectorAll('.content-section').forEach(function (sec) {
+            sec.style.display = 'none';
+        });
         if (countInterface) countInterface.style.display = 'block';
+        // Mode focus (R6.7) : nav + rail s'effacent pendant le comptage.
+        document.body.classList.add('focus-mode');
         
         // Initialize slider
         initTouchSlider();
@@ -2015,6 +1959,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Complete full count
     function completeFullCount() {
+        document.body.classList.remove('focus-mode');
         if (dashboardSection) dashboardSection.style.display = 'block';
         if (countInterface) countInterface.style.display = 'none';
         
@@ -2028,6 +1973,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cancel full count
     function cancelFullCount() {
+        document.body.classList.remove('focus-mode');
         if (dashboardSection) dashboardSection.style.display = 'block';
         if (countInterface) countInterface.style.display = 'none';
     }
@@ -2081,7 +2027,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div style="margin-bottom: 15px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                     <h3 style="margin: 0; color: #333;">${item.name}</h3>
-                    <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
+                    <span class="prep-check-user">${currentStaff}</span>
                 </div>
                 <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Target: ${item.targetLevel} ${item.unit}</strong> &nbsp;•&nbsp; Current: ${item.currentLevel} ${item.unit}${
                     shortBy > 0 ? ` &nbsp;•&nbsp; <span style="color: var(--accent-orange); font-weight: 600;">short by ${fmtQty(shortBy)}</span>` : ''
@@ -2455,14 +2401,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createFormGroup(id, label, type = 'text', value = '', required = true, placeholder = '') {
         const group = document.createElement('div');
-        group.style.display = 'flex';
-        group.style.flexDirection = 'column';
-        group.style.gap = '5px';
+        group.className = 'ic-form__group--compact';
 
         const labelEl = document.createElement('label');
         labelEl.htmlFor = id;
         labelEl.textContent = label;
-        labelEl.style.fontWeight = '500';
+        labelEl.className = 'ic-form__label--compact';
 
         const input = document.createElement('input');
         input.type = type;
@@ -2470,9 +2414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.value = value;
         input.required = required;
         input.placeholder = placeholder;
-        input.style.padding = '10px';
-        input.style.borderRadius = '4px';
-        input.style.border = '1px solid var(--border-light)';
+        input.className = 'ic-form__input--compact';
 
         group.appendChild(labelEl);
         group.appendChild(input);
@@ -2482,21 +2424,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createSelectGroup(id, label, options, value = '', required = true) {
         const group = document.createElement('div');
-        group.style.display = 'flex';
-        group.style.flexDirection = 'column';
-        group.style.gap = '5px';
+        group.className = 'ic-form__group--compact';
 
         const labelEl = document.createElement('label');
         labelEl.htmlFor = id;
         labelEl.textContent = label;
-        labelEl.style.fontWeight = '500';
+        labelEl.className = 'ic-form__label--compact';
 
         const select = document.createElement('select');
         select.id = id;
         select.required = required;
-        select.style.padding = '10px';
-        select.style.borderRadius = '4px';
-        select.style.border = '1px solid var(--border-light)';
+        select.className = 'ic-form__input--compact';
 
         // Add options
         options.forEach(option => {
@@ -2524,14 +2462,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // a jour sans que l appelant ait a le relire.
     function createProvidersGroup(idPrefix, initialProviders) {
         const providersGroup = document.createElement('div');
-        providersGroup.style.display = 'flex';
-        providersGroup.style.flexDirection = 'column';
-        providersGroup.style.gap = '5px';
-        providersGroup.style.marginTop = '10px';
+        providersGroup.className = 'ic-form__group--compact ic-form__group--spaced';
 
         const providersLabel = document.createElement('label');
         providersLabel.textContent = 'Providers';
-        providersLabel.style.fontWeight = '500';
+        providersLabel.className = 'ic-form__label--compact';
 
         const providersChips = document.createElement('div');
         providersChips.className = 'provider-chips';
@@ -2612,21 +2547,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // getElementById, d ou les ids construits a partir du prefixe.
     function createLocationGroup(idPrefix, selectedLocation) {
         const locationGroup = document.createElement('div');
-        locationGroup.style.display = 'flex';
-        locationGroup.style.flexDirection = 'column';
-        locationGroup.style.gap = '5px';
+        locationGroup.className = 'ic-form__group--compact';
 
         const locationLabel = document.createElement('label');
         locationLabel.htmlFor = idPrefix + 'item-location';
         locationLabel.textContent = 'Location *';
-        locationLabel.style.fontWeight = '500';
+        locationLabel.className = 'ic-form__label--compact';
 
         const locationSelect = document.createElement('select');
         locationSelect.id = idPrefix + 'item-location';
         locationSelect.required = true;
-        locationSelect.style.padding = '10px';
-        locationSelect.style.borderRadius = '4px';
-        locationSelect.style.border = '1px solid var(--border-light)';
+        locationSelect.className = 'ic-form__input--compact';
 
         // First option is to create a new location
         const newLocationOption = document.createElement('option');
@@ -2652,11 +2583,8 @@ document.addEventListener('DOMContentLoaded', function() {
         newLocationInput.type = 'text';
         newLocationInput.id = idPrefix + 'location-input';
         newLocationInput.placeholder = 'Enter new location name';
-        newLocationInput.style.padding = '10px';
-        newLocationInput.style.borderRadius = '4px';
-        newLocationInput.style.border = '1px solid var(--border-light)';
-        newLocationInput.style.marginTop = '8px';
-        newLocationInput.style.display = 'none';
+        newLocationInput.className = 'ic-form__input--compact ic-form__input--stacked';
+        newLocationInput.style.display = 'none'; // etat montre/cache : reste au JS
 
         // Show/hide new location input based on selection
         locationSelect.addEventListener('change', () => {
@@ -2690,13 +2618,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Le modal rapide en a une variante au style different : elle reste chez lui.
     function createCategoriesGroup(initialCategories) {
         const categoriesGroup = document.createElement('div');
-        categoriesGroup.style.display = 'flex';
-        categoriesGroup.style.flexDirection = 'column';
-        categoriesGroup.style.gap = '5px';
+        categoriesGroup.className = 'ic-form__group--compact';
 
         const categoriesLabel = document.createElement('label');
         categoriesLabel.textContent = 'Categories';
-        categoriesLabel.style.fontWeight = '500';
+        categoriesLabel.className = 'ic-form__label--compact';
 
         const categoriesBox = document.createElement('div');
         const editor = buildCategoryChipEditor(categoriesBox, initialCategories || []);
@@ -2744,9 +2670,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create modal header
         const modalHeader = document.createElement('div');
-        modalHeader.style.marginBottom = '20px';
+        modalHeader.className = 'modal-header';
         modalHeader.innerHTML = `
-            <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Add New I&C Item</h3>
+            <h3 class="modal-title">Add New I&C Item</h3>
             <p style="margin: 8px 0 0 0; color: var(--text-medium);">
                 Create a new ingredients & consumables tracking item
             </p>
@@ -2754,8 +2680,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create form fields
         const formFields = document.createElement('div');
-        formFields.style.display = 'grid';
-        formFields.style.gap = '15px';
+        formFields.className = 'ic-form--compact';
 
         // Generate a new ID (max ID + 1)
         const newId = window.icItems.length > 0
@@ -2799,20 +2724,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create buttons
         const buttonGroup = document.createElement('div');
-        buttonGroup.style.display = 'flex';
-        buttonGroup.style.justifyContent = 'space-between';
-        buttonGroup.style.marginTop = '20px';
-        buttonGroup.style.gap = '10px';
+        buttonGroup.className = 'ic-form__buttons--split';
 
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Save Item';
         saveButton.className = 'action-button';
-        saveButton.style.flex = '1';
 
         const cancelButton = document.createElement('button');
         cancelButton.textContent = 'Cancel';
         cancelButton.className = 'secondary-button';
-        cancelButton.style.flex = '1';
 
         buttonGroup.appendChild(cancelButton);
         buttonGroup.appendChild(saveButton);
@@ -2908,9 +2828,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create modal header
         const modalHeader = document.createElement('div');
-        modalHeader.style.marginBottom = '20px';
+        modalHeader.className = 'modal-header';
         modalHeader.innerHTML = `
-            <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Edit ${item.name}</h3>
+            <h3 class="modal-title">Edit ${item.name}</h3>
             <p style="margin: 8px 0 0 0; color: var(--text-medium);">
                 Update details for this I&C item
             </p>
@@ -2918,8 +2838,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create form fields
         const formFields = document.createElement('div');
-        formFields.style.display = 'grid';
-        formFields.style.gap = '15px';
+        formFields.className = 'ic-form--compact';
 
         // Helper function to create a form group
 
@@ -2961,31 +2880,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create buttons
         const buttonGroup = document.createElement('div');
-        buttonGroup.style.display = 'flex';
-        buttonGroup.style.justifyContent = 'space-between';
-        buttonGroup.style.marginTop = '20px';
-        buttonGroup.style.gap = '10px';
+        buttonGroup.className = 'ic-form__buttons--split';
 
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Save Changes';
         saveButton.className = 'action-button';
-        saveButton.style.flex = '1';
 
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete Item';
-        deleteButton.style.padding = '10px 20px';
-        deleteButton.style.backgroundColor = 'var(--danger)';
-        deleteButton.style.color = 'white';
-        deleteButton.style.border = 'none';
-        deleteButton.style.borderRadius = '4px';
-        deleteButton.style.cursor = 'pointer';
-        deleteButton.style.fontWeight = 'bold';
-        deleteButton.style.flex = '1';
+        deleteButton.className = 'ic-btn--delete';
 
         const cancelButton = document.createElement('button');
         cancelButton.textContent = 'Cancel';
         cancelButton.className = 'secondary-button';
-        cancelButton.style.flex = '1';
 
         buttonGroup.appendChild(cancelButton);
         buttonGroup.appendChild(deleteButton);
@@ -3165,9 +3072,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create modal header
         const modalHeader = document.createElement('div');
-        modalHeader.style.marginBottom = '20px';
+        modalHeader.className = 'modal-header';
         modalHeader.innerHTML = `
-            <h3 style="margin: 0; color: var(--primary-dark); font-size: 22px;">Database Cleanup Available</h3>
+            <h3 class="modal-title">Database Cleanup Available</h3>
             <p style="margin: 8px 0 0 0; color: var(--text-medium);">
                 Found ${oldLogs.length} inventory history records older than ${dateRange}
             </p>
@@ -3175,11 +3082,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Create info section
         const infoSection = document.createElement('div');
-        infoSection.style.marginBottom = '20px';
-        infoSection.style.padding = '16px';
-        infoSection.style.backgroundColor = 'var(--bg-light)';
-        infoSection.style.borderRadius = '6px';
-        infoSection.style.borderLeft = '4px solid var(--accent-blue)';
+        infoSection.className = 'ic-modal-info';
         infoSection.innerHTML = `
             <p style="margin: 0; color: var(--text-medium); font-size: 14px;">
                 <strong>Benefits of cleanup:</strong><br>
@@ -3475,7 +3378,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var restoredStaff = window.UserSession ? UserSession.restore() : '';
         if (restoredStaff) {
             if (staffSelection) staffSelection.style.display = 'none';
-            if (mainInterface) mainInterface.style.display = 'flex';
+            if (mainInterface) mainInterface.style.display = ''; // grid: voir CSS
             loadItems();
         }
 

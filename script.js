@@ -14,9 +14,7 @@ const initialPrepItems = [
 // Creates a fuchsia user button for modals (reuses existing style + toggleModalUserDropdown)
 function createModalUserPicker() {
     const btn = document.createElement('button');
-    btn.className = 'user-login-btn';
-    btn.style.fontSize = '14px';
-    btn.style.padding = '6px 14px';
+    btn.className = 'user-login-btn user-login-btn--compact';
     btn.innerHTML = `${currentStaff || 'Select user'} <span style="font-size:12px;">\u25BC</span>`;
     btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -330,36 +328,11 @@ function showLoadingIndicator() {
     // Create a loading overlay
     const loadingOverlay = document.createElement('div');
     loadingOverlay.id = 'loading-overlay';
-    loadingOverlay.style.position = 'fixed';
-    loadingOverlay.style.top = '0';
-    loadingOverlay.style.left = '0';
-    loadingOverlay.style.width = '100%';
-    loadingOverlay.style.height = '100%';
-    loadingOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-    loadingOverlay.style.display = 'flex';
-    loadingOverlay.style.justifyContent = 'center';
-    loadingOverlay.style.alignItems = 'center';
-    loadingOverlay.style.zIndex = '9999';
+    loadingOverlay.className = 'loading-overlay';
     
     // Create loading spinner
     const spinner = document.createElement('div');
-    spinner.className = 'loading-spinner';
-    spinner.style.width = '50px';
-    spinner.style.height = '50px';
-    spinner.style.border = '5px solid var(--surface-track)';
-    spinner.style.borderTop = '5px solid var(--info)';
-    spinner.style.borderRadius = '50%';
-    spinner.style.animation = 'spin 1s linear infinite';
-    
-    // Add keyframe animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
+    spinner.className = 'loading-spinner'; // dessin + @keyframes spin : styles.css
     
     // Add spinner to overlay
     loadingOverlay.appendChild(spinner);
@@ -367,8 +340,7 @@ function showLoadingIndicator() {
     // Add loading text
     const loadingText = document.createElement('div');
     loadingText.textContent = 'Syncing data...';
-    loadingText.style.marginLeft = '15px';
-    loadingText.style.fontWeight = 'bold';
+    loadingText.className = 'loading-overlay__text';
     loadingOverlay.appendChild(loadingText);
     
     // Add to body
@@ -443,6 +415,14 @@ function saveAndNext() {
     updateTodoList();
     SoundFX.tap();
 
+    // Un second tap arrive typiquement 150-300ms apres le premier ; a ce moment
+    // advanceCheck() a DEJA affiche l'article suivant, et ce tap-la sauverait
+    // l'article suivant avec une valeur non choisie. Le bouton se coupe donc
+    // le temps de la fenetre de double-tap — et ca se VOIT (:disabled stylé,
+    // audit R6.3) : l'utilisateur sait que son appui a ete pris.
+    saveNextButton.disabled = true;
+    setTimeout(function () { saveNextButton.disabled = false; }, 400);
+
     // Move to next item or complete check
     advanceCheck();
 }
@@ -474,17 +454,15 @@ function showQuickUpdateModal(item, context = 'default') {
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
     const headerRow = document.createElement('div');
-    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;';
+    headerRow.className = 'modal-header-row';
     headerRow.appendChild(createModalUserPicker());
     const titleEl = document.createElement('h3');
-    titleEl.style.margin = '0';
+    titleEl.className = 'qe-title';
     titleEl.textContent = item.name;
     headerRow.appendChild(titleEl);
     modalHeader.appendChild(headerRow);
     const subtitleEl = document.createElement('p');
-    subtitleEl.style.margin = '5px 0';
-    subtitleEl.style.color = '#666';
-    subtitleEl.style.fontSize = '14px';
+    subtitleEl.className = 'qe-subtitle';
     const targetStr = `Target: ${item.targetLevel} ${item.unit}`;
     const currentStr = `Current: ${item.currentLevel} ${item.unit}`;
     subtitleEl.innerHTML = `<strong>${targetStr}</strong> &nbsp;•&nbsp; ${currentStr}`;
@@ -492,13 +470,11 @@ function showQuickUpdateModal(item, context = 'default') {
 
     // Create input group with hidden input
     const inputGroup = document.createElement('div');
-    inputGroup.style.marginBottom = '15px';
-    
+    inputGroup.className = 'qe-input-group';
+
     const label = document.createElement('label');
     label.textContent = 'New quantity:';
-    label.style.display = 'block';
-    label.style.marginBottom = '5px';
-    label.style.fontWeight = 'bold';
+    label.className = 'qe-label';
     
     // Hidden input to store the value
     const hiddenInput = document.createElement('input');
@@ -539,100 +515,58 @@ function showQuickUpdateModal(item, context = 'default') {
     
     if (context === 'single-item-update') {
         updateTypeContainer = document.createElement('div');
-        updateTypeContainer.style.marginBottom = '20px';
-        updateTypeContainer.style.marginTop = '15px';
-        
+        updateTypeContainer.className = 'ut-container';
+
         const updateTypeLabel = document.createElement('div');
         updateTypeLabel.textContent = 'Update Type:';
-        updateTypeLabel.style.fontWeight = 'bold';
-        updateTypeLabel.style.marginBottom = '8px';
-        
+        updateTypeLabel.className = 'ut-label';
+
         const radioGroup = document.createElement('div');
-        radioGroup.style.display = 'flex';
-        radioGroup.style.gap = '10px';
-        
+        radioGroup.className = 'ut-row';
+
         // Create "Prepped" radio button
         const prepLabel = document.createElement('label');
-        prepLabel.style.display = 'flex';
-        prepLabel.style.alignItems = 'center';
-        prepLabel.style.padding = '8px 12px';
-        prepLabel.style.border = '2px solid var(--color-primary)';
-        prepLabel.style.borderRadius = '4px';
-        prepLabel.style.cursor = 'pointer';
-        prepLabel.style.fontWeight = '500';
-        prepLabel.style.flex = '1';
-        prepLabel.style.justifyContent = 'center';
-        prepLabel.style.backgroundColor = 'var(--success-surface)';
-        
+        prepLabel.className = 'ut-choice ut-choice--prep ut-choice--on';
+
         prepRadio = document.createElement('input');
         prepRadio.type = 'radio';
         prepRadio.name = 'update-type';
         prepRadio.value = 'prep';
         prepRadio.id = 'update-type-prep';
-        prepRadio.style.marginRight = '8px';
         prepRadio.checked = true; // Default to Prepped
-        
+
         prepLabel.appendChild(prepRadio);
         prepLabel.appendChild(document.createTextNode('Prepped'));
-        
+
         // Create "Checked" radio button
         const countLabel = document.createElement('label');
-        countLabel.style.display = 'flex';
-        countLabel.style.alignItems = 'center';
-        countLabel.style.padding = '8px 12px';
-        countLabel.style.border = '2px solid var(--info)';
-        countLabel.style.borderRadius = '4px';
-        countLabel.style.cursor = 'pointer';
-        countLabel.style.fontWeight = '500';
-        countLabel.style.flex = '1';
-        countLabel.style.justifyContent = 'center';
-        countLabel.style.backgroundColor = 'var(--info-surface)';
-        
+        countLabel.className = 'ut-choice ut-choice--count';
+
         countRadio = document.createElement('input');
         countRadio.type = 'radio';
         countRadio.name = 'update-type';
         countRadio.value = 'count';
         countRadio.id = 'update-type-count';
-        countRadio.style.marginRight = '8px';
-        
+
         countLabel.appendChild(countRadio);
         countLabel.appendChild(document.createTextNode('Checked'));
-        
+
         // Add radio buttons to group
         radioGroup.appendChild(prepLabel);
         radioGroup.appendChild(countLabel);
-        
+
         // Add elements to the update type container
         updateTypeContainer.appendChild(updateTypeLabel);
         updateTypeContainer.appendChild(radioGroup);
-        
-        // Add style to make the selected option more obvious
-        const updateTypeStyle = document.createElement('style');
-        updateTypeStyle.textContent = `
-            input[name="update-type"]:checked + span {
-                font-weight: bold;
-            }
-        `;
-        document.head.appendChild(updateTypeStyle);
-        
-        // Add event listeners to highlight the selected option
-        prepRadio.addEventListener('change', function() {
-            if (this.checked) {
-                prepLabel.style.backgroundColor = 'var(--success-surface)';
-                prepLabel.style.fontWeight = '600';
-                countLabel.style.backgroundColor = 'var(--info-surface)';
-                countLabel.style.fontWeight = '500';
-            }
-        });
-        
-        countRadio.addEventListener('change', function() {
-            if (this.checked) {
-                countLabel.style.backgroundColor = 'var(--info-surface)';
-                countLabel.style.fontWeight = '600';
-                prepLabel.style.backgroundColor = 'var(--success-surface)';
-                prepLabel.style.fontWeight = '500';
-            }
-        });
+
+        // L'etat actif = une classe (les fonds n'ont jamais change entre les
+        // deux etats, seule la graisse bouge — c'est tout ce que --on porte).
+        function markUpdateType() {
+            prepLabel.classList.toggle('ut-choice--on', prepRadio.checked);
+            countLabel.classList.toggle('ut-choice--on', countRadio.checked);
+        }
+        prepRadio.addEventListener('change', markUpdateType);
+        countRadio.addEventListener('change', markUpdateType);
     }
     
     // Create buttons
@@ -803,54 +737,38 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
 
     // Create reason selection options
     const reasonsContainer = document.createElement('div');
-    reasonsContainer.style.marginBottom = '20px';
+    reasonsContainer.className = 'reasons-container';
 
     // Missing Ingredients option
     const missingOption = document.createElement('div');
     missingOption.className = 'reason-option';
-    missingOption.style.padding = '12px';
-    missingOption.style.border = '1px solid #ddd';
-    missingOption.style.borderRadius = '4px';
-    missingOption.style.marginBottom = '10px';
-    missingOption.style.cursor = 'pointer';
-    missingOption.style.transition = 'background-color 0.2s';
     missingOption.innerHTML = `
-        <label style="display: flex; align-items: center; cursor: pointer;">
-            <input type="radio" name="cant-prep-reason" value="Missing Ingredients" style="margin-right: 10px;">
-            <span style="font-weight: 500;">Missing Ingredients</span>
+        <label class="reason-option__label">
+            <input type="radio" name="cant-prep-reason" value="Missing Ingredients">
+            <span>Missing Ingredients</span>
         </label>
     `;
 
     // Other Reason option
     const otherOption = document.createElement('div');
     otherOption.className = 'reason-option';
-    otherOption.style.padding = '12px';
-    otherOption.style.border = '1px solid #ddd';
-    otherOption.style.borderRadius = '4px';
-    otherOption.style.cursor = 'pointer';
-    otherOption.style.transition = 'background-color 0.2s';
     otherOption.innerHTML = `
-        <label style="display: flex; align-items: center; cursor: pointer;">
-            <input type="radio" name="cant-prep-reason" value="Other" style="margin-right: 10px;">
-            <span style="font-weight: 500;">Other Reason</span>
+        <label class="reason-option__label">
+            <input type="radio" name="cant-prep-reason" value="Other">
+            <span>Other Reason</span>
         </label>
     `;
 
     // Other reason text input (hidden initially)
     const otherReasonContainer = document.createElement('div');
     otherReasonContainer.id = 'other-reason-container';
-    otherReasonContainer.style.marginTop = '10px';
-    otherReasonContainer.style.display = 'none';
+    otherReasonContainer.className = 'reason-other';
+    otherReasonContainer.style.display = 'none'; // etat montre/cache : JS
 
     const otherReasonInput = document.createElement('input');
     otherReasonInput.type = 'text';
     otherReasonInput.id = 'other-reason-input';
     otherReasonInput.placeholder = 'Please specify the reason...';
-    otherReasonInput.style.width = '100%';
-    otherReasonInput.style.padding = '10px';
-    otherReasonInput.style.border = '1px solid #ddd';
-    otherReasonInput.style.borderRadius = '4px';
-    otherReasonInput.style.fontSize = '14px';
 
     otherReasonContainer.appendChild(otherReasonInput);
 
@@ -883,15 +801,11 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
     const radioInputs = document.querySelectorAll('input[name="cant-prep-reason"]');
     radioInputs.forEach(input => {
         input.addEventListener('change', function() {
-            // Reset all options
+            // Un seul etat, une seule classe (le style vit dans styles.css)
             document.querySelectorAll('.reason-option').forEach(option => {
-                option.style.backgroundColor = 'white';
-                option.style.borderColor = '#ddd';
+                option.classList.remove('reason-option--selected');
             });
-            
-            // Highlight selected option
-            this.closest('.reason-option').style.backgroundColor = 'var(--surface-alt)';
-            this.closest('.reason-option').style.borderColor = 'var(--danger)';
+            this.closest('.reason-option').classList.add('reason-option--selected');
             
             // Show/hide other reason input
             otherReasonContainer.style.display = this.value === 'Other' ? 'block' : 'none';
@@ -1339,7 +1253,10 @@ function renderPrepTodoItem(item) {
         edgeColor = 'var(--text-slate)';
     }
     todoItem.style.borderLeftColor = edgeColor;
-    const needColor = item.canPrep === false ? 'var(--text-slate-strong)' : edgeColor;
+    // Le chiffre reste NEUTRE : c'est une consigne (« prepare 2 »), pas une
+    // alerte — l'urgence est deja portee par le lisere gauche et le badge
+    // de statut (R5.3, audit 18/08). Avant, il reprenait la couleur du lisere.
+    const needColor = 'var(--text-dark)';
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
         ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
@@ -1414,10 +1331,10 @@ function showTaskModal(task) {
 
     // Build header row with title + user picker
     const headerRow = document.createElement('div');
-    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
+    headerRow.className = 'modal-header-row modal-header-row--spaced';
     headerRow.appendChild(createModalUserPicker());
     const titleEl = document.createElement('h3');
-    titleEl.style.cssText = 'margin:0;color:#333;';
+    titleEl.className = 'qe-title qe-title--ink';
     titleEl.textContent = task.title;
     headerRow.appendChild(titleEl);
     modalContent.appendChild(headerRow);
@@ -1640,10 +1557,10 @@ function updateStats() {
     const progressBar = document.getElementById('prep-progress-bar');
     if (progressBar && total > 0) {
         const donePercent = ((total - itemsNeeded) / total) * 100;
-        progressBar.style.width = donePercent + '%';
-        if (donePercent > 80) progressBar.style.backgroundColor = 'var(--primary-light)';
-        else if (donePercent > 50) progressBar.style.backgroundColor = 'var(--accent-orange)';
-        else progressBar.style.backgroundColor = 'var(--accent-red)';
+        progressBar.style.width = donePercent + '%'; // largeur calculee : JS
+        progressBar.classList.toggle('is-high', donePercent > 80);
+        progressBar.classList.toggle('is-mid', donePercent > 50 && donePercent <= 80);
+        progressBar.classList.toggle('is-low', donePercent <= 50);
     }
 }
 
@@ -1671,6 +1588,9 @@ function startPrepCheckProcess() {
     
     dashboardSection.style.display = 'none';
     prepCheckInterface.style.display = 'block';
+    // Mode focus (R6.7) : nav + rail s'effacent pendant le comptage — la
+    // sortie explicite est le bouton Cancel. Voir styles.css body.focus-mode.
+    document.body.classList.add('focus-mode');
     showCurrentPrepItem();
         
     // Initialize the touch input for the current item
@@ -1685,6 +1605,7 @@ function sortItemsByDisplayOrder(items) {
 function completePrepCheck() {
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
+    document.body.classList.remove('focus-mode');
     
     // Record the complete check
     if (window.LastCheckTracker) {
@@ -1700,11 +1621,14 @@ function completePrepCheck() {
 function cancelPrepCheck() {
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
+    document.body.classList.remove('focus-mode');
 }
 
 function showMainInterface() {
     staffSelectionScreen.style.display = 'none';
-    mainInterface.style.display = 'flex';
+    // '' et non 'flex' : c'est la feuille de style qui possede le mode
+    // d'affichage (grid depuis 2026-08-18) ; le JS ne fait que montrer/cacher.
+    mainInterface.style.display = '';
 
     currentUserElement.textContent = currentStaff;
     
@@ -1836,8 +1760,7 @@ function updateInventoryTable() {
             <td>${item.lastCheckedBy || '<span class="text-muted">—</span>'}</td>
         `;
         
-        // Make the entire row clickable
-        row.style.cursor = 'pointer'; // Add pointer cursor to indicate clickable
+        // Make the entire row clickable (cursor: styles.css #inventory-table-body tr)
         row.addEventListener('click', () => {
             showQuickUpdateModal(item);
         });
@@ -1875,13 +1798,13 @@ document.head.appendChild(statsGridStyle);
 // Add the function to show the single item update modal
 function showSingleItemUpdateModal() {
     SoundFX.pop();
-    const { box: modalContent, close: closeModal } = openModal({});
-    modalContent.style.maxWidth = '500px';
+    // modal-box--wide = max-width 500px, la meme valeur qu'avant en dur
+    const { box: modalContent, close: closeModal } = openModal({ boxClass: 'modal-box--wide' });
 
     const modalHeader = document.createElement('div');
     modalHeader.className = 'modal-header';
     const headerDiv = document.createElement('div');
-    headerDiv.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 12px;';
+    headerDiv.className = 'picker-head';
     headerDiv.innerHTML = `<h2 style="margin: 0; color: var(--text-dark); font-size: 1.5rem; text-align: center;">Select item to update</h2>`;
 
     const userBtn = document.createElement('button');
@@ -1896,9 +1819,7 @@ function showSingleItemUpdateModal() {
     
     // Create items container
     const itemsContainer = document.createElement('div');
-    itemsContainer.style.display = 'flex';
-    itemsContainer.style.flexDirection = 'column';
-    itemsContainer.style.gap = '10px';
+    itemsContainer.className = 'picker-list';
     
     // Sort prep items alphabetically by name
     const sortedItems = [...prepItems].sort((a, b) => a.name.localeCompare(b.name));
@@ -1906,15 +1827,7 @@ function showSingleItemUpdateModal() {
     // Create a button for each prep item
     sortedItems.forEach(item => {
         const itemButton = document.createElement('div');
-        itemButton.className = 'prep-item-button';
-        itemButton.style.padding = '15px';
-        itemButton.style.backgroundColor = 'var(--bg-light)';
-        itemButton.style.borderRadius = '6px';
-        itemButton.style.cursor = 'pointer';
-        itemButton.style.transition = 'background-color 0.2s';
-        itemButton.style.display = 'flex';
-        itemButton.style.justifyContent = 'space-between';
-        itemButton.style.alignItems = 'center';
+        itemButton.className = 'prep-item-button'; // dessin + :hover : styles.css
         
         // Calculate level percentage
         const percentage = item.targetLevel > 0 
@@ -1956,14 +1869,7 @@ function showSingleItemUpdateModal() {
             </div>
         `;
         
-        // Add hover effect
-        itemButton.addEventListener('mouseover', () => {
-            itemButton.style.backgroundColor = 'var(--bg-medium)';
-        });
-        
-        itemButton.addEventListener('mouseout', () => {
-            itemButton.style.backgroundColor = 'var(--bg-light)';
-        });
+        // (survol : .prep-item-button:hover, styles.css)
         
         // Add click event
         itemButton.addEventListener('click', () => {
@@ -1976,13 +1882,11 @@ function showSingleItemUpdateModal() {
     
     // Create button container
     const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'btn-group';
-    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.className = 'btn-group btn-group--end';
 
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancel';
-    cancelButton.className = 'btn btn--secondary';
-    cancelButton.style.flex = 'none';
+    cancelButton.className = 'btn btn--secondary btn--auto';
     
     // Add cancel button event
     cancelButton.addEventListener('click', closeModal);
