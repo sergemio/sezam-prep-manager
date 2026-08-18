@@ -147,17 +147,16 @@
   // Light-theme pill colours {bg, border, text}. État tags get distinct hues
   // (they double as storage filters); nature = green; non-alim = purple.
   function categoryColors(cat) {
-    // Seul le trio d'ETAT garde une teinte : Congelé/Frais/Sec est une vraie
-    // information de stockage qu'on balaie des yeux (froid=bleu, frais=teal,
-    // sec=ambre). Les groupes nature/nonalim etaient colores arbitrairement
-    // (vert/violet « pour faire joli ») : passes en neutre le 18/08 (R5.2,
-    // audit UX — la couleur signifie, ou elle se tait).
+    // Couleurs par GROUPE, choix de Serge (19/08 — il a refuse la
+    // neutralisation proposee par l'audit) : etat = teintes distinctes,
+    // nature = vert, non-alimentaire = violet.
     switch (cat) {
       case 'Congelé':     return { bg: '#e3f0fb', border: '#90caf9', text: '#1565c0' };
       case 'Frais':       return { bg: '#e0f2f1', border: '#80cbc4', text: '#00796b' };
       case 'Sec/Ambiant': return { bg: '#f3ecdd', border: '#e0cfa6', text: '#8a6d2f' };
     }
-    return { bg: 'var(--surface-slate)', border: '#d5dbe3', text: 'var(--text-slate-strong)' };
+    if (categoryGroup(cat) === 'nonalim') return { bg: '#ede7f6', border: '#b39ddb', text: '#5e35b1' };
+    return { bg: 'var(--success-surface)', border: '#a5d6a7', text: '#2e7d32' }; // nature
   }
 
   // Inline style for one pill. `on` toggles selected vs muted (for the editor).

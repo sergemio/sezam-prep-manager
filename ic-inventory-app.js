@@ -1470,9 +1470,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // same item, and whoever reads the card orders a second time.
             const _need = shortfallOf(item);
             const _pending = pendingQtyOf(item);
-            // Neutre et non rouge/ambre : ce chiffre est une CONSIGNE (« commande 10 »),
-            // pas une alerte — le badge OUT porte deja l'urgence (R5.3, audit 18/08).
-            const _needColor = 'var(--text-dark)';
+            // Rouge (rupture) / ambre (bas) — choix de Serge (19/08, retour a
+            // l'ancienne version apres l'essai "neutre" de l'audit).
+            const _needColor = item.currentLevel === 0 ? 'var(--danger-strong)' : 'var(--sev-warn)';
             todoItem.innerHTML = `
                 <div class="todo-item-name">${item.name}</div>
                 <div class="todo-item-detail">
@@ -1621,7 +1621,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // bottom of History or the dashboard. Leaving the section leaves the count.
         if (countInterface && countInterface.style.display !== 'none') {
             countInterface.style.display = 'none';
-            document.body.classList.remove('focus-mode');
             if (dashboardSection) dashboardSection.style.display = '';
         }
 
@@ -1818,8 +1817,6 @@ document.addEventListener('DOMContentLoaded', function() {
             sec.style.display = 'none';
         });
         if (countInterface) countInterface.style.display = 'block';
-        // Mode focus (R6.7) : nav + rail s'effacent pendant le comptage.
-        document.body.classList.add('focus-mode');
         
         // Initialize slider
         initTouchSlider();
@@ -1959,7 +1956,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Complete full count
     function completeFullCount() {
-        document.body.classList.remove('focus-mode');
         if (dashboardSection) dashboardSection.style.display = 'block';
         if (countInterface) countInterface.style.display = 'none';
         
@@ -1973,7 +1969,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cancel full count
     function cancelFullCount() {
-        document.body.classList.remove('focus-mode');
         if (dashboardSection) dashboardSection.style.display = 'block';
         if (countInterface) countInterface.style.display = 'none';
     }

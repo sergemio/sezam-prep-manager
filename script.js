@@ -730,7 +730,7 @@ function showCantPrepReasonModal(item, afterSelectionCallback) {
     modalHeader.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <h3 style="margin: 0; color: #333;">Can't Prep: ${item.name}</h3>
-        <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
+        <span class="prep-check-user">${currentStaff}</span>
     </div>
     <p style="margin: 5px 0;">Select a reason why this item can't be prepped:</p>
     `;
@@ -1253,10 +1253,9 @@ function renderPrepTodoItem(item) {
         edgeColor = 'var(--text-slate)';
     }
     todoItem.style.borderLeftColor = edgeColor;
-    // Le chiffre reste NEUTRE : c'est une consigne (« prepare 2 »), pas une
-    // alerte — l'urgence est deja portee par le lisere gauche et le badge
-    // de statut (R5.3, audit 18/08). Avant, il reprenait la couleur du lisere.
-    const needColor = 'var(--text-dark)';
+    // Le chiffre reprend la couleur du lisere d'urgence (sauf can't-prep :
+    // ardoise) — choix de Serge (19/08, retour a l'ancienne version).
+    const needColor = item.canPrep === false ? 'var(--text-slate-strong)' : edgeColor;
     todoItem.innerHTML = `
         <div class="todo-item-name">${item.name}</div>
         ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
@@ -1588,9 +1587,6 @@ function startPrepCheckProcess() {
     
     dashboardSection.style.display = 'none';
     prepCheckInterface.style.display = 'block';
-    // Mode focus (R6.7) : nav + rail s'effacent pendant le comptage — la
-    // sortie explicite est le bouton Cancel. Voir styles.css body.focus-mode.
-    document.body.classList.add('focus-mode');
     showCurrentPrepItem();
         
     // Initialize the touch input for the current item
@@ -1605,7 +1601,6 @@ function sortItemsByDisplayOrder(items) {
 function completePrepCheck() {
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
-    document.body.classList.remove('focus-mode');
     
     // Record the complete check
     if (window.LastCheckTracker) {
@@ -1621,7 +1616,6 @@ function completePrepCheck() {
 function cancelPrepCheck() {
     prepCheckInterface.style.display = 'none';
     dashboardSection.style.display = 'block';
-    document.body.classList.remove('focus-mode');
 }
 
 function showMainInterface() {

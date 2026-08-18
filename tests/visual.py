@@ -161,6 +161,17 @@ def capture(out):
 
             pg.evaluate("() => { if (typeof startPrepCheckProcess==='function') startPrepCheckProcess(); }")
             pg.wait_for_timeout(900); snap("prep-check")
+            clear_overlays(pg)
+
+            # Modals migres JS->CSS le 18/08 : ils n'etaient photographies par
+            # rien (trou de filet C1).
+            nav(pg, "dashboard")
+            pg.evaluate("() => { if (typeof showSingleItemUpdateModal==='function') showSingleItemUpdateModal(); }")
+            pg.wait_for_timeout(800); snap("modal-item-picker")
+            clear_overlays(pg)
+            pg.evaluate("() => { if (typeof showCantPrepReasonModal==='function' && prepItems && prepItems.length) showCantPrepReasonModal(prepItems[0], function () {}); }")
+            pg.wait_for_timeout(800); snap("modal-cant-prep")
+            clear_overlays(pg)
             pg.close()
 
             # ---------- I&C ----------

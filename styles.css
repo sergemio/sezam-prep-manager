@@ -2014,9 +2014,14 @@ button:disabled,
     pointer-events: none; /* absorbe le double-tap impatient */
 }
 
-:focus-visible {
-    outline: 3px solid var(--primary-light);
-    outline-offset: 2px;
+/* Clavier uniquement (pointeur fin) : sur tablette, certains navigateurs
+   affichent :focus-visible apres un tap — un anneau vert surprise sans
+   utilite au doigt (retour du 18/08 soir). */
+@media (pointer: fine) {
+    :focus-visible {
+        outline: 3px solid var(--primary-light);
+        outline-offset: 2px;
+    }
 }
 
 /* Plancher tactile (lot 1c) : toute cible franche atteint --tap-min.
@@ -2296,31 +2301,10 @@ button:disabled,
    La classe est posee/retiree par le JS aux memes endroits que l'affichage
    de l'interface de comptage.
    ============================================================ */
-body.focus-mode .app-container,
-body.focus-mode.db-editor-page .app-container {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "content";
-    grid-template-rows: minmax(0, 1fr);
-}
-body.focus-mode .nav-panel,
-body.focus-mode .todo-panel { display: none; }
-
-/* Le comptage occupe la hauteur : la paire Save/Cancel descend en zone des
-   pouces (R1.7 — le bas de l'ecran etait la moitie morte de la page).
-   Etirement sur la CARTE en dvh (et pas min-height:100% sur l'interface :
-   le JS pose display:block inline sur elle, qui ecraserait un flex CSS).
-   56px = les 28px de padding haut+bas du .content-panel. */
-body.focus-mode .prep-check-card {
-    display: flex;
-    flex-direction: column;
-    min-height: calc(100dvh - 56px);
-}
-@media screen and (max-width: 700px) {
-    body.focus-mode .prep-check-card {
-        min-height: calc(100dvh - 20px); /* padding mobile du content-panel */
-    }
-}
-body.focus-mode .prep-check-actions { margin-top: auto; padding-top: 16px; }
+/* Mode focus RETIRE le 18/08 au soir (retour Serge) : masquer la nav et
+   etirer la carte etait une degradation (vide, reperes perdus). Le comptage
+   garde la coquille normale : nav + rail visibles, carte compacte, boutons
+   sous le slider. */
 
 /* Les deux boutons du flux tiennent le plancher tactile */
 .prep-check-actions .btn { min-height: var(--tap-min); }
