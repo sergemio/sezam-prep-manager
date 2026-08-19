@@ -1,30 +1,8 @@
-/* DM Sans auto-hebergee (audit UX 2026-08-18, R4.5) : la pile systeme rendait
-   TROIS polices differentes selon la tablette (SF sur iPad, Roboto sur Android,
-   Segoe sur PC) — un seul dessin desormais sur tout le parc. Fonte VARIABLE :
-   un fichier couvre toutes les graisses (500/600/700/800 utilisees).
-   font-display swap : au tout premier chargement (sw.js n'a pas de pre-cache),
-   le texte s'affiche en police systeme plutot que de rester invisible. */
-@font-face {
-    font-family: 'DM Sans';
-    src: url('fonts/DMSans-Variable-latin.woff2') format('woff2');
-    font-weight: 100 1000;
-    font-display: swap;
-    /* pas d'unicode-range : c'est la face par defaut ; un glyphe absent du
-       fichier (fleches, emojis) retombe de lui-meme sur la pile systeme */
-}
-@font-face {
-    font-family: 'DM Sans';
-    src: url('fonts/DMSans-Variable-latin-ext.woff2') format('woff2');
-    font-weight: 100 1000;
-    font-display: swap;
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1EFF;
-}
-
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 :root {
@@ -61,22 +39,10 @@
     --brand-accent: #c2185b;
     /* surfaces */
     --bg-app: #e8e8e0; --surface: #ffffff; --surface-muted: #f5f5f0;
-    /* ===== ECHELLE TYPO (refonte 2026-08-18, R4.4/R4.6) =====
-       SIX tailles, echelle dashboard (24/20/18/16/14/12) — decidees ici, nulle
-       part ailleurs. Les grands chiffres (--fs-stat) sont de la DONNEE affichee,
-       pas du titre : cas a part legitime, hors decompte.
-       Les anciens noms (eyebrow, modal, section, stat-lg) sont conserves en
-       ALIAS pour ne casser aucun usage existant (CSS comme JS). */
-    --fs-page: 24px;      /* H1 — titre de page (etait 32 : hors referentiel) */
-    --fs-title: 20px;     /* H2 — titre de section / de modal */
-    --fs-subtitle: 18px;  /* H3 */
-    --fs-body-lg: 16px;   /* corps appuye + TOUT champ de saisie (jamais moins) */
-    --fs-body: 14px;      /* corps */
-    --fs-caption: 12px;   /* meta, legendes */
-    --fs-eyebrow: var(--fs-caption);
-    --fs-modal: var(--fs-title);
-    --fs-section: var(--fs-page);
-    --fs-stat: 42px; --fs-stat-lg: var(--fs-stat);
+    /* type scale (px); weights numeric only */
+    --fs-eyebrow: 12px; --fs-caption: 13px; --fs-body: 15px; --fs-body-lg: 16px;
+    --fs-title: 20px; --fs-modal: 22px; --fs-section: 28px; --fs-page: 32px;
+    --fs-stat: 42px; --fs-stat-lg: 48px;
     --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700; --fw-black: 800;
     /* radius · shadow · spacing (4px grid) */
     --r-control: 8px; --r-card: 16px; --r-pill: 9999px; --r-circle: 50%;
@@ -84,16 +50,6 @@
     --shadow-modal: 0 8px 24px rgba(0,0,0,.15); --scrim: rgba(0,0,0,.5);
     --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
     --space-5: 20px; --space-6: 24px; --space-7: 32px; --space-8: 40px;
-    /* Plancher tactile du parc mixte : Android (Material) exige 48px, iOS 44 —
-       on prend le plus exigeant des deux. Audit UX 2026-08-18, lot 1c. */
-    --tap-min: 48px;
-    /* Icone de nav : calee sur l'interligne du lien (R6.5), pas sur sa police */
-    --icon-nav: 24px;
-    /* Chrome de la colonne de nav. DEUX chromes assumes (vert PM / ardoise I&C,
-       pour distinguer les deux apps d'un coup d'oeil) mais via jeton — plus de
-       surcharge en dur (audit E, 18/08). */
-    --nav-bg: var(--primary-dark);
-    --nav-bg-active: rgba(255, 255, 255, 0.18);
     /* z-index ladder */
     --z-overlay: 100; --z-modal: 1000; --z-modal-stacked: 1100;
     --z-dropdown: 1200; --z-toast: 1300; --z-gate: 2000;
@@ -131,18 +87,6 @@
     --table-head-text: #888888;       /* libellés d'en-tête */
 }
 
-/* Arbitrage tactile (R4.6) : on teste le POINTEUR, jamais un appareil — une
-   tablette Android inconnue achetee demain est couverte sans rien changer.
-   Memes rapports que l'echelle dashboard, plancher releve : a bout de bras sur
-   un plan de travail, 12-14px ne se lit pas. Les titres ne bougent pas. */
-@media (pointer: coarse) {
-    :root {
-        --fs-body-lg: 17px;
-        --fs-body: 16px;
-        --fs-caption: 14px;
-    }
-}
-
 body {
     background-color: #e8e8e0;
     color: var(--text-dark);
@@ -155,16 +99,13 @@ body {
     align-items: center;
     justify-content: center;
     height: 100vh;
-    height: 100dvh; /* barres d'URL mobiles */
     padding: 20px;
     background-color: var(--bg-light);
 }
 
 .heading {
-    font-size: var(--fs-page);
+    font-size: 28px;
     font-weight: bold;
-    letter-spacing: -0.02em;  /* R4.3 : les grands titres au reglage par defaut font amateur */
-    line-height: 1.15;        /* R4.7 : un titre n'herite pas de l'interligne du corps */
     margin-bottom: 32px;
     color: var(--primary-dark);
 }
@@ -183,7 +124,7 @@ body {
     padding: 16px 24px;
     border: none;
     border-radius: 8px;
-    font-size: var(--fs-subtitle);
+    font-size: 18px;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s;
     box-shadow: 0 3px 6px rgba(0,0,0,0.1);
@@ -198,34 +139,18 @@ body {
     transform: translateY(1px);
 }
 
-/* Main App Interface.
-   Grille et non flex : le parc de tablettes est heterogene (audit UX 2026-08-18),
-   donc les colonnes laterales ont une largeur FIXE (une nav de 5 liens a besoin
-   de ~240px, ni plus sur un PC, ni moins sur une petite tablette) et seul le
-   centre est elastique. Les re-agencements (rail sous le contenu, pile complete)
-   se font en re-templatant la grille, sans toucher au HTML.
-   minmax(0, 1fr) et pas 1fr : sans le 0, un tableau large forcerait la colonne
-   a s'etirer au lieu de defiler a l'interieur. */
+/* Main App Interface */
 .app-container {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) 300px;
-    grid-template-areas: "nav content todo";
+    display: flex;
     height: 100vh;
-    height: 100dvh; /* les barres d'URL iOS/Android mentent sur 100vh */
     width: 100%;
     overflow: hidden;
 }
 
-/* DB editor : pas de rail todo, deux colonnes seulement. */
-.db-editor-page .app-container {
-    grid-template-columns: 240px minmax(0, 1fr);
-    grid-template-areas: "nav content";
-}
-
 /* Left Panel - Navigation */
 .nav-panel {
-    grid-area: nav;
-    background-color: var(--nav-bg);
+    width: 20%;
+    background-color: var(--primary-dark);
     color: white;
     padding: 16px;
     display: flex;
@@ -247,9 +172,7 @@ body {
 }
 
 .nav-title {
-    font-size: var(--fs-page);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
+    font-size: 24px;
     font-weight: bold;
     margin-bottom: 32px;
     text-align: center;
@@ -277,15 +200,13 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     text-decoration: none;
 }
 
-/* R6.5 : l'icone se cale sur l'INTERLIGNE du texte du lien (16px x 1.5 = 24),
-   jamais une valeur arbitraire — et via jeton pour suivre l'echelle. */
 .nav-icon {
-    width: var(--icon-nav, 24px);
-    height: var(--icon-nav, 24px);
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
     opacity: 0.85;
 }
@@ -295,7 +216,7 @@ body {
 }
 
 .nav-button.active {
-    background-color: var(--nav-bg-active);
+    background-color: rgba(255, 255, 255, 0.18);
     color: white;
     font-weight: 600;
     box-shadow: none;
@@ -344,7 +265,7 @@ body {
     color: white;
     opacity: 0.6;
     margin-bottom: 4px;
-    font-size: var(--fs-caption);
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -360,7 +281,7 @@ body {
     border: none;
     color: var(--primary-dark);
     cursor: pointer;
-    font-size: var(--fs-caption);
+    font-size: 13px;
     font-weight: 700;
     padding: 8px 10px;
     text-align: center;
@@ -376,16 +297,20 @@ body {
 
 /* Middle Panel - Content */
 .content-panel {
-    grid-area: content;
+    flex: 1;
     padding: 28px 32px;
     overflow-y: auto;
     background-color: var(--surface-muted);
 }
 
+/* DB Editor page: no todo panel, content takes remaining space */
+.db-editor-page .content-panel {
+    width: auto;
+    flex: 1;
+}
+
 .section-title {
-    font-size: var(--fs-page); /* etait 32 : H1 dashboard = 24 (R4.6, constat C6) */
-    letter-spacing: -0.02em;
-    line-height: 1.15;
+    font-size: 32px;
     font-weight: 800;
     margin-bottom: 0;
     color: var(--text-dark);
@@ -408,13 +333,13 @@ body {
     /* Magenta on purpose: user identity ("who is logged in / who did what") is
        the single most critical thing in this multi-user kitchen tool, so it gets
        a unique accent detached from the rest of the palette. Kept by design. */
-    background-color: var(--brand-accent);
+    background-color: #c2185b;
     color: white;
     border: none;
     padding: 8px 18px;
     border-radius: 20px;
     font-weight: 600;
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -482,7 +407,7 @@ body {
 .dropdown-item {
     padding: 14px 20px;
     cursor: pointer;
-    font-size: var(--fs-body);
+    font-size: 15px;
     font-weight: 500;
     border-bottom: 1px solid #f0f0ec;
 }
@@ -513,7 +438,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 14px 30px 14px 16px;
-    background: var(--brand-accent);
+    background: #c2185b;
     color: white;
     font-family: inherit;
     border-radius: 9999px;
@@ -540,12 +465,12 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--fs-body);
+    font-size: 15px;
     font-weight: 800;
 }
 
 .user-switch-toast .toast-name {
-    font-size: var(--fs-subtitle);
+    font-size: 18px;
     font-weight: 700;
 }
 
@@ -554,7 +479,7 @@ body {
     border: 1px solid var(--border-light);
     padding: 8px 16px;
     border-radius: 20px;
-    font-size: var(--fs-body);
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.5px;
     color: var(--text-dark);
@@ -574,7 +499,7 @@ body {
 }
 
 .card-title {
-    font-size: var(--fs-title);
+    font-size: 20px;
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--primary-dark);
@@ -614,7 +539,7 @@ body {
     color: var(--text-light);
     margin-bottom: 8px;
     font-weight: 600;
-    font-size: var(--fs-caption);
+    font-size: 13px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
 }
@@ -647,7 +572,7 @@ body {
 }
 
 .stat-sub {
-    font-size: var(--fs-body);
+    font-size: 15px;
     color: var(--text-light);
     font-weight: 500;
 }.stat-progress {
@@ -728,7 +653,7 @@ body {
 }
 
 .prep-check-badge {
-    font-size: var(--fs-caption);
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-light);
     background-color: var(--bg-medium);
@@ -737,18 +662,16 @@ body {
 }
 
 .prep-check-user {
-    font-size: var(--fs-caption);
+    font-size: 13px;
     font-weight: 700;
     color: white;
-    background-color: var(--brand-accent);
+    background-color: #c2185b;
     padding: 4px 12px;
     border-radius: 9999px;
 }
 
 .prep-check-item-name {
-    font-size: var(--fs-page);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
+    font-size: 28px;
     font-weight: 800;
     color: var(--primary-dark);
     text-align: center;
@@ -759,7 +682,7 @@ body {
     text-align: center;
     margin-bottom: 16px;
     color: var(--text-medium);
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     font-weight: 500;
 }
 
@@ -808,7 +731,7 @@ body {
     padding: 14px 32px;
     border-radius: var(--r-control);
     font-weight: 700;
-    font-size: var(--fs-body);
+    font-size: 14px;
     letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.2s;
@@ -863,7 +786,7 @@ body {
 
 /* Right Panel - Todo List */
 .todo-panel {
-    grid-area: todo;
+    width: 22%;
     background-color: var(--surface-muted);
     padding: 20px 16px;
     overflow-y: auto;
@@ -874,28 +797,8 @@ body {
     height: 100%;
 }
 
-/* Sous ~1100px, trois colonnes etranglent le tableau central : le rail passe
-   SOUS le contenu (bande horizontale a defilement propre), la nav reste a
-   gauche sur toute la hauteur. Seuil choisi sur le contenu, pas sur un appareil. */
-@media (max-width: 1100px) {
-    .app-container {
-        grid-template-columns: 240px minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr) auto;
-        grid-template-areas:
-            "nav content"
-            "nav todo";
-    }
-
-    .todo-panel {
-        max-height: 40dvh;
-        height: auto;
-        border-left: none;
-        border-top: 1px solid var(--border-light);
-    }
-}
-
 .todo-title {
-    font-size: var(--fs-caption);
+    font-size: 12px;
     font-weight: 700;
     margin-bottom: 16px;
     color: var(--text-light);
@@ -906,7 +809,7 @@ body {
 }
 
 .todo-section-label {
-    font-size: var(--fs-caption);
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-light);
     letter-spacing: 1px;
@@ -923,7 +826,7 @@ body {
 .todo-count-badge {
     background-color: var(--primary-light);
     color: white;
-    font-size: var(--fs-caption);
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 10px;
@@ -931,8 +834,7 @@ body {
 
 /* Selected items container to control vertical space */
 #selected-items-container {
-    max-height: calc(100vh - 140px);
-    max-height: calc(100dvh - 140px);
+    max-height: calc(100vh - 140px); /* Adjust this value as needed */
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1038,14 +940,14 @@ body {
 }
 
 .todo-item-name {
-    font-size: var(--fs-body-lg);
+    font-size: 17px;
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--primary-dark);
 }
 
 .todo-item-detail {
-    font-size: var(--fs-body);
+    font-size: 15px;
     color: var(--text-medium);
     margin-bottom: 4px;
 }
@@ -1062,7 +964,7 @@ body {
 }
 
 .todo-need-lbl {
-    font-size: var(--fs-body);
+    font-size: 14px;
     color: var(--text-medium);
     margin-left: 4px;
 }
@@ -1071,7 +973,7 @@ body {
     display: inline-block;
     margin-top: 8px;
     padding: 4px 12px;
-    font-size: var(--fs-caption);
+    font-size: 13px;
     border-radius: 9999px;
     font-weight: 800;
 }
@@ -1100,7 +1002,7 @@ body {
 /* Timestamp as plain meta text, not a bordered pill (avoids a false "tappable" signifier) */
 .todo-updated {
     color: var(--text-light);
-    font-size: var(--fs-caption);
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -1110,7 +1012,7 @@ body {
     position: relative;
     padding: 20px 24px;
     line-height: 2.2;
-    font-size: var(--fs-body);
+    font-size: 15px;
 }
 
 .summary-dot {
@@ -1125,7 +1027,7 @@ body {
 
 .summary-title {
     display: inline;
-    font-size: var(--fs-body);
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 1.5px;
     color: #94a3b8;
@@ -1157,17 +1059,17 @@ body {
     transition: border-color .15s ease, opacity .15s ease, box-shadow .15s ease;
 }
 
-.summary-counter .sc-dot { font-size: var(--fs-caption); line-height: 1; }
+.summary-counter .sc-dot { font-size: 12px; line-height: 1; }
 
 .summary-counter .sc-n {
-    font-size: var(--fs-title);
+    font-size: 20px;
     font-weight: 800;
     line-height: 1;
     color: var(--cc);
 }
 
 .summary-counter .sc-label {
-    font-size: var(--fs-caption);
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: .5px;
     text-transform: uppercase;
@@ -1321,8 +1223,8 @@ body {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: var(--tap-min);
-    height: var(--tap-min);
+    width: 44px;
+    height: 44px;
     background-color: var(--primary-dark);
     border-radius: 50%;
     border: 3px solid white;
@@ -1358,7 +1260,7 @@ body {
     text-align: center;
     /* Read at arm's length on a tablet: bigger, darker, bolder than before
        (was 12px/medium/500 — barely legible). Shared by every slider. */
-    font-size: var(--fs-body);
+    font-size: 14px;
     color: var(--text-dark);
     top: 16px;
     font-weight: 700;
@@ -1418,7 +1320,7 @@ body {
 .db-table thead th {
     background-color: transparent;
     color: var(--table-head-text);
-    font-size: var(--fs-caption);
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -1433,7 +1335,7 @@ body {
 
 .db-table td {
     padding: 14px 16px;
-    font-size: var(--fs-body);
+    font-size: 14px;
     border-bottom: 1px solid var(--table-row-border);
 }
 
@@ -1457,7 +1359,7 @@ body {
 /* Drag & drop reorder */
 .drag-handle {
     cursor: grab;
-    font-size: var(--fs-subtitle);
+    font-size: 18px;
     color: var(--text-light);
     user-select: none;
     padding: 2px 4px;
@@ -1536,7 +1438,7 @@ tr.dragging {
     padding: 14px 20px;
     background: none;
     border: none;
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     font-weight: 600;
     color: var(--text-medium);
     cursor: pointer;
@@ -1581,28 +1483,12 @@ tr.dragging {
       }
   }
 
-/* Mobile Responsive Design — pile complete (nav en bandeau, contenu, rail).
-   Seuil a 700px : en dessous, meme une nav fixe de 240px ne peut plus cohabiter
-   avec le contenu. Ici la PAGE defile (height:auto), c'est voulu. */
-@media screen and (max-width: 700px) {
+/* Mobile Responsive Design */
+@media screen and (max-width: 768px) {
     .app-container {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: none;
-        grid-template-areas:
-            "nav"
-            "content"
-            "todo";
+        flex-direction: column;
         height: auto;
         min-height: 100vh;
-        min-height: 100dvh;
-        overflow: visible;
-    }
-
-    .db-editor-page .app-container {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas:
-            "nav"
-            "content";
     }
 
     .nav-panel {
@@ -1623,7 +1509,7 @@ tr.dragging {
     }
 
     .nav-title {
-        font-size: var(--fs-title);
+        font-size: 20px;
         margin-bottom: 16px;
     }
 
@@ -1659,7 +1545,6 @@ tr.dragging {
         width: 100%;
         position: relative;
         height: auto;
-        max-height: none; /* le cap de 40dvh du seuil 1100 ne vaut qu'en mode 2 colonnes */
         margin-top: 20px;
     }
 
@@ -1748,16 +1633,16 @@ tr.dragging {
     }
 
     .nav-title {
-        font-size: var(--fs-body-lg);
+        font-size: 16px;
         margin-bottom: 12px;
     }
 
     .section-title {
-        font-size: var(--fs-title);
+        font-size: 20px;
     }
 
     .todo-tag {
-        font-size: var(--fs-caption);
+        font-size: 11px;
         padding: 3px 8px;
     }
 }
@@ -1786,9 +1671,12 @@ tr.dragging {
 
 #prep-check-interface .slider-container {
     margin: 15px 0;
-    /* 56 et pas 48 : la poignee fait --tap-min (48px) et doit vivre DANS le
-       conteneur sans mordre les graduations (garde-fou du contre-audit). */
-    height: 56px;
+    height: 48px;
+}
+
+#prep-check-interface .slider-handle {
+    width: 40px;
+    height: 40px;
 }
 
 #prep-check-interface .tick-marks {
@@ -1800,7 +1688,7 @@ tr.dragging {
    readable (was 10px, nearly invisible). Inherits dark/bold from base. */
 #prep-check-interface .tick-label {
     top: 18px;
-    font-size: var(--fs-body);
+    font-size: 15px;
 }
 
 /* General Log Item Styling (if any adjustments are needed globally) */
@@ -1808,10 +1696,20 @@ tr.dragging {
     margin-left: 8px; /* Add some space after the action label */
 }
 
-/* I&C Manager : meme coquille, chrome ardoise — on ne surcharge que les jetons. */
-.body-ic-manager {
-    --nav-bg: #4a5568;
-    --nav-bg-active: #2c3e50;
+/* Styles for I&C Manager Navigation Panel */
+.body-ic-manager .nav-panel {
+    background-color: #4a5568; /* Dark Slate Blue */
+}
+
+.body-ic-manager .nav-panel .nav-button.active {
+    background-color: #2c3e50; /* Darker Slate Blue for active button */
+    color: white; /* White text for active button */
+}
+
+/* Ensure other nav buttons in I&C maintain good contrast if needed */
+.body-ic-manager .nav-panel .nav-button {
+    /* If general nav-button color doesn't work well on dark slate blue, adjust here */
+    /* For now, assuming default white text is fine */
 }
 
 /* I&C Manager: admin links separator uses .nav-admin (handled globally) */
@@ -1829,7 +1727,7 @@ tr.dragging {
     border: 1px solid var(--border-light);
     border-radius: 4px;
     font-family: inherit;
-    font-size: var(--fs-body-lg); /* jamais <16px sur un champ : iOS zoome au focus et y reste */
+    font-size: 14px;
     resize: vertical;
 }
 
@@ -1847,14 +1745,14 @@ tr.dragging {
 .staff-picker__title {
     margin: 0 0 8px 0;
     text-align: center;
-    font-size: var(--fs-title);
+    font-size: 22px;
     color: var(--primary-dark);
 }
 
 .staff-picker__subtitle {
     margin: 0;
     text-align: center;
-    font-size: var(--fs-body);
+    font-size: 14px;
     color: var(--text-medium);
 }
 
@@ -1914,7 +1812,7 @@ tr.dragging {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     flex-shrink: 0;
 }
 
@@ -1926,7 +1824,7 @@ tr.dragging {
 .staff-select-button .staff-name {
     font-weight: 600;
     color: var(--text-dark);
-    font-size: var(--fs-body-lg);
+    font-size: 16px;
     flex: 1;
 }
 
@@ -1936,7 +1834,7 @@ tr.dragging {
 
 .staff-select-button .staff-check {
     display: none;
-    font-size: var(--fs-subtitle);
+    font-size: 18px;
     color: white;
 }
 
@@ -1960,7 +1858,6 @@ tr.dragging {
     align-items: center;
     z-index: 9999;
     animation: modalFadeIn 0.3s ease-out;
-    overscroll-behavior: contain;
 }
 
 .modal-backdrop--stacked {
@@ -1975,14 +1872,9 @@ tr.dragging {
     width: 90%;
     max-width: 450px;
     max-height: 90vh;
-    max-height: 90dvh; /* sans quoi le pied du modal passe sous la barre d'URL */
     overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     animation: modalSlideIn 0.25s ease-out;
-    /* Sans contain, un balayage qui atteint la butee du modal se propage au
-       panneau derriere (chainage de defilement). Le body ne defile pas ici,
-       donc un verrou type body-overflow serait inoperant (contre-audit 18/08). */
-    overscroll-behavior: contain;
 }
 
 /* Form-heavy modals (add item, edit details, purge) that need the extra width */
@@ -1999,37 +1891,6 @@ tr.dragging {
 
 .modal-header {
     margin-bottom: 20px;
-}
-
-/* R6.3/R6.4 — les deux etats qui manquaient (audit 2026-08-18) :
-   - :disabled : AVANT, un bouton desactive etait indiscernable d'un actif ;
-     sur tactile c'est la recette de la double saisie (« ca n'a pas marche »).
-   - :focus-visible : le clavier/switch access voyait un focus invisible.
-   Le style seul ne suffit pas : le JS doit POSER disabled pendant l'ecriture
-   (fait cote I&C de longue date ; ajoute a script.js le 18/08). */
-button:disabled,
-.action-button:disabled, .secondary-button:disabled, .staff-button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    pointer-events: none; /* absorbe le double-tap impatient */
-}
-
-/* Clavier uniquement (pointeur fin) : sur tablette, certains navigateurs
-   affichent :focus-visible apres un tap — un anneau vert surprise sans
-   utilite au doigt (retour du 18/08 soir). */
-@media (pointer: fine) {
-    :focus-visible {
-        outline: 3px solid var(--primary-light);
-        outline-offset: 2px;
-    }
-}
-
-/* Plancher tactile (lot 1c) : toute cible franche atteint --tap-min.
-   Liste explicite plutot qu'un `button` global : les micro-controles composes
-   (steppers, croix de fermeture) ont leurs propres dimensions deja conformes. */
-.nav-button, .tab-button, .day-toggle, .staff-button,
-.action-button, .secondary-button, .switch-user-btn, .team-message-btn {
-    min-height: var(--tap-min);
 }
 
 /* ========================================
@@ -2082,8 +1943,6 @@ button:disabled,
     font-weight: var(--fw-bold);
     color: var(--primary-dark);
     margin: 0 0 var(--space-2);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
 }
 
 /* PIN gate (pin-guard.js) — keypad styling as classes; key sizes preserved
@@ -2128,7 +1987,7 @@ button:disabled,
 }
 .pin-key {
     padding: 16px;
-    font-size: var(--fs-title);
+    font-size: 22px;
     font-weight: var(--fw-semibold);
     border: 1px solid #ddd;
     border-radius: var(--r-control);
@@ -2136,7 +1995,7 @@ button:disabled,
     cursor: pointer;
 }
 .pin-key--clear {
-    font-size: var(--fs-subtitle);
+    font-size: 18px;
     background: var(--surface-muted);
     color: var(--text-light);
 }
@@ -2163,7 +2022,7 @@ button:disabled,
     border-radius: 6px;
     background: white;
     cursor: pointer;
-    font-size: var(--fs-caption);
+    font-size: 13px;
     transition: all 0.2s;
 }
 .day-toggle.active {
@@ -2200,7 +2059,7 @@ button:disabled,
 }
 
 .team-message-label {
-    font-size: var(--fs-caption);
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.06em;
     color: #b45309;
@@ -2208,7 +2067,7 @@ button:disabled,
 }
 
 .team-message-text {
-    font-size: var(--fs-subtitle);
+    font-size: 19px;
     font-weight: 600;
     line-height: 1.35;
     color: var(--text-dark, #1f2937);
@@ -2216,7 +2075,7 @@ button:disabled,
 }
 
 .team-message-meta {
-    font-size: var(--fs-caption);
+    font-size: 12px;
     color: #64748b;
     margin-top: 8px;
 }
@@ -2233,7 +2092,7 @@ button:disabled,
     border: none;
     border-radius: 10px;
     font-weight: 700;
-    font-size: var(--fs-body);
+    font-size: 15px;
     cursor: pointer;
     transition: transform 0.1s, filter 0.15s;
 }
@@ -2260,7 +2119,7 @@ button:disabled,
     padding: 12px 14px;
     border: 1px solid #d1d5db;
     border-radius: 10px;
-    font-size: var(--fs-body-lg); /* jamais <16px sur un champ : iOS zoome au focus et y reste */
+    font-size: 15px;
     box-sizing: border-box;
 }
 .team-broadcast-status {
@@ -2273,7 +2132,7 @@ button:disabled,
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: var(--fs-caption);
+    font-size: 13px;
     color: #475569;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -2281,147 +2140,14 @@ button:disabled,
     padding: 8px 10px;
 }
 .team-broadcast-item .tb-text { font-weight: 600; color: #1f2937; }
-.team-broadcast-item .tb-state { margin-left: auto; font-size: var(--fs-caption); }
+.team-broadcast-item .tb-state { margin-left: auto; font-size: 12px; }
 .team-broadcast-item .tb-clear {
     background: none;
     border: none;
     color: #94a3b8;
     cursor: pointer;
-    font-size: var(--fs-body);
+    font-size: 14px;
     padding: 2px 6px;
 }
 .team-broadcast-item .tb-clear:hover { color: #dc2626; }
 
-
-/* ============================================================
-   Mode focus (lot 5, 2026-08-18) — R1.1 / R6.7
-   Pendant un comptage (41 preps PM, full count I&C), la nav et le rail ne
-   servent a rien et sont des cibles de faux appui a cote du slider : ils
-   s'effacent. Sortie explicite : le bouton Cancel du flux (R8.4).
-   La classe est posee/retiree par le JS aux memes endroits que l'affichage
-   de l'interface de comptage.
-   ============================================================ */
-/* Mode focus RETIRE le 18/08 au soir (retour Serge) : masquer la nav et
-   etirer la carte etait une degradation (vide, reperes perdus). Le comptage
-   garde la coquille normale : nav + rail visibles, carte compacte, boutons
-   sous le slider. */
-
-/* Les deux boutons du flux tiennent le plancher tactile */
-.prep-check-actions .btn { min-height: var(--tap-min); }
-
-/* Cancel en ghost (R6.6) : il jouxte le CTA et n'a pas a peser aussi lourd */
-.prep-check-actions .btn--secondary {
-    background: transparent;
-    border: 2px solid var(--border-light);
-    color: var(--text-medium);
-}
-.prep-check-actions .btn--secondary:hover {
-    background-color: var(--bg-light);
-}
-
-/* ============================================================
-   Classes issues de la migration JS -> CSS (lot 4, 2026-08-18)
-   AVANT : ~86 ecritures .style.* dans script.js. Le JS construit la
-   structure et bascule des classes ; le style vit ici.
-   ============================================================ */
-
-/* Bouton user compact des modals (variante du .user-login-btn) */
-.user-login-btn--compact { font-size: var(--fs-body); padding: 6px 14px; }
-
-/* Voile de synchronisation */
-.loading-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
-.loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid var(--surface-track);
-    border-top: 5px solid var(--info);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-.loading-overlay__text { margin-left: 15px; font-weight: bold; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Quick-edit : en-tete et champ */
-.modal-header-row { display: flex; align-items: center; gap: 12px; }
-.qe-title { margin: 0; }
-.qe-title--ink { color: var(--text-dark); }
-.modal-header-row--spaced { margin-bottom: 12px; }
-.qe-subtitle { margin: 5px 0; color: #666; font-size: var(--fs-body); }
-.qe-input-group { margin-bottom: 15px; }
-.qe-label { display: block; margin-bottom: 5px; font-weight: bold; }
-
-/* Choix Prepped / Checked (radio habille) — l'etat actif passe par .ut-choice--on */
-.ut-container { margin: 15px 0 20px; }
-.ut-label { font-weight: bold; margin-bottom: 8px; }
-.ut-row { display: flex; gap: 10px; }
-.ut-choice {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-}
-.ut-choice input { margin-right: 8px; }
-.ut-choice--prep { border: 2px solid var(--color-primary); background-color: var(--success-surface); }
-.ut-choice--count { border: 2px solid var(--info); background-color: var(--info-surface); }
-.ut-choice--on { font-weight: 600; }
-
-/* Modal "Can't prep" : options de raison — l'etat choisi passe par --selected */
-.reasons-container { margin-bottom: 20px; }
-.reason-option {
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    background-color: white;
-}
-.reason-option--selected { background-color: var(--surface-alt); border-color: var(--danger); }
-.reason-option__label { display: flex; align-items: center; cursor: pointer; }
-.reason-option__label input { margin-right: 10px; }
-.reason-option__label span { font-weight: 500; }
-.reason-other { margin-top: 10px; }
-.reason-other input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: var(--fs-body);
-}
-
-/* Barre de progression du dashboard : 3 etats, la largeur reste au JS */
-.stat-progress-bar.is-high { background-color: var(--primary-light); }
-.stat-progress-bar.is-mid  { background-color: var(--accent-orange); }
-.stat-progress-bar.is-low  { background-color: var(--accent-red); }
-
-/* Lignes de l'inventaire PM : cliquables (ouvrent le quick-update) */
-#inventory-table-body tr { cursor: pointer; }
-
-/* Picker d'article (Quick Edit) */
-.picker-head { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.picker-list { display: flex; flex-direction: column; gap: 10px; }
-.prep-item-button {
-    padding: 15px;
-    background-color: var(--bg-light);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.prep-item-button:hover { background-color: var(--bg-medium); }
-.btn-group--end { justify-content: flex-end; }
-.btn--auto { flex: none; }

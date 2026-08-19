@@ -68,15 +68,7 @@ NORMALISE = r"""() => {
   return hits.length;
 }"""
 
-# La cible n'est pas un appareil mais une PLAGE (parc mixte iPad + Android,
-# audit 2026-08-18) : les deux extremes sont la ou une mise en page casse.
-#   pc        : admin sur PC, et borne haute de la plage
-#   tab-land  : tablette 10" en paysage — c'est la HAUTEUR qui contraint (~600px)
-#   tab-port  : tablette 10" en portrait (l'ancien gabarit "ipad", nom conserve
-#               dans les fichiers de ref existants via le tag)
-#   tab-small : petite tablette 8" en portrait — verifie la version repliee
-VIEWPORTS = [("pc", 1280, 900), ("tab-land", 1024, 600),
-             ("ipad", 820, 1180), ("tab-small", 600, 960)]
+VIEWPORTS = [("pc", 1280, 900), ("ipad", 820, 1180)]
 
 
 def nav(pg, section):
@@ -161,17 +153,6 @@ def capture(out):
 
             pg.evaluate("() => { if (typeof startPrepCheckProcess==='function') startPrepCheckProcess(); }")
             pg.wait_for_timeout(900); snap("prep-check")
-            clear_overlays(pg)
-
-            # Modals migres JS->CSS le 18/08 : ils n'etaient photographies par
-            # rien (trou de filet C1).
-            nav(pg, "dashboard")
-            pg.evaluate("() => { if (typeof showSingleItemUpdateModal==='function') showSingleItemUpdateModal(); }")
-            pg.wait_for_timeout(800); snap("modal-item-picker")
-            clear_overlays(pg)
-            pg.evaluate("() => { if (typeof showCantPrepReasonModal==='function' && prepItems && prepItems.length) showCantPrepReasonModal(prepItems[0], function () {}); }")
-            pg.wait_for_timeout(800); snap("modal-cant-prep")
-            clear_overlays(pg)
             pg.close()
 
             # ---------- I&C ----------

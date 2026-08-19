@@ -147,9 +147,6 @@
   // Light-theme pill colours {bg, border, text}. État tags get distinct hues
   // (they double as storage filters); nature = green; non-alim = purple.
   function categoryColors(cat) {
-    // Couleurs par GROUPE, choix de Serge (19/08 — il a refuse la
-    // neutralisation proposee par l'audit) : etat = teintes distinctes,
-    // nature = vert, non-alimentaire = violet.
     switch (cat) {
       case 'Congelé':     return { bg: '#e3f0fb', border: '#90caf9', text: '#1565c0' };
       case 'Frais':       return { bg: '#e0f2f1', border: '#80cbc4', text: '#00796b' };
@@ -183,7 +180,7 @@
           var chip = document.createElement('span');
           chip.textContent = cat;
           // Touch target >=44px (override categoryStyle's compact base padding)
-          chip.style.cssText = categoryStyle(cat, on) + 'cursor:pointer;min-height:var(--tap-min);padding:7px 15px;font-size:14px;';
+          chip.style.cssText = categoryStyle(cat, on) + 'cursor:pointer;min-height:44px;padding:7px 15px;font-size:14px;';
           chip.addEventListener('click', function () {
             var i = selected.indexOf(cat);
             if (i === -1) selected.push(cat); else selected.splice(i, 1);
