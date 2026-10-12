@@ -43,6 +43,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Full count state
     let countQueue = [];
     let currentItemIndex = 0;
+    // Blind count: last week's value is never shown during a full count, and
+    // "Save & Next" stays locked until the person has entered a value for THIS
+    // item. 54-59 of 102 values were copied unchanged each week (21/09 - 11/10).
+    let countTouched = false;
+    let resettingCount = false;
     let countSlider;
     
     // Sorting state
@@ -1858,6 +1863,22 @@ document.addEventListener('DOMContentLoaded', function() {
             cancelCountBtn.addEventListener('click', cancelFullCount);
         }
 
+        // Any real move of the slider or the −/+ buttons counts as an answer;
+        // the programmatic reset between items does not (resettingCount).
+        if (currentLevelInput) {
+            currentLevelInput.addEventListener('change', () => {
+                if (!resettingCount) setCountTouched(true);
+            });
+        }
+        const zeroBtn = document.getElementById('count-zero');
+        if (zeroBtn) {
+            zeroBtn.addEventListener('click', () => {
+                if (window.countSlider) window.countSlider.setValue(0);
+                if (currentLevelInput) currentLevelInput.value = 0;
+                setCountTouched(true);
+            });
+        }
+
         // The badge is the handover point: whoever takes over the count taps it
         // and picks their name, so lastCheckedBy stays honest mid-run.
         const userBadge = document.getElementById('count-user-badge');
@@ -1930,10 +1951,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         currentItemIndex = 0;
         
-        // Initialize inputs
-        currentLevelInput.value = countQueue[0]?.currentLevel || '0';
+        // Initialize inputs — blind: nothing of last week's value on screen
+        currentLevelInput.value = '0';
         if (currentValueDisplay) {
-            currentValueDisplay.textContent = countQueue[0]?.currentLevel || '0';
+            currentValueDisplay.textContent = '?';
         }
         
         // Show first item
@@ -1943,8 +1964,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dashboardSection) dashboardSection.style.display = 'none';
         if (countInterface) countInterface.style.display = 'block';
         
-        // Initialize slider
+        // Initialize slider, then blank the first item (creating the slider
+        // writes last week's value into the input).
         initTouchSlider();
+        resetCountValue(countQueue[0]);
     }
     
     // Show current count item
@@ -1991,23 +2014,32 @@ document.addEventListener('DOMContentLoaded', function() {
             checkItemTargetElement.textContent = `Target: ${item.targetLevel} ${item.unit}`;
         }
         
-        // Update value
-        if (currentLevelInput) {
-            currentLevelInput.value = item.currentLevel;
-        }
-        
-        if (currentValueDisplay) {
-            currentValueDisplay.textContent = item.currentLevel;
-        }
-        
-        // Reconfigure slider for this item's target level
+        resetCountValue(item);
+    }
+
+    // Blind start for one item: "?" on screen, slider at 0, Save locked. The scale
+    // is still sized with last week's value so a big stock (61 rolls) stays
+    // reachable without 50 taps on "+"; the value itself is never displayed.
+    function resetCountValue(item) {
+        resettingCount = true;
         if (window.countSlider) {
             if (typeof window.countSlider.reconfigure === 'function') {
                 window.countSlider.reconfigure(item.targetLevel, item.currentLevel);
-            } else {
-                window.countSlider.setValue(item.currentLevel);
             }
+            window.countSlider.setValue(0);
         }
+        if (currentLevelInput) currentLevelInput.value = 0;
+        resettingCount = false;
+        setCountTouched(false);
+    }
+
+    function setCountTouched(on) {
+        countTouched = on;
+        if (saveNextBtn) {
+            saveNextBtn.disabled = !on;
+            saveNextBtn.textContent = on ? 'Save & Next' : 'Count it first';
+        }
+        if (!on && currentValueDisplay) currentValueDisplay.textContent = '?';
     }
     
     // Save current item and move to next
@@ -2016,7 +2048,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Invalid count index or empty queue");
             return;
         }
-        
+        if (!countTouched) {
+            showMessage('Count this item first — use the slider, − / +, or "None left (0)"', 'info');
+            return;
+        }
+
         // Get current value
         const value = currentLevelInput.value;
         const numValue = parseFloat(value);
@@ -2194,6 +2230,18 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
 
             <div id="qu-pane-order" style="display: none;">
+                ${alreadyPending > 0 ? `
+                <div class="order-ask" id="order-ask">
+                    <div class="order-ask__q">
+                        ${fmtQty(alreadyPending)} ${pluralizeUnit(item.unit, alreadyPending)} already on the way${
+                            item.pendingAt ? ' since ' + new Date(item.pendingAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : ''
+                        }${item.pendingProvider ? ' from ' + item.pendingProvider : ''}. Has this delivery arrived?
+                    </div>
+                    <div class="order-ask__btns">
+                        <button type="button" class="btn btn--primary" id="order-ask-yes">Yes, it arrived</button>
+                        <button type="button" class="btn btn--secondary" id="order-ask-no">No, still waiting</button>
+                    </div>
+                </div>` : ''}
                 <div class="order-block">
                     <div class="order-block__title">🚚 ${alreadyPending > 0 ? 'On the way' : 'I ordered'}</div>
                     <div class="order-block__row">
@@ -2230,18 +2278,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="button" class="btn btn--secondary qu-cancel">Cancel</button>
                 </div>
-                ${alreadyPending > 0 ? `
-                <div class="order-ask" id="order-ask">
-                    <div class="order-ask__q">
-                        ${fmtQty(alreadyPending)} ${pluralizeUnit(item.unit, alreadyPending)} already on the way${
-                            item.pendingAt ? ' since ' + new Date(item.pendingAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : ''
-                        }${item.pendingProvider ? ' from ' + item.pendingProvider : ''}. Has this delivery arrived?
-                    </div>
-                    <div class="order-ask__btns">
-                        <button type="button" class="btn btn--primary" id="order-ask-yes">Yes, it arrived</button>
-                        <button type="button" class="btn btn--secondary" id="order-ask-no">No, still waiting</button>
-                    </div>
-                </div>` : ''}
             </div>
         `;
 
@@ -2334,42 +2370,6 @@ document.addEventListener('DOMContentLoaded', function() {
         orderLevelInput.addEventListener('change', syncOrderFromInput);
         renderOrderHint();
 
-        orderSaveBtn.addEventListener('click', () => {
-            const previous = alreadyPending;
-            if (orderQty === previous) {
-                showMessage('Nothing changed', 'info');
-                return;
-            }
-            orderSaveBtn.disabled = true;
-            const rollback = {
-                pendingQty: item.pendingQty,
-                pendingAt: item.pendingAt,
-                pendingProvider: item.pendingProvider
-            };
-
-            // Ordering never touches currentLevel — that is the whole point.
-            // Cancelling (qty 0) must clear the DATE and the SUPPLIER too, not
-            // just the quantity: leaving them behind reads as "ordered from Metro
-            // on the 3rd" on an item nobody ordered. null deletes the key in
-            // Firebase rather than storing an empty string.
-            // The supplier must be the one actually ordered from: a claim naming the
-            // wrong one is worse than a claim naming none. 24 of 102 items have two
-            // suppliers, so when there is a choice the user makes it (select above);
-            // with a single supplier there is nothing to ask.
-            const providerSelect = content.querySelector('#order-provider');
-            const chosenProvider = providerSelect
-                ? providerSelect.value
-                : ((item.providers && item.providers.length === 1) ? item.providers[0] : '');
-
-            item.pendingQty = orderQty;
-            item.pendingAt = orderQty > 0 ? new Date().toISOString() : null;
-            item.pendingProvider = orderQty > 0 ? chosenProvider : null;
-
-            const db = window.firebaseDb;
-            const write = (db && typeof db.saveIcItem === 'function')
-                ? db.saveIcItem(item)
-                : Promise.resolve();
-
         // An order already on the way must be answered for before it is changed:
         // overwriting it silently is how a delivery that DID arrive vanished from the
         // books (9 items on 28/09). "Yes" records it as received (stock goes up, like
@@ -2406,6 +2406,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
             });
         }
+
+        orderSaveBtn.addEventListener('click', () => {
+            const previous = alreadyPending;
+            if (orderQty === previous) {
+                showMessage('Nothing changed', 'info');
+                return;
+            }
+            orderSaveBtn.disabled = true;
+            const rollback = {
+                pendingQty: item.pendingQty,
+                pendingAt: item.pendingAt,
+                pendingProvider: item.pendingProvider
+            };
+
+            // Ordering never touches currentLevel — that is the whole point.
+            // Cancelling (qty 0) must clear the DATE and the SUPPLIER too, not
+            // just the quantity: leaving them behind reads as "ordered from Metro
+            // on the 3rd" on an item nobody ordered. null deletes the key in
+            // Firebase rather than storing an empty string.
+            // The supplier must be the one actually ordered from: a claim naming the
+            // wrong one is worse than a claim naming none. 24 of 102 items have two
+            // suppliers, so when there is a choice the user makes it (select above);
+            // with a single supplier there is nothing to ask.
+            const providerSelect = content.querySelector('#order-provider');
+            const chosenProvider = providerSelect
+                ? providerSelect.value
+                : ((item.providers && item.providers.length === 1) ? item.providers[0] : '');
+
+            item.pendingQty = orderQty;
+            item.pendingAt = orderQty > 0 ? new Date().toISOString() : null;
+            item.pendingProvider = orderQty > 0 ? chosenProvider : null;
+
+            const db = window.firebaseDb;
+            const write = (db && typeof db.saveIcItem === 'function')
+                ? db.saveIcItem(item)
+                : Promise.resolve();
 
             write
                 .then(() => {

@@ -1114,6 +1114,42 @@ def run_ic(browser):
         return d["pending"] == 3 and d["level"] == seeded["level"] and d["logs"] == []
     safe("IC/count-start-close-rolls-back-on-failure", ic_count_close_rollback)
 
+    # Comptage a l'aveugle : 54 a 59 valeurs sur 102 recopiees telles quelles chaque
+    # semaine (21/09-11/10). La valeur de la semaine d'avant n'est jamais affichee et
+    # "Save & Next" reste bloque tant que l'article n'a pas recu de reponse.
+    def ic_blind_count():
+        clear_modals(pg)
+        pg.evaluate("""() => { const it=(window.icItems||[]).find(i=>parseFloat(i.currentLevel)>0);
+            window.__blindProbe = it ? it.id : null; window.__saveCalls=[]; }""")
+        pg.evaluate("() => document.getElementById('start-count-btn').click()")
+        pg.wait_for_timeout(700)
+        d0 = pg.evaluate("""() => ({ shown: document.getElementById('current-value').textContent.trim(),
+            locked: document.getElementById('save-next-btn').disabled,
+            input: document.getElementById('current-level-input').value })""")
+        # Save bloque : aucun comptage enregistre
+        pg.evaluate("() => { document.getElementById('save-next-btn').click(); }")
+        pg.wait_for_timeout(200)
+        none_saved = pg.evaluate("() => !(window.__saveCalls||[]).some(c=>c.fn==='saveIcItem')")
+        # "None left (0)" repond 0 et debloque
+        pg.evaluate("() => document.getElementById('count-zero').click()")
+        d1 = pg.evaluate("""() => ({ shown: document.getElementById('current-value').textContent.trim(),
+            locked: document.getElementById('save-next-btn').disabled })""")
+        pg.evaluate("() => document.getElementById('save-next-btn').click()")
+        pg.wait_for_timeout(400)
+        saved = pg.evaluate("""() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveIcItem');
+            return c ? c.args[0].currentLevel : null; }""")
+        # article suivant : de nouveau "?" et bloque ; "+" suffit a debloquer
+        d2 = pg.evaluate("""() => ({ shown: document.getElementById('current-value').textContent.trim(),
+            locked: document.getElementById('save-next-btn').disabled })""")
+        pg.evaluate("() => document.getElementById('increase').click()")
+        d3 = pg.evaluate("() => document.getElementById('save-next-btn').disabled")
+        pg.evaluate("() => { const b=document.getElementById('cancel-count-btn'); if(b) b.click(); }")
+        pg.wait_for_timeout(300)
+        return (d0 == {"shown": "?", "locked": True, "input": "0"} and none_saved
+                and d1["locked"] is False and d1["shown"] in ("0", "0.0", "0.00")
+                and saved == 0 and d2 == {"shown": "?", "locked": True} and d3 is False)
+    safe("IC/blind-count", ic_blind_count)
+
     # Bloc L — le manquant se calcule NET de ce qui est deja en route. Sans ca le
     # dashboard affichait "10 to order" sur un article dont 3 arrivaient, et la meme
     # livraison etait commandee deux fois.

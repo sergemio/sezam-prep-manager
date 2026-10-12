@@ -872,6 +872,21 @@
     font-size: 26px;
 }
 
+/* Blind count: the value starts at "?" and the slider at 0, so an item that is
+   really empty needs its own explicit answer — moving the slider to 0 from 0
+   would not register as a count. */
+#count-interface .control-button--zero {
+    width: auto;
+    padding: 0 16px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+#count-interface .prep-check-save:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
 /* The tick marks and their labels are absolutely positioned OUTSIDE the slider
    container (bottom: -34px), so the parent reserves no room for them: with the
    inherited 15px they spilled 6px below the grey panel. The bottom margin must
