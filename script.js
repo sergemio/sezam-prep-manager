@@ -1019,9 +1019,21 @@ function markItemAsCanPrepAgain(item) {
     }
 }
 
+// Jours CALENDAIRES (locaux) ecoules depuis une validation — pas des tranches de 24 h
+// glissantes : une tache quotidienne validee hier a 17h09 est due aujourd'hui des son
+// heure d'apparition (scheduleTime), sinon l'heure derive chaque jour. Date illisible
+// => Infinity : mieux vaut afficher une tache en trop que la cacher pour toujours.
+function calendarDaysSince(iso) {
+    const then = new Date(iso), today = new Date();
+    if (isNaN(then.getTime())) return Infinity;
+    then.setHours(0, 0, 0, 0); today.setHours(0, 0, 0, 0);
+    return Math.round((today - then) / 86400000);
+}
+
 function getTaskMissedCount(task) {
     if (!task.lastCompletedAt || task.type !== 'recurring') return 0;
-    const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const daysSince = calendarDaysSince(task.lastCompletedAt);
+    if (!isFinite(daysSince)) return 0;
     const missed = Math.floor(daysSince / task.frequencyDays) - 1;
     return Math.max(0, missed);
 }
@@ -1052,8 +1064,14 @@ function isTaskDue(task) {
     }
     if (task.type === 'recurring') {
         if (!task.lastCompletedAt) return true;
-        const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
-        return daysSince >= task.frequencyDays;
+        // Des jours de semaine fixes SONT la cadence : le filtre plus haut a deja
+        // verifie qu'on est un jour prevu, il ne reste qu'a savoir si c'est fait
+        // aujourd'hui. Sans cela, frequencyDays compte depuis la derniere validation
+        // et peut sauter un jour prevu — vecu le 23/08/2026 : lave-vaisselle
+        // (dimanche, 7j) valide un lundi, 6 jours le dimanche suivant < 7, tache
+        // jamais affichee, 9 jours sans nettoyage. Sans scheduleDays : inchange.
+        const interval = (task.scheduleDays && task.scheduleDays.length > 0) ? 1 : task.frequencyDays;
+        return calendarDaysSince(task.lastCompletedAt) >= interval;
     }
     return false;
 }
@@ -1061,9 +1079,9 @@ function isTaskDue(task) {
 function getTaskDaysOverdue(task) {
     if (task.type === 'recurring') {
         if (!task.lastCompletedAt) return 0;
-        const daysSince = (Date.now() - new Date(task.lastCompletedAt).getTime()) / (1000 * 60 * 60 * 24);
-        const overdue = daysSince - task.frequencyDays;
-        return Math.max(0, Math.floor(overdue));
+        const daysSince = calendarDaysSince(task.lastCompletedAt);
+        if (!isFinite(daysSince)) return 0;
+        return Math.max(0, Math.floor(daysSince - task.frequencyDays));
     }
     if (task.type === 'scheduled' && task.scheduledDate) {
         const daysSince = (Date.now() - new Date(task.scheduledDate).getTime()) / (1000 * 60 * 60 * 24);

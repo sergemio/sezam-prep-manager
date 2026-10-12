@@ -124,6 +124,43 @@ def run_pm(browser):
     safe("helpers/byDisplayOrder", lambda: pg.evaluate(
         "() => { const a=[{id:2},{id:1,displayOrder:5},{id:3,displayOrder:1}].sort(byDisplayOrder); return a[0].displayOrder===1 && a[1].displayOrder===5 && a[2].id===2; }"))
 
+    # C2. tasks — recurrence en jours calendaires : l'heure d'apparition (scheduleTime) prime,
+    # quelle que soit l'heure de validation la veille (bug du 26/08 : shift1 validee a 17h09
+    # ne reapparaissait qu'a 17h09 le lendemain au lieu de 11h40).
+    TASK_JS = """() => {
+        const now = new Date();
+        const hhmm = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+        const past = new Date(now.getTime() - 60000), future = new Date(now); future.setHours(23, 59, 0, 0);
+        const y = new Date(now); y.setDate(y.getDate() - 1); y.setHours(17, 9, 0, 0);
+        const today = new Date(now); today.setHours(0, 5, 0, 0);
+        const week = new Date(now); week.setDate(week.getDate() - 7);
+        const T = o => Object.assign({ active: true, type: 'recurring', frequencyDays: 1 }, o);
+        return {
+            dueAfterHour:      isTaskDue(T({ scheduleTime: hhmm(past), lastCompletedAt: y.toISOString() })) === true,
+            hiddenBeforeHour:  isTaskDue(T({ scheduleTime: hhmm(future), lastCompletedAt: y.toISOString() })) === false,
+            doneToday:         isTaskDue(T({ scheduleTime: hhmm(past), lastCompletedAt: today.toISOString() })) === false,
+            noHourMidnight:    isTaskDue(T({ lastCompletedAt: y.toISOString() })) === true,
+            weeklyDue:         isTaskDue(T({ frequencyDays: 7, scheduleDays: [now.getDay()], scheduleTime: hhmm(past), lastCompletedAt: week.toISOString() })) === true,
+            weeklyDoneToday:   isTaskDue(T({ frequencyDays: 7, scheduleDays: [now.getDay()], scheduleTime: hhmm(past), lastCompletedAt: today.toISOString() })) === false,
+            weeklyWrongDay:    isTaskDue(T({ frequencyDays: 7, scheduleDays: [(now.getDay() + 1) % 7], scheduleTime: hhmm(past), lastCompletedAt: week.toISOString() })) === false,
+            // Cas lave-vaisselle (23/08/2026) : hebdo le dimanche validee un lundi ->
+            // 6 jours le dimanche suivant. Le jour planifie prime, la tache doit sortir.
+            weeklyOffCycleDay: (() => { const d = new Date(now); d.setDate(d.getDate() - 6);
+                return isTaskDue(T({ frequencyDays: 7, scheduleDays: [now.getDay()], scheduleTime: hhmm(past), lastCompletedAt: d.toISOString() })) === true; })(),
+            // Garde-fou : SANS jours planifies, frequencyDays reste seul maitre.
+            freqStillHonored:  (() => { const d = new Date(now); d.setDate(d.getDate() - 6);
+                return isTaskDue(T({ frequencyDays: 7, scheduleTime: hhmm(past), lastCompletedAt: d.toISOString() })) === false; })(),
+            neverDone:         isTaskDue(T({ lastCompletedAt: null })) === true,
+            corruptDateShown:  isTaskDue(T({ scheduleTime: hhmm(past), lastCompletedAt: 'garbage' })) === true,
+            corruptNoCounters: getTaskMissedCount(T({ lastCompletedAt: 'garbage' })) === 0 && getTaskDaysOverdue(T({ lastCompletedAt: 'garbage' })) === 0,
+            yesterdayNotLate:  getTaskDaysOverdue(T({ lastCompletedAt: y.toISOString() })) === 0 && getTaskMissedCount(T({ lastCompletedAt: y.toISOString() })) === 0,
+            threeDaysLate:     (() => { const d = new Date(now); d.setDate(d.getDate() - 4); const t = T({ lastCompletedAt: d.toISOString() }); return getTaskDaysOverdue(t) === 3 && getTaskMissedCount(t) === 3; })(),
+        };
+    }"""
+    task_res = pg.evaluate(TASK_JS)
+    for k, v in task_res.items():
+        rec("tasks/" + k, v is True)
+
     # D. navigation
     safe("PM/nav-sections", lambda: all(":block" in s for s in pg.evaluate(
         "() => { const o=[]; document.querySelectorAll('.nav-button').forEach(b=>{ const s=b.getAttribute('data-section'); if(s){ b.click(); const el=document.getElementById(s+'-section'); if(el) o.push(s+':'+getComputedStyle(el).display); } }); return o; }")))
