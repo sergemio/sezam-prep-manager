@@ -208,11 +208,13 @@
     blocked: { label: "Can't prep", bg: 'var(--sev-critical-surface)', border: 'var(--sev-critical-border)', text: 'var(--sev-critical)' }
   };
 
-  function statusBadgeHTML(kind) {
+  // small: compact variant for tight spots (e.g. inside the rail's can't-prep box)
+  function statusBadgeHTML(kind, small) {
     var s = IC_STATUS[kind];
     if (!s) return '';
-    return '<span style="display:inline-block;font-size:12px;font-weight:800;letter-spacing:.3px;' +
-      'text-transform:uppercase;padding:3px 11px;border-radius:9999px;background:' + s.bg +
+    var size = small ? 'font-size:10px;padding:2px 8px;' : 'font-size:12px;padding:3px 11px;';
+    return '<span style="display:inline-block;white-space:nowrap;font-weight:800;letter-spacing:.3px;' +
+      'text-transform:uppercase;border-radius:9999px;' + size + 'background:' + s.bg +
       ';border:1px solid ' + s.border + ';color:' + s.text + ';">' + s.label + '</span>';
   }
 

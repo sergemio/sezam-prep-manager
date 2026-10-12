@@ -1363,18 +1363,21 @@ function renderPrepTodoItem(item) {
         ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
         ${item.canPrep === false ? `
             <div class="cant-prep-info" style="margin-top: 8px; background-color: var(--danger-tint); padding: 8px; border-radius: 4px; font-size: 13px;">
-                <div style="font-weight: 600; color: var(--danger);">Can't Prep: ${item.cantPrepReason}</div>
+                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    ${statusBadgeHTML('blocked', true)}
+                    <span style="font-weight: 600; font-size: 12px; color: var(--danger);">${item.cantPrepReason}</span>
+                </div>
                 ${item.cantPrepReasonText ? `<div style="margin-top: 4px;">Reason: ${item.cantPrepReasonText}</div>` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #666;">
                     <span>By: ${item.cantPrepBy || 'Unknown'}</span>
                     <span>${formatDate(item.cantPrepTime)}</span>
                 </div>
             </div>
-        ` : ''}
+        ` : `
         <div class="todo-footer">
             ${statusBadgeHTML(statusKind)}
             <span class="todo-updated">Updated ${timeDisplay}</span>
-        </div>
+        </div>`}
     `;
     todoItem.addEventListener('click', () => {
         showQuickUpdateModal(item);
