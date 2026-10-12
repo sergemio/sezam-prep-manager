@@ -601,6 +601,68 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    // A full count measures what is on the shelf, deliveries included. So anything
+    // still "on the way" when a count starts is closed as received WITHOUT touching
+    // the stock: a "Receive delivery" tapped after the count would add it a second
+    // time on top of what was just counted. Lived 07/09 (57 items) and 11/10 (51).
+    // Only the pending fields are written (path by path), never the whole item, so
+    // a stock change made meanwhile on another tablet is not overwritten.
+    function autoReceiveBeforeCount(queue) {
+        const waiting = queue.filter(it => pendingQtyOf(it) > 0);
+        if (waiting.length === 0) return Promise.resolve(0);
+
+        const rows = waiting.map(it => ({
+            item: it,
+            ordered: pendingQtyOf(it),
+            provider: it.pendingProvider || '',
+            before: { pendingQty: it.pendingQty, pendingAt: it.pendingAt, pendingProvider: it.pendingProvider }
+        }));
+
+        const updates = {};
+        rows.forEach(r => {
+            updates['icItems/' + r.item.id + '/pendingQty'] = 0;
+            updates['icItems/' + r.item.id + '/pendingAt'] = null;
+            updates['icItems/' + r.item.id + '/pendingProvider'] = null;
+            r.item.pendingQty = 0;
+            r.item.pendingAt = null;
+            r.item.pendingProvider = null;
+        });
+
+        const db = window.firebaseDb;
+        const write = (db && typeof db.updatePaths === 'function')
+            ? db.updatePaths(updates)
+            : Promise.resolve();
+
+        return write
+            .then(() => {
+                rows.forEach(r => {
+                    const stock = parseFloat(r.item.currentLevel) || 0;
+                    logIcEvent(r.item, 'receive', stock, stock, {
+                        orderedQty: r.ordered,
+                        receivedQty: r.ordered,
+                        provider: r.provider,
+                        auto: true
+                    });
+                });
+                renderPendingBanners();
+                updateDashboardLists();
+                updateStats();
+                if (typeof updateOverviewTable === 'function') updateOverviewTable();
+                showMessage(
+                    `${rows.length} deliver${rows.length > 1 ? 'ies' : 'y'} still on the way marked as received — stock unchanged, this count includes them`,
+                    'info'
+                );
+                return rows.length;
+            })
+            .catch(error => {
+                rows.forEach(r => Object.assign(r.item, r.before));
+                renderPendingBanners();
+                console.error('Error closing pending deliveries before the count:', error);
+                showMessage('Could not close the deliveries still on the way — tap "Receive delivery" after the count only if they have not arrived', 'warning');
+                return 0;
+            });
+    }
+
     // --- Supplier claims --------------------------------------------------
     // Every short line recorded at reception lands in deliveryIssues. This card
     // is the readable side of it: the list to raise with the supplier, and the
@@ -1838,7 +1900,11 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage('No items to count in the selected location.', 'error');
             return;
         }
-        
+
+        // Close what is still "on the way" before counting it (see autoReceiveBeforeCount).
+        // Not awaited: the count can start, the write and its toast follow.
+        autoReceiveBeforeCount(countQueue);
+
         // Sort items
         countQueue.sort((a, b) => {
             // First by location

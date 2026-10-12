@@ -410,6 +410,12 @@
               change: qty(log.oldValue) + ' no longer expected' + stockNote };
 
       case 'receive':
+        // auto = closed when a full count started: the stock did NOT move, the count did.
+        if (log.auto) {
+          return { label: 'received at count start',
+                   change: qty(log.receivedQty !== undefined ? log.receivedQty : log.newValue) +
+                           ' delivered · stock unchanged, counted instead' };
+        }
         return { label: 'received',
                  change: qty(log.receivedQty !== undefined ? log.receivedQty : log.newValue) +
                          ' delivered · stock ' + move };

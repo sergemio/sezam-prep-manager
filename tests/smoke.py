@@ -1026,6 +1026,50 @@ def run_ic(browser):
                 and d["level"] == seeded["level"] + 2)
     safe("IC/receive-partial-creates-issue", ic_receive_partial)
 
+    # Lancer un inventaire complet solde ce qui est encore "en route" SANS toucher au
+    # stock : le comptage mesure deja la livraison. Vecu 07/09 (57 articles) et 11/10
+    # (51) : une reception cliquee apres l'inventaire comptait le stock deux fois.
+    def start_count_with(fail):
+        seeded = seed_pending()
+        if not seeded:
+            return None
+        pg.wait_for_timeout(300)
+        pg.evaluate("(f) => { window.__saveCalls=[]; window.__failWrites=f; }", fail)
+        pg.evaluate("() => document.getElementById('start-count-btn').click()")
+        pg.wait_for_timeout(800)
+        d = pg.evaluate("""() => {
+            const it=(window.icItems||[])[0];
+            const c=(window.__saveCalls||[]).find(x=>x.fn==='updatePaths');
+            const u=c?c.args[0]:{};
+            const logs=(window.__saveCalls||[]).filter(x=>x.fn==='saveIcActivityLog' && x.args[0].actionType==='receive').map(x=>x.args[0]);
+            return { keys:Object.keys(u), id:it.id, pending:it.pendingQty, level:it.currentLevel, logs:logs }; }""")
+        pg.evaluate("() => { window.__failWrites=false; const b=document.getElementById('cancel-count-btn'); if(b) b.click(); }")
+        pg.wait_for_timeout(300)
+        clear_modals(pg)
+        return seeded, d
+
+    def ic_count_closes_pending():
+        r = start_count_with(False)
+        if not r:
+            return False
+        seeded, d = r
+        p = "icItems/%s/" % d["id"]
+        log = d["logs"][0] if d["logs"] else {}
+        return (p + "pendingQty" in d["keys"] and p + "pendingAt" in d["keys"]
+                and not any(k.endswith("/currentLevel") or k == "icItems/%s" % d["id"] for k in d["keys"])
+                and d["pending"] == 0 and d["level"] == seeded["level"]          # stock inchange
+                and log.get("auto") is True and log.get("oldValue") == log.get("newValue")
+                and log.get("receivedQty") == 3)
+    safe("IC/count-start-closes-pending-without-stock", ic_count_closes_pending)
+
+    def ic_count_close_rollback():
+        r = start_count_with(True)
+        if not r:
+            return False
+        seeded, d = r
+        return d["pending"] == 3 and d["level"] == seeded["level"] and d["logs"] == []
+    safe("IC/count-start-close-rolls-back-on-failure", ic_count_close_rollback)
+
     # Bloc L — le manquant se calcule NET de ce qui est deja en route. Sans ca le
     # dashboard affichait "10 to order" sur un article dont 3 arrivaient, et la meme
     # livraison etait commandee deux fois.
