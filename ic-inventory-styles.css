@@ -502,6 +502,34 @@
     white-space: nowrap;
 }
 
+/* "Has this delivery arrived?" — asked before an order already on the way can be
+   changed. Same orange family as the order block it sits above. */
+.order-ask {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid var(--accent-orange);
+    border-radius: 8px;
+    background-color: #fdf0d5;
+}
+
+.order-ask__q {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 12px;
+}
+
+.order-ask__btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.order-ask__btns .btn {
+    flex: 1 1 140px;
+    min-height: 44px;
+}
+
 /* Ordering block inside the quick-update modal, under the stock slider */
 .order-block {
     margin-top: 18px;
@@ -636,6 +664,12 @@
     width: 100%;
     margin-top: 12px;
     min-height: 44px;
+}
+
+/* Locked until "Has this delivery arrived?" is answered. */
+.order-save:disabled {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 /* Reception checklist */

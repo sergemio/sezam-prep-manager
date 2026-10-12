@@ -931,6 +931,8 @@ def run_ic(browser):
         pg.evaluate("() => { window.__saveCalls=[]; }")
         pg.evaluate(OPEN_QU); pg.wait_for_timeout(700)
         pick_tab("order")
+        # une commande en route demande d'abord si elle est arrivee : "pas encore"
+        pg.evaluate("() => { const b=document.getElementById('order-ask-no'); if(b) b.click(); }")
         # ramene la quantite a 0 puis enregistre
         pg.evaluate("""() => { const i=document.getElementById('order-level');
             i.value = 0; i.dispatchEvent(new Event('change'));
@@ -944,6 +946,48 @@ def run_ic(browser):
         return (bool(saved) and saved["qty"] == 0
                 and saved["at"] is None and saved["prov"] is None)
     safe("IC/cancel-clears-pending-date", ic_cancel_clears_pending)
+
+    # Une commande deja en route ne se remplace plus en silence (9 articles ecrases le
+    # 28/09) : l'onglet Order demande d'abord si la livraison est arrivee.
+    def open_order_on_pending(q=3):
+        clear_modals(pg)
+        lvl = pg.evaluate("""(q) => { const it=(window.icItems||[])[0];
+            it.pendingQty = q; it.pendingAt = new Date().toISOString(); it.pendingProvider = 'Metro';
+            const n=[...document.querySelectorAll('.nav-button')].find(b=>b.getAttribute('data-section')==='overview');
+            if (n) n.click(); return parseFloat(it.currentLevel)||0; }""", q)
+        pg.wait_for_timeout(500)
+        pg.evaluate("() => { window.__saveCalls=[]; }")
+        pg.evaluate(OPEN_QU); pg.wait_for_timeout(700)
+        pick_tab("order")
+        return lvl
+
+    def ic_order_asks_first():
+        open_order_on_pending()
+        before = pg.evaluate("""() => ({ ask: !!document.getElementById('order-ask'),
+            locked: !!(document.getElementById('order-save')||{}).disabled })""")
+        pg.evaluate("() => { const b=document.getElementById('order-ask-no'); if(b) b.click(); }")
+        pg.wait_for_timeout(200)
+        after = pg.evaluate("""() => ({ ask: !!document.getElementById('order-ask'),
+            locked: !!(document.getElementById('order-save')||{}).disabled })""")
+        clear_modals(pg)
+        return before == {"ask": True, "locked": True} and after == {"ask": False, "locked": False}
+    safe("IC/order-on-pending-asks-first", ic_order_asks_first)
+
+    def ic_order_ask_yes_receives():
+        lvl = open_order_on_pending(3)
+        pg.evaluate("() => { const b=document.getElementById('order-ask-yes'); if(b) b.click(); }")
+        pg.wait_for_timeout(900)
+        d = pg.evaluate("""() => {
+            const c=(window.__saveCalls||[]).find(x=>x.fn==='updatePaths');
+            const u=c?c.args[0]:{}; const k=Object.keys(u).find(k=>k.indexOf('icItems/')===0);
+            return { level: k?u[k].currentLevel:null, pending: k?u[k].pendingQty:null,
+                     reopened: !!document.getElementById('order-save'),
+                     ask: !!document.getElementById('order-ask'),
+                     label: ((document.getElementById('order-save')||{}).textContent||'').trim() }; }""")
+        clear_modals(pg)
+        return (d["level"] == lvl + 3 and d["pending"] == 0 and d["reopened"]
+                and not d["ask"] and d["label"] == "Record order")
+    safe("IC/order-ask-yes-receives-and-reopens", ic_order_ask_yes_receives)
 
     # Seed one pending item in memory, then drive the reception screen.
     def seed_pending(qty=3):

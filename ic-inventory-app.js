@@ -2222,7 +2222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }>${p}</option>`).join('')}
                         </select>
                     </label>` : ''}
-                    <button type="button" id="order-save" class="btn btn--primary order-save">
+                    <button type="button" id="order-save" class="btn btn--primary order-save"${alreadyPending > 0 ? ' disabled' : ''}>
                         ${alreadyPending > 0 ? 'Update order' : 'Record order'}
                     </button>
                 </div>
@@ -2230,6 +2230,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="button" class="btn btn--secondary qu-cancel">Cancel</button>
                 </div>
+                ${alreadyPending > 0 ? `
+                <div class="order-ask" id="order-ask">
+                    <div class="order-ask__q">
+                        ${fmtQty(alreadyPending)} ${pluralizeUnit(item.unit, alreadyPending)} already on the way${
+                            item.pendingAt ? ' since ' + new Date(item.pendingAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : ''
+                        }${item.pendingProvider ? ' from ' + item.pendingProvider : ''}. Has this delivery arrived?
+                    </div>
+                    <div class="order-ask__btns">
+                        <button type="button" class="btn btn--primary" id="order-ask-yes">Yes, it arrived</button>
+                        <button type="button" class="btn btn--secondary" id="order-ask-no">No, still waiting</button>
+                    </div>
+                </div>` : ''}
             </div>
         `;
 
@@ -2357,6 +2369,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const write = (db && typeof db.saveIcItem === 'function')
                 ? db.saveIcItem(item)
                 : Promise.resolve();
+
+        // An order already on the way must be answered for before it is changed:
+        // overwriting it silently is how a delivery that DID arrive vanished from the
+        // books (9 items on 28/09). "Yes" records it as received (stock goes up, like
+        // the Receive screen) and reopens the modal on a fresh order; "No" unlocks
+        // the usual "Update order".
+        const askEl = content.querySelector('#order-ask');
+        if (askEl) {
+            askEl.querySelector('#order-ask-no').addEventListener('click', () => {
+                SoundFX.pop();
+                askEl.remove();
+                orderSaveBtn.disabled = false;
+            });
+            const yesBtn = askEl.querySelector('#order-ask-yes');
+            yesBtn.addEventListener('click', () => {
+                yesBtn.disabled = true;
+                const before = parseFloat(item.currentLevel) || 0;
+                applyReception([{ item: item, ordered: alreadyPending, received: alreadyPending, step: 1 }])
+                    .then(() => {
+                        SoundFX.complete();
+                        showMessage(`Delivery recorded — ${item.name}: stock ${fmtQty(before)} → ${fmtQty(item.currentLevel)}`, 'success');
+                        closeModal();
+                        showQuickUpdateModal(item);
+                    })
+                    .catch(error => {
+                        if (error && error.code === 'STALE_RECEPTION') {
+                            showMessage('This delivery was already recorded on another device', 'warning');
+                            renderPendingBanners();
+                            closeModal();
+                            return;
+                        }
+                        console.error('Error recording reception:', error);
+                        showMessage('Error recording the delivery — nothing was lost, try again', 'error');
+                        yesBtn.disabled = false;
+                    });
+            });
+        }
 
             write
                 .then(() => {
