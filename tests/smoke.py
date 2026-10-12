@@ -36,7 +36,10 @@ STUB = """() => {
    'saveAllIcItems','saveIcActivityLog','updatePaths',
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
-   'saveDeliveryIssue','deleteDeliveryIssue'].forEach(function (fn) {
+   'saveDeliveryIssue','deleteDeliveryIssue',
+   // set = ecriture brute de LastCheckTracker (lastCompleteCheck)
+   'set','deleteItem','deleteActivityLog','deleteOldActivityLogs',
+   'saveStaffMember','deleteStaffMember','deleteTasks'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () {
       rec(fn, [].slice.call(arguments));
       // Interrupteur de panne : sans lui, TOUS les stubs reussissent toujours et aucun

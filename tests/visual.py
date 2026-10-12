@@ -37,6 +37,8 @@ STUB = """() => {
    'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue',
+   'set','deleteItem','deleteActivityLog','deleteOldActivityLogs',
+   'saveStaffMember','deleteStaffMember','deleteTasks',
    'createItemUnique','createIcItemUnique'].forEach(function (fn) {
     if (typeof db[fn] === 'function') db[fn] = function () { return Promise.resolve(); };
   });
