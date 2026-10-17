@@ -235,9 +235,16 @@
                             <button type="button" class="prep-check-user prep-check-user--switch" id="count-user-badge" title="Tap to switch user"></button>
                         </div>
 
-                        <div class="prep-check-item-name" id="check-item-name">Item Name</div>
-                        <div class="count-item-location" id="count-item-location"></div>
-                        <div class="prep-check-target" id="check-item-target">Target: 5 units</div>
+                        <div class="count-item-head">
+                            <img class="count-item-photo" id="count-item-photo" alt="" hidden>
+                            <div class="count-item-info">
+                                <div class="prep-check-item-name" id="check-item-name">Item Name</div>
+                                <div class="count-item-meta">
+                                    <span class="count-item-location" id="count-item-location"></span>
+                                    <span class="prep-check-target" id="check-item-target">Target 5 units</span>
+                                </div>
+                            </div>
+                        </div>
 
                         <input type="hidden" id="current-level-input">
 
@@ -286,6 +293,8 @@
     <script src="sounds.js"></script>
     <!-- Shared adaptive slider -->
     <script src="slider.js"></script>
+    <!-- Which items have a product photo (photos/ic/<id>.jpg) -->
+    <script src="photos/ic/manifest.js"></script>
     <!-- Shared UI helpers (levelColor, confirmDialog) -->
     <script src="ui-helpers.js"></script>
     <!-- Ordre de la liste Metro (releve date, regenere quand Metro change) -->

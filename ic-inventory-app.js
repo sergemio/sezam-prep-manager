@@ -51,6 +51,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // item. 54-59 of 102 values were copied unchanged each week (21/09 - 11/10).
     let countTouched = false;
     let resettingCount = false;
+
+    // Product photo path, or '' when the item has none (photos/ic/manifest.js
+    // lists the ids that do, so items without a photo never trigger a 404).
+    function icPhotoSrc(item) {
+        return item && (window.IC_PHOTO_IDS || []).indexOf(Number(item.id)) !== -1
+            ? `photos/ic/${item.id}.jpg` : '';
+    }
     let countSlider;
     
     // Sorting state
@@ -2005,6 +2012,22 @@ document.addEventListener('DOMContentLoaded', function() {
             checkItemNameElement.textContent = item.name;
         }
 
+        // Product photo (photos/ic/<id>.jpg, Metro catalogue picture chosen by Serge
+        // on 17/10). Only items listed in photos/ic/manifest.js have one; hidden
+        // until it loads, so the previous item's photo never shows under this name.
+        const photo = document.getElementById('count-item-photo');
+        if (photo) {
+            photo.hidden = true;
+            photo.onload = null;
+            photo.removeAttribute('src');
+            const src = icPhotoSrc(item);
+            if (src) {
+                photo.onload = () => { photo.hidden = false; };
+                photo.onerror = () => { photo.hidden = true; };
+                photo.src = src;
+            }
+        }
+
         // Where to look: location, plus sublocation when it adds information
         const locationLine = document.getElementById('count-item-location');
         if (locationLine) {
@@ -2014,7 +2037,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update target
         if (checkItemTargetElement) {
-            checkItemTargetElement.textContent = `Target: ${item.targetLevel} ${item.unit}`;
+            checkItemTargetElement.innerHTML = `Target <strong>${item.targetLevel} ${item.unit}</strong>`;
         }
         
         resetCountValue(item);
@@ -2181,9 +2204,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Item details
+        // Item details — the product photo, when there is one, sits left of the
+        // header text only; nothing below the header changes.
+        const headPhoto = icPhotoSrc(item);
         content.innerHTML = `
-            <div style="margin-bottom: 15px;">
+            <div style="margin-bottom: 15px;"${headPhoto ? ' class="qu-head--photo"' : ''}>
+                ${headPhoto ? `<img class="qu-photo" src="${headPhoto}" alt="">` : ''}
+                <div class="qu-head__text">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                     <h3 style="margin: 0; color: #333;">${item.name}</h3>
                     <span style="background-color: var(--accent-orange); color: white; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: 500;">${currentStaff}</span>
@@ -2191,6 +2218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Target: ${item.targetLevel} ${item.unit}</strong> &nbsp;•&nbsp; Current: ${item.currentLevel} ${item.unit}${
                     shortBy > 0 ? ` &nbsp;•&nbsp; <span style="color: var(--accent-orange); font-weight: 600;">short by ${fmtQty(shortBy)}</span>` : ''
                 }</p>
+                </div>
             </div>
 
             <!-- One intent at a time: the Stock pane edits currentLevel, the Order

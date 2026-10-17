@@ -62,6 +62,8 @@ log        { id:'log_…'/'iclog_…', actionType, itemId, itemName, oldValue, n
 
 **`pendingQty` est toujours un ENTIER** : le stock se compte en fractions (0,8 sac entamé), un achat non — on ne commande pas 0,8 sac chez Metro. Le slider de commande reçoit donc une échelle explicite via l'option `config` de `createTouchSlider` (`{min, max, step, values, labelEvery}`), qui court-circuite `computeSliderConfig` (piloté par la target, avec des pas de 0,1/0,5).
 
+**Photos produits pendant l'inventaire** (17/10/2026) : fichiers `photos/ic/<id article>.jpg` (photos du catalogue Metro choisies par Serge, 320 px, ~10 Ko). Seuls les ids listés dans `photos/ic/manifest.js` (`window.IC_PHOTO_IDS`) sont demandés : pas de 404 pour les articles sans photo. **Ajouter une photo = déposer le fichier ET ajouter l'id au manifeste.** Affichée uniquement dans l'écran de comptage (`showCurrentCountItem`).
+
 ## Pièges (⚠ lire avant de modifier)
 
 - **Fonctions PM = globales** (appelables directement). **Fonctions IC = imbriquées dans une IIFE** → PAS globales, se déclenchent via clic UI (important pour les tests).
@@ -85,7 +87,7 @@ log        { id:'log_…'/'iclog_…', actionType, itemId, itemName, oldValue, n
 ## Lancer / tester
 
 ```bash
-python -m http.server 8971 --bind 0.0.0.0      # PC http://127.0.0.1:8971 · tablette http://192.168.1.41:8971
+python -m http.server 8971 --bind 0.0.0.0      # PC http://127.0.0.1:8971 · tablette http://<IP Wi-Fi du PC>:8971 (change avec la box : .41 en sept., .50 le 17/10/2026 — vérifier avec Get-NetIPAddress)
 python tests/smoke.py                          # checks fonctionnels, Firebase stubbé, exit 0/1 — AVANT chaque push
 python tests/visual.py --baseline              # photographie les 34 écrans = référence (AVANT un chantier CSS)
 python tests/visual.py                         # compare à la référence, écrit un PNG de diff par écart

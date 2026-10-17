@@ -872,6 +872,97 @@
     font-size: 26px;
 }
 
+/* Product photo during the full count, so the person counting does not mix up
+   two items with close names (small / large sauce cups, hand-wash roll / toilet
+   paper). Files live in photos/ic/<item id>.jpg; no file = no photo, no gap. */
+/* "Product panel" (option D chosen by Serge on 17/10): what is being counted
+   sits in a green box — photo, name, then location and target on one line —
+   echoing the grey slider panel below, which says how many. */
+#count-interface .count-item-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 10px;
+    background: var(--bg-medium);
+    border: 1px solid #d3e3bd;
+    border-radius: 12px;
+}
+
+#count-interface .count-item-info {
+    min-width: 0;
+    flex: 1;
+    display: grid;
+    gap: 4px;
+}
+
+#count-interface .count-item-info .prep-check-item-name {
+    font-size: 26px;
+    line-height: 1.15;
+    text-align: left;
+    margin: 0;
+}
+
+#count-interface .count-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 14px;
+    color: var(--text-medium);
+}
+
+#count-interface .count-item-meta .count-item-location,
+#count-interface .count-item-meta .prep-check-target {
+    margin: 0;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-medium);
+}
+
+#count-interface .count-item-meta strong {
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+#count-interface .count-item-photo {
+    display: block;
+    flex: none;
+    width: 92px;
+    height: 92px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #d3e3bd;
+}
+
+/* Same photo at the head of the Stock / Order window — header only, the
+   window's inputs are untouched. */
+.qu-head--photo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.qu-head__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.qu-photo {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+}
+
+#count-interface .count-item-photo[hidden] {
+    display: none;
+}
+
 /* Blind count: the value starts at "?" and the slider at 0, so an item that is
    really empty needs its own explicit answer — moving the slider to 0 from 0
    would not register as a count. */

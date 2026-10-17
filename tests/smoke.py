@@ -1159,6 +1159,36 @@ def run_ic(browser):
                 and saved == 0 and d2 == {"shown": "?", "locked": True} and d3 is False)
     safe("IC/blind-count", ic_blind_count)
 
+    # Photo du produit pendant l'inventaire : affichee pour un article qui en a une
+    # (photos/ic/manifest.js), absente sans trou ni 404 pour un article qui n'en a pas.
+    def ic_count_photo():
+        clear_modals(pg)
+        pg.evaluate("() => document.getElementById('start-count-btn').click()")
+        pg.wait_for_timeout(700)
+        seen = {"with": None, "without": None}
+        for _ in range(110):
+            d = pg.evaluate("""() => { const i=document.getElementById('check-item-progress');
+                const name=document.getElementById('check-item-name').textContent;
+                const it=(window.icItems||[]).find(x=>x.name===name);
+                const p=document.getElementById('count-item-photo');
+                return { has: !!it && (window.IC_PHOTO_IDS||[]).indexOf(Number(it.id))!==-1,
+                         shown: !p.hidden, src: p.getAttribute('src') }; }""")
+            key = "with" if d["has"] else "without"
+            if seen[key] is None:
+                pg.wait_for_timeout(400 if d["has"] else 0)
+                seen[key] = pg.evaluate("""() => { const p=document.getElementById('count-item-photo');
+                    return { shown: !p.hidden, loaded: p.complete && p.naturalWidth>0, src: p.getAttribute('src') }; }""")
+            if seen["with"] and seen["without"]:
+                break
+            pg.evaluate("() => { document.getElementById('count-zero').click(); document.getElementById('save-next-btn').click(); }")
+            pg.wait_for_timeout(60)
+        pg.evaluate("() => { const b=document.getElementById('cancel-count-btn'); if(b) b.click(); }")
+        pg.wait_for_timeout(300)
+        w, wo = seen["with"], seen["without"]
+        return (bool(w) and w["shown"] and w["loaded"]
+                and bool(wo) and not wo["shown"] and wo["src"] is None)
+    safe("IC/count-shows-product-photo", ic_count_photo)
+
     # Bloc L — le manquant se calcule NET de ce qui est deja en route. Sans ca le
     # dashboard affichait "10 to order" sur un article dont 3 arrivaient, et la meme
     # livraison etait commandee deux fois.
@@ -1571,6 +1601,31 @@ def run_ic(browser):
     rec("IC/0-console-errors", len(real_errs) == 0, (str(real_errs[:3]) if real_errs else ""))
     pg.close()
 
+    # Tablette neuve (aucun cache) : toucher les onglets AVANT que Firebase reponde ne
+    # doit rien faire planter. Vecu le 17/10/2026 : window.icItems encore indefini.
+    early_errs, early_dialogs = [], []
+    ep = make_page(browser, early_errs, early_dialogs)
+    ep.add_init_script("localStorage.removeItem('icItems'); localStorage.setItem('currentStaff', 'QA')")
+    ep.goto(BASE + "/ic-inventory.html", wait_until="domcontentloaded")
+    ep.evaluate(STUB)
+    ep.evaluate("() => document.querySelectorAll('.nav-button').forEach(b => { try { b.click(); } catch (e) {} })")
+    ep.wait_for_timeout(1500)
+    page_errs = [e for e in early_errs if e.startswith("pageerror")]
+    rec("IC/tabs-before-data-loaded", not page_errs, str(page_errs[:2]))
+
+    # Wifi coupe : la fenetre "qui travaille ?" doit quand meme proposer des noms.
+    # Vecu le 17/10/2026 : la lecture Firebase attendait sans fin, "Loading" a vie.
+    def picker_offline():
+        ep.wait_for_load_state("networkidle"); ep.wait_for_timeout(1500)
+        ep.context.set_offline(True); ep.wait_for_timeout(500)
+        ep.evaluate("() => { UserSession.pick({ title: 'QA' }); }")
+        ep.wait_for_timeout(5500)
+        n = ep.evaluate("() => document.querySelectorAll('.staff-select-button').length")
+        ep.context.set_offline(False)
+        return n > 0
+    safe("shared/staff-picker-offline", picker_offline)
+    ep.close()
+
 
 def run_db(browser):
     errs, dialogs = [], []
@@ -1601,31 +1656,6 @@ def run_db(browser):
             window.__saveCalls = [];
             showEditForm(it.id);
             const t = document.getElementById('item-target');
-    # Tablette neuve (aucun cache) : toucher les onglets AVANT que Firebase reponde ne
-    # doit rien faire planter. Vecu le 17/10/2026 : window.icItems encore indefini.
-    early_errs, early_dialogs = [], []
-    ep = make_page(browser, early_errs, early_dialogs)
-    ep.add_init_script("localStorage.removeItem('icItems'); localStorage.setItem('currentStaff', 'QA')")
-    ep.goto(BASE + "/ic-inventory.html", wait_until="domcontentloaded")
-    ep.evaluate(STUB)
-    ep.evaluate("() => document.querySelectorAll('.nav-button').forEach(b => { try { b.click(); } catch (e) {} })")
-    ep.wait_for_timeout(1500)
-    page_errs = [e for e in early_errs if e.startswith("pageerror")]
-    rec("IC/tabs-before-data-loaded", not page_errs, str(page_errs[:2]))
-
-    # Wifi coupe : la fenetre "qui travaille ?" doit quand meme proposer des noms.
-    # Vecu le 17/10/2026 : la lecture Firebase attendait sans fin, "Loading" a vie.
-    def picker_offline():
-        ep.wait_for_load_state("networkidle"); ep.wait_for_timeout(1500)
-        ep.context.set_offline(True); ep.wait_for_timeout(500)
-        ep.evaluate("() => { UserSession.pick({ title: 'QA' }); }")
-        ep.wait_for_timeout(5500)
-        n = ep.evaluate("() => document.querySelectorAll('.staff-select-button').length")
-        ep.context.set_offline(False)
-        return n > 0
-    safe("shared/staff-picker-offline", picker_offline)
-    ep.close()
-
             t.value = String((parseFloat(t.value) || 0) + 1);
             saveItem();
             const c = (window.__saveCalls || []).find(x => x.fn === 'saveItemFields');
