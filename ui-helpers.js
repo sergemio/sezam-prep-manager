@@ -429,6 +429,77 @@
     }
   }
 
+  // Taches cochees toutes seules a la fin du travail qu'elles demandent. Vecu le
+  // 17/10/2026 : Prep Check fait a 12:02, "Run PREP-CHECK (shift1)" restee rouge ;
+  // "Run I&C FULL COUNT" jamais cochee alors que l'inventaire est fait chaque dimanche.
+  // La tache est reperee par son nom, sans champ a ajouter en base : la renommer sans
+  // ces mots coupe le lien, ce qui est sans danger (on revient a la coche manuelle).
+  // lead = combien de minutes AVANT son heure prevue un check peut compter pour une
+  // tache. Historique 30/09-17/10 : checks du midi 12:08-12:32 et 14:49 (shift1, 11:40),
+  // du soir 15:48-21:59 (shift2, 17:45). L'inventaire complet n'a pas de limite : il est
+  // fait le dimanche OU le lundi (4 fois sur 8 entre le 23/08 et le 11/10).
+  var AUTO_TASKS = {
+    'prep-check':    { re: /prep[\s-]*check/i, lead: 120 },
+    'ic-full-count': { re: /full\s*count/i,    lead: Infinity }
+  };
+
+  function sameLocalDay(iso, ref) {
+    var d = new Date(iso);
+    return !isNaN(d.getTime()) && d.toDateString() === ref.toDateString();
+  }
+
+  function minutesOf(hhmm) {
+    var p = String(hhmm).split(':');
+    return parseInt(p[0], 10) * 60 + (parseInt(p[1], 10) || 0);
+  }
+
+  // Parmi les taches de ce type pas encore faites aujourd'hui et dont l'heure prevue
+  // tombe avant maintenant + lead, la plus TARDIVE : un check a 12:10 ou 14:49 coche
+  // shift1, un check a 16:12 coche shift2 meme si shift1 a ete oublie. Une seule tache
+  // par check : cocher les deux masquerait le check du midi qui n'a pas eu lieu. Les
+  // jours prevus (scheduleDays) sont ignores : un inventaire fait le lundi compte.
+  function pickAutoTask(list, kind, now) {
+    var rule = AUTO_TASKS[kind];
+    if (!rule) return null;
+    var limit = now.getHours() * 60 + now.getMinutes() + rule.lead;
+    var best = null, bestTime = -1;
+    (list || []).forEach(function (t) {
+      if (!t || !t.active || t.type !== 'recurring') return;
+      if (!rule.re.test((t.title || '') + ' ' + (t.name || ''))) return;
+      if (t.lastCompletedAt && sameLocalDay(t.lastCompletedAt, now)) return;
+      var time = t.scheduleTime ? minutesOf(t.scheduleTime) : 0;
+      if (time > limit) return;
+      if (time > bestTime) { best = t; bestTime = time; }
+    });
+    return best;
+  }
+
+  // Coche la tache choisie et l'inscrit dans l'historique ("ticked automatically").
+  // Ne bloque jamais la fin du check : en cas d'echec, la coche manuelle reste possible.
+  function autoCompleteTask(kind, staffName) {
+    var db = global.firebaseDb;
+    if (!db || !db.loadTasks || !db.saveTaskFields) return Promise.resolve(null);
+    var now = new Date();
+    return db.loadTasks().then(function (list) {
+      var task = pickAutoTask(list, kind, now);
+      if (!task) return null;
+      var iso = now.toISOString();
+      var who = staffName || 'Unknown';
+      var fields = { lastCompletedAt: iso, lastCompletedBy: who };
+      if (task.forceDisplay) fields.forceDisplay = false;
+      return Promise.all([
+        db.saveTaskFields(task.id, fields),
+        db.saveActivityLog({ timestamp: iso, user: who, itemName: task.title,
+                             actionType: 'task-done', auto: true })
+      ]).then(function () { return task; });
+    }).catch(function (e) {
+      console.error('Auto task completion failed:', e);
+      return null;
+    });
+  }
+
+  global.pickAutoTask = pickAutoTask;
+  global.autoCompleteTask = autoCompleteTask;
   global.pluralizeUnit = pluralizeUnit;
   global.describeLog = describeLog;
   global.escapeHtml = escapeHtml;

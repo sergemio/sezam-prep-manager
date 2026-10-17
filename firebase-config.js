@@ -418,6 +418,8 @@ window.firebaseDb = {
 
     // Tasks
     saveTask: tasks.save,
+    saveTaskFields: tasks.saveFields,
+    loadTasks: tasks.load,
     deleteTasks: tasks.delete,
     onTasksChange: tasks.onChange,
 

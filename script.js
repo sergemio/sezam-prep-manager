@@ -1711,7 +1711,11 @@ function completePrepCheck() {
     if (window.LastCheckTracker) {
         window.LastCheckTracker.recordCompleteCheck(currentStaff);
     }
-    
+
+    // Coche la tache "Run PREP-CHECK" du moment (ui-helpers). Le rail se met a jour
+    // tout seul via onTasksChange.
+    if (window.autoCompleteTask) window.autoCompleteTask('prep-check', currentStaff);
+
     // Update UI with new data
     updateInventoryTable();
     updateTodoList();

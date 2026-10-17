@@ -34,7 +34,7 @@ STUB = """() => {
   const db = window.firebaseDb || {};
   ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
    'saveAllIcItems','saveIcActivityLog','updatePaths',
-   'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
+   'deleteIcItem','saveTask','saveTaskFields','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue',
    'set','deleteItem','deleteActivityLog','deleteOldActivityLogs',

@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // item. 54-59 of 102 values were copied unchanged each week (21/09 - 11/10).
     let countTouched = false;
     let resettingCount = false;
+    let countCoversAll = false;
 
     // Product photo path, or '' when the item has none (photos/ic/manifest.js
     // lists the ids that do, so items without a photo never trigger a 404).
@@ -1922,9 +1923,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function startFullCountProcess() {
         
         // Filter by current location if not "All"
-        countQueue = currentLocation !== 'All' 
+        countQueue = currentLocation !== 'All'
             ? window.icItems.filter(item => item.location === currentLocation)
             : [...window.icItems];
+        // Seul un comptage de TOUS les emplacements coche la tache "I&C FULL COUNT".
+        countCoversAll = currentLocation === 'All';
             
         
         if (countQueue.length === 0) {
@@ -2152,6 +2155,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show success message
         showMessage("Full count completed successfully", "success");
+
+        // Coche la tache "Run I&C FULL COUNT" (ui-helpers), seulement pour un comptage complet.
+        if (countCoversAll && window.autoCompleteTask) window.autoCompleteTask('ic-full-count', currentStaff);
     }
     
     // Cancel full count

@@ -34,7 +34,7 @@ STUB = """() => {
   const db = window.firebaseDb || {};
   ['saveItem','saveItemFields','saveAllItems','saveIcItem','saveIcItemFields',
    'saveAllIcItems','saveIcActivityLog','updatePaths',
-   'deleteIcItem','saveTask','saveAllStaffMembers','deleteIcActivityLogs',
+   'deleteIcItem','saveTask','saveTaskFields','saveAllStaffMembers','deleteIcActivityLogs',
    'saveActivityLog','saveTeamMessage','deleteTeamMessage',
    'saveDeliveryIssue','deleteDeliveryIssue',
    // set = ecriture brute de LastCheckTracker (lastCompleteCheck)
@@ -593,6 +593,65 @@ def run_pm(browser):
         # en rond tant que le cache navigateur sert encore l'ancien script.
         return reloaded and tried == "dev"
     safe("shared/update-reloads-when-stale", pm_update_reloads)
+
+    # Coche automatique : quelle tache un check termine a telle heure doit-il cocher ?
+    # Heures tirees de l'historique reel (30/09-17/10).
+    def auto_task_pick():
+        r = pg.evaluate("""() => {
+            const day = (h, m) => { const d = new Date(2026, 9, 17, h, m); return d; };
+            const yest = new Date(2026, 9, 16, 12, 0).toISOString();
+            const today = new Date(2026, 9, 17, 12, 10).toISOString();
+            const base = [
+              {id:'s1', title:'Run PREP-CHECK (shift1)', type:'recurring', active:true, scheduleTime:'11:40', lastCompletedAt: yest},
+              {id:'s2', title:'Run PREP-CHECK (shift2)', type:'recurring', active:true, scheduleTime:'17:45', lastCompletedAt: yest},
+              {id:'ov', title:'Clean the Oven', type:'recurring', active:true, lastCompletedAt: yest},
+              {id:'fc', title:'Run I&C FULL COUNT', type:'recurring', active:true, scheduleTime:'18:00', scheduleDays:[0]},
+            ];
+            const done1 = base.map(t => t.id === 's1' ? Object.assign({}, t, {lastCompletedAt: today}) : t);
+            const off = base.map(t => t.id === 's1' ? Object.assign({}, t, {active:false}) : t);
+            const p = (list, kind, h, m) => (pickAutoTask(list, kind, day(h, m)) || {}).id || null;
+            return [
+              p(base, 'prep-check', 12, 10),   // midi -> s1
+              p(base, 'prep-check', 14, 49),   // check tardif du midi -> s1
+              p(base, 'prep-check', 16, 12),   // soir, midi oublie -> s2 (s1 reste rouge)
+              p(done1, 'prep-check', 12, 30),  // 2e check du midi -> rien (s2 trop loin)
+              p(done1, 'prep-check', 15, 48),  // soir en avance -> s2
+              p(base, 'prep-check', 8, 0),     // trop tot -> rien
+              p(off, 'prep-check', 12, 10),    // tache desactivee -> rien
+              p(base, 'ic-full-count', 11, 10),// inventaire du lundi matin -> fc
+              p(base, 'nope', 12, 0)
+            ];
+        }""")
+        ok = r == ['s1', 's1', 's2', None, 's2', None, None, 'fc', None]
+        if not ok: print("    auto-task-pick detail:", r)
+        return ok
+    safe("shared/auto-task-pick", auto_task_pick)
+
+    # Fin du Prep Check -> la tache est cochee ET inscrite dans l'historique, ecritures stubbees.
+    def auto_task_on_prep_check():
+        pg.evaluate(STUB)
+        return pg.evaluate("""async () => {
+            window.__saveCalls = [];
+            const now = new Date();
+            const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+            const realLoad = window.firebaseDb.loadTasks;
+            window.firebaseDb.loadTasks = () => Promise.resolve([
+              {id:'qa1', title:'Run PREP-CHECK (QA)', type:'recurring', active:true, scheduleTime: hhmm,
+               lastCompletedAt: new Date(Date.now() - 2*86400000).toISOString(), forceDisplay: true}]);
+            const realAuto = window.autoCompleteTask;
+            let p = null;
+            window.autoCompleteTask = (k, who) => (p = realAuto(k, who));
+            try { completePrepCheck(); } catch (e) {}
+            const task = p ? await p : null;
+            window.autoCompleteTask = realAuto;
+            window.firebaseDb.loadTasks = realLoad;
+            const f = window.__saveCalls.find(c => c.fn === 'saveTaskFields');
+            const log = window.__saveCalls.find(c => c.fn === 'saveActivityLog');
+            return !!task && !!f && f.args[0] === 'qa1' && f.args[1].forceDisplay === false
+                && !!f.args[1].lastCompletedAt && !!log && log.args[0].auto === true
+                && log.args[0].actionType === 'task-done';
+        }""")
+    safe("PM/prep-check-ticks-task", auto_task_on_prep_check)
 
     pg.close()
 
@@ -1158,6 +1217,36 @@ def run_ic(browser):
                 and d1["locked"] is False and d1["shown"] in ("0", "0.0", "0.00")
                 and saved == 0 and d2 == {"shown": "?", "locked": True} and d3 is False)
     safe("IC/blind-count", ic_blind_count)
+
+    # Fin de l'inventaire : seul un comptage de TOUS les emplacements coche la tache
+    # "Run I&C FULL COUNT" ; un comptage d'un seul emplacement ne la coche pas.
+    def ic_full_count_ticks_task():
+        def run(location):
+            clear_modals(pg)
+            pg.evaluate("""(loc) => {
+                const b=[...document.querySelectorAll('#dashboard-location-filter .location-button')]
+                    .find(x=>x.textContent.trim()===loc); if (b) b.click(); }""", location)
+            pg.wait_for_timeout(200)
+            return pg.evaluate("""async () => {
+                window.__autoKinds = [];
+                const real = window.autoCompleteTask;
+                window.autoCompleteTask = (k) => { window.__autoKinds.push(k); return Promise.resolve(null); };
+                document.getElementById('start-count-btn').click();
+                await new Promise(r => setTimeout(r, 500));
+                const ui = document.getElementById('count-interface');
+                for (let i = 0; i < 400 && ui.style.display !== 'none'; i++) {
+                    document.getElementById('count-zero').click();
+                    document.getElementById('save-next-btn').click();
+                    await new Promise(r => setTimeout(r, 5));
+                }
+                window.autoCompleteTask = real;
+                return window.__autoKinds.slice();
+            }""")
+        part = run("Sale")
+        full = run("All")
+        if not (full == ["ic-full-count"] and part == []): print("    full-count-ticks detail:", full, part)
+        return full == ["ic-full-count"] and part == []
+    safe("IC/full-count-ticks-task", ic_full_count_ticks_task)
 
     # Photo du produit pendant l'inventaire : affichee pour un article qui en a une
     # (photos/ic/manifest.js), absente sans trou ni 404 pour un article qui n'en a pas.

@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         case 'cantprep': actionText = 'Can\'t Prep'; changeText = log.reasonText ? `${log.reason}: ${log.reasonText}` : log.reason || 'Reason not specified'; break;
                         case 'canprepagain': actionText = 'Available'; changeText = 'Can now be prepped'; break;
                         case 'test': actionText = 'test'; changeText = `${log.oldValue} → ${log.newValue} ${log.unit}`; break;
-                        case 'task-done': actionText = 'completed task'; changeText = ''; break;
+                        case 'task-done': actionText = 'completed task'; changeText = log.auto ? 'ticked automatically' : ''; break;
                         case 'message-received': actionText = 'acknowledged'; changeText = ''; break;
                         case 'message-done': actionText = 'completed message'; changeText = ''; break;
                         case 'checklist-done': actionText = 'completed'; changeText = ''; break;

@@ -64,6 +64,8 @@ log        { id:'log_…'/'iclog_…', actionType, itemId, itemName, oldValue, n
 
 **Photos produits pendant l'inventaire** (17/10/2026) : fichiers `photos/ic/<id article>.jpg` (photos du catalogue Metro choisies par Serge, 320 px, ~10 Ko). Seuls les ids listés dans `photos/ic/manifest.js` (`window.IC_PHOTO_IDS`) sont demandés : pas de 404 pour les articles sans photo. **Ajouter une photo = déposer le fichier ET ajouter l'id au manifeste.** Affichée uniquement dans l'écran de comptage (`showCurrentCountItem`).
 
+**Tâches cochées automatiquement** (17/10/2026) : la fin d'un Prep Check coche la tâche dont le nom contient « PREP-CHECK », et la fin d'un inventaire de TOUS les emplacements coche celle qui contient « FULL COUNT » (`autoCompleteTask` / `pickAutoTask` dans `ui-helpers.js`). Le lien se fait **par le nom** : renommer la tâche sans ces mots revient à la coche manuelle. Une seule tâche par check : la plus tardive pas encore faite aujourd'hui dont l'heure tombe avant maintenant + 2 h. Historique : « ticked automatically ».
+
 ## Pièges (⚠ lire avant de modifier)
 
 - **Fonctions PM = globales** (appelables directement). **Fonctions IC = imbriquées dans une IIFE** → PAS globales, se déclenchent via clic UI (important pour les tests).
