@@ -258,6 +258,8 @@ def run_pm(browser):
         session = pg.evaluate("() => UserSession.get()")
         pg.evaluate("() => UserSession.set('Serge M', {toast:false})")
         clear_modals(pg)
+        if not (picked and picked == session and closed):
+            print("    staff-picker detail:", shape, "picked=", picked, "session=", session, "closed=", closed)
         return (shape["n"] > 1 and shape["avatar"] and not shape["inline"]
                 and shape["buttons"] == ["Cancel"]          # no "Continue" step left
                 and bool(picked) and picked == session and closed)
@@ -603,10 +605,16 @@ def run_ic(browser):
     # fresh gate
     pg.evaluate("() => localStorage.clear()")
     pg.reload(wait_until="networkidle"); pg.wait_for_timeout(1400)
+    # Firebase repond parfois en plus de 1,4 s : attendre la grille du personnel plutot
+    # qu'un delai fixe, sinon toute la suite IC echoue en cascade (vecu le 17/10/2026).
+    try: pg.wait_for_function("() => document.querySelectorAll('.staff-button').length > 0", timeout=15000)
+    except Exception: pass
     pg.evaluate(STUB)
     gate = pg.evaluate("() => document.querySelectorAll('.staff-button').length")
     pg.evaluate("() => { const g=[...document.querySelectorAll('.staff-button')].filter(x=>x.offsetParent)[0]; if(g) g.click(); }")
     pg.wait_for_timeout(1200)
+    try: pg.wait_for_function("() => (window.icItems || []).length > 0", timeout=15000)
+    except Exception: pass
     rec("IC/gate-login-persists", gate > 0 and pg.evaluate(
         "() => !!UserSession.get() && localStorage.getItem('currentStaff')===UserSession.get()"), "gateBtns=" + str(gate))
     safe("IC/formatDate-matches-PM", lambda: pg.evaluate("() => formatDate('2025-03-09 14:30')==='9 Mar, 14:30'"))
@@ -644,6 +652,7 @@ def run_ic(browser):
             buttons: [...document.querySelectorAll('.btn-group button')].map(b => b.textContent.trim()) })""")
         ok = (mcount(pg) >= 1 and shape["n"] > 1 and shape["avatar"]
               and not shape["inline"] and shape["buttons"] == ["Cancel"])
+        if not ok: print("    modal-count-staff detail:", shape, "modals=", mcount(pg))
         pg.mouse.click(6, 6); pg.wait_for_timeout(300)
         ok = ok and mcount(pg) == 0
         pg.evaluate("() => UserSession.set('Serge M', {toast:false})")
@@ -1592,6 +1601,31 @@ def run_db(browser):
             window.__saveCalls = [];
             showEditForm(it.id);
             const t = document.getElementById('item-target');
+    # Tablette neuve (aucun cache) : toucher les onglets AVANT que Firebase reponde ne
+    # doit rien faire planter. Vecu le 17/10/2026 : window.icItems encore indefini.
+    early_errs, early_dialogs = [], []
+    ep = make_page(browser, early_errs, early_dialogs)
+    ep.add_init_script("localStorage.removeItem('icItems'); localStorage.setItem('currentStaff', 'QA')")
+    ep.goto(BASE + "/ic-inventory.html", wait_until="domcontentloaded")
+    ep.evaluate(STUB)
+    ep.evaluate("() => document.querySelectorAll('.nav-button').forEach(b => { try { b.click(); } catch (e) {} })")
+    ep.wait_for_timeout(1500)
+    page_errs = [e for e in early_errs if e.startswith("pageerror")]
+    rec("IC/tabs-before-data-loaded", not page_errs, str(page_errs[:2]))
+
+    # Wifi coupe : la fenetre "qui travaille ?" doit quand meme proposer des noms.
+    # Vecu le 17/10/2026 : la lecture Firebase attendait sans fin, "Loading" a vie.
+    def picker_offline():
+        ep.wait_for_load_state("networkidle"); ep.wait_for_timeout(1500)
+        ep.context.set_offline(True); ep.wait_for_timeout(500)
+        ep.evaluate("() => { UserSession.pick({ title: 'QA' }); }")
+        ep.wait_for_timeout(5500)
+        n = ep.evaluate("() => document.querySelectorAll('.staff-select-button').length")
+        ep.context.set_offline(False)
+        return n > 0
+    safe("shared/staff-picker-offline", picker_offline)
+    ep.close()
+
             t.value = String((parseFloat(t.value) || 0) + 1);
             saveItem();
             const c = (window.__saveCalls || []).find(x => x.fn === 'saveItemFields');

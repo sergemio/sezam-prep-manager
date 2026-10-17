@@ -32,11 +32,22 @@
 
   var current = '';
   var subscribers = [];
-  // Last known active-staff names. Filled by EVERY loadStaff() branch, including
-  // the fallbacks — the dropdowns used to read window.staffMembers directly,
+  // Last known active-staff names, read through staffNames() (which falls back to
+  // DEFAULT_STAFF when empty) — the dropdowns used to read window.staffMembers directly,
   // which is only set when Firebase answers, so an outage left them empty and
   // you could no longer switch user at all.
   var cachedNames = [];
+  // Copie locale de la derniere liste venue de Firebase : sans elle, une tablette
+  // rechargee sans wifi retombait sur DEFAULT_STAFF (d'anciens noms).
+  var NAMES_KEY = 'staffNames';
+  try {
+    var saved = JSON.parse(localStorage.getItem(NAMES_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) cachedNames = saved;
+  } catch (e) { /* stockage illisible : la liste viendra de Firebase */ }
+  // Firebase hors ligne ne rejette pas toujours : sa lecture peut attendre sans fin,
+  // et la fenetre "Who will perform this check?" restait sur "Loading" (vecu en
+  // test le 17/10/2026). Au-dela de ce delai on montre la derniere liste connue.
+  var STAFF_TIMEOUT_MS = 4000;
 
   function setLabel(id, val) {
     var el = document.getElementById(id);
@@ -93,16 +104,22 @@
   function loadStaff() {
     var db = window.firebaseDb;
     if (!(db && db.loadStaffMembers)) return Promise.resolve(remember(DEFAULT_STAFF.slice()));
-    return db.loadStaffMembers().then(function (rows) {
+    var fromServer = db.loadStaffMembers().then(function (rows) {
       window.staffMembers = rows || [];
       var active = (rows || [])
         .filter(function (s) { return s && s.active; })
         .map(function (s) { return s.name; });
-      return remember(active.length ? active : DEFAULT_STAFF.slice());
+      if (!active.length) return staffNames();
+      try { localStorage.setItem(NAMES_KEY, JSON.stringify(active)); } catch (e) {}
+      return remember(active);
     }).catch(function (e) {
       console.error('Error loading staff members:', e);
-      return remember(DEFAULT_STAFF.slice());
+      return staffNames();
     });
+    var fallback = new Promise(function (resolve) {
+      setTimeout(function () { resolve(staffNames()); }, STAFF_TIMEOUT_MS);
+    });
+    return Promise.race([fromServer, fallback]);
   }
 
   function remember(names) { cachedNames = names; return names; }

@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const countPreviewList = document.getElementById('count-preview-list');
     
     // Application state
+    // Liste vide tant que Firebase n'a pas repondu : sans cela, toucher un onglet sur
+    // une tablette sans cache (ou hors ligne) plantait updateStats/updateOverviewTable.
+    window.icItems = window.icItems || [];
     let currentStaff = '';
     // Keep this local mirror in sync with the shared session (single source of truth).
     if (window.UserSession) UserSession.subscribe(function (n) { currentStaff = n; });
