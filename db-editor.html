@@ -609,6 +609,47 @@
             <input type="time" id="task-schedule-time">
         </div>
         <div class="form-group">
+            <label for="task-dueby-input">Heure limite (la tâche passe en orange après)</label>
+            <input type="time" id="task-dueby-input">
+        </div>
+        <div class="form-group">
+            <label for="task-duration-input">Durée (minutes)</label>
+            <input type="number" id="task-duration-input" min="1" placeholder="10">
+        </div>
+        <div class="form-group">
+            <label for="task-icon-input">Pictogramme (un emoji)</label>
+            <input type="text" id="task-icon-input" maxlength="8" placeholder="🧹">
+        </div>
+        <div class="form-group">
+            <label for="task-subtitle-input">Où (sous le titre)</label>
+            <input type="text" id="task-subtitle-input" placeholder="Between the kitchen and the dining room">
+        </div>
+        <div class="form-group">
+            <label for="task-steps-input">Étapes (une par ligne)</label>
+            <textarea id="task-steps-input" rows="4" placeholder="First pass with a clean microfiber, water and soap."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="task-materials-input">Matériel (séparé par des virgules)</label>
+            <input type="text" id="task-materials-input" placeholder="Clean microfiber, Paper towel roll">
+        </div>
+        <div class="form-group">
+            <label for="task-donewhen-input">Fini quand</label>
+            <input type="text" id="task-donewhen-input" placeholder="No streaks against the light.">
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="task-safety-input"> Tâche de sécurité (bordure rouge, en tête de liste)
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="task-autokind-input">Cochée automatiquement à la fin de</label>
+            <select id="task-autokind-input">
+                <option value="">Rien (coche à la main)</option>
+                <option value="prep-check">Un Prep Check</option>
+                <option value="ic-full-count">Un inventaire complet (I&amp;C)</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label>
                 <input type="checkbox" id="task-active-input" checked> Active
             </label>

@@ -11,7 +11,8 @@
 //   .clear()             -> reset to '' (a "switch user" logout — no toast)
 //   .subscribe(cb)       -> cb(name) called on every change (keep a local mirror in sync)
 //   .staffNames()        -> string[] active staff, synchronous, NEVER empty
-//   .pick({title, subtitle}) -> Promise<name|''> — THE staff picker modal, sets the session
+//   .pick({title, subtitle, keepSession}) -> Promise<name|''> — THE staff picker modal,
+//                         sets the session unless keepSession (asking who did a task)
 //   .renderGate(grid, onPick) -> fills the login screen's .staff-grid
 //   .dropdown(anchor, onPick) -> THE user dropdown under `anchor` (toggles/closes itself)
 //   .showSwitchToast(name)
@@ -179,14 +180,18 @@
         names.forEach(function (name) {
           var btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'staff-select-button' + (name === current ? ' selected' : '');
+          // "Who did it?" (keepSession) highlights nobody: a pre-selected logged-in user
+          // invites a reflex tap, which is exactly the wrong attribution we ask to avoid.
+          btn.className = 'staff-select-button' + (name === current && !opts.keepSession ? ' selected' : '');
           btn.setAttribute('data-staff', name);
           btn.innerHTML =
             '<span class="staff-initial">' + initials(name) + '</span>' +
             '<span class="staff-name">' + name + '</span>' +
             '<span class="staff-check">✓</span>';
           btn.addEventListener('click', function () {
-            set(name, opts.toast === false ? { toast: false } : undefined);
+            // keepSession : on demande QUI a fait quelque chose (une tache) sans changer
+            // la personne connectee a la tablette partagee.
+            if (!opts.keepSession) set(name, opts.toast === false ? { toast: false } : undefined);
             settle(name);
             modal.close();
           });

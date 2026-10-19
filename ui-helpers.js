@@ -432,15 +432,17 @@
   // Taches cochees toutes seules a la fin du travail qu'elles demandent. Vecu le
   // 17/10/2026 : Prep Check fait a 12:02, "Run PREP-CHECK (shift1)" restee rouge ;
   // "Run I&C FULL COUNT" jamais cochee alors que l'inventaire est fait chaque dimanche.
-  // La tache est reperee par son nom, sans champ a ajouter en base : la renommer sans
-  // ces mots coupe le lien, ce qui est sans danger (on revient a la coche manuelle).
+  // La tache est reperee par son champ `autoKind` ('prep-check' / 'ic-full-count', choisi
+  // dans le DB Editor) : on peut donc la renommer librement. Vecu le 18/10/2026 :
+  // "Run I&C FULL COUNT" renommee "Run Inventory COUNT", le reperage par le nom ne la
+  // trouvait plus. Le nom ne sert plus que pour une tache sans `autoKind` (anciennes).
   // lead = combien de minutes AVANT son heure prevue un check peut compter pour une
   // tache. Historique 30/09-17/10 : checks du midi 12:08-12:32 et 14:49 (shift1, 11:40),
   // du soir 15:48-21:59 (shift2, 17:45). L'inventaire complet n'a pas de limite : il est
   // fait le dimanche OU le lundi (4 fois sur 8 entre le 23/08 et le 11/10).
   var AUTO_TASKS = {
     'prep-check':    { re: /prep[\s-]*check/i, lead: 120 },
-    'ic-full-count': { re: /full\s*count/i,    lead: Infinity }
+    'ic-full-count': { re: /(full|inventory)\s*count/i, lead: Infinity }  // renommee « Run Inventory COUNT » le 18/10
   };
 
   function sameLocalDay(iso, ref) {
@@ -465,7 +467,8 @@
     var best = null, bestTime = -1;
     (list || []).forEach(function (t) {
       if (!t || !t.active || t.type !== 'recurring') return;
-      if (!rule.re.test((t.title || '') + ' ' + (t.name || ''))) return;
+      var linked = t.autoKind ? t.autoKind === kind : rule.re.test((t.title || '') + ' ' + (t.name || ''));
+      if (!linked) return;
       if (t.lastCompletedAt && sameLocalDay(t.lastCompletedAt, now)) return;
       var time = t.scheduleTime ? minutesOf(t.scheduleTime) : 0;
       if (time > limit) return;

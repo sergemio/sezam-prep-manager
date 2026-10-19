@@ -619,10 +619,16 @@ def run_pm(browser):
               p(base, 'prep-check', 8, 0),     // trop tot -> rien
               p(off, 'prep-check', 12, 10),    // tache desactivee -> rien
               p(base, 'ic-full-count', 11, 10),// inventaire du lundi matin -> fc
+              p(base.map(t => t.id === 'fc' ? Object.assign({}, t, {title:'Run Inventory COUNT'}) : t), 'ic-full-count', 11, 10), // nom du 18/10 -> fc
+              // Lien par autoKind : renommee librement, toujours trouvee ; et un autoKind
+              // d'un autre type l'emporte sur le nom.
+              p(base.map(t => t.id === 'fc' ? Object.assign({}, t, {title:'Weekly stock', autoKind:'ic-full-count'}) : t), 'ic-full-count', 11, 10),
+              p(base.map(t => t.id === 's1' ? Object.assign({}, t, {title:'Morning check', autoKind:'prep-check'}) : t), 'prep-check', 12, 10),
+              p(base.map(t => t.id === 's1' ? Object.assign({}, t, {autoKind:'ic-full-count'}) : t), 'prep-check', 12, 10),
               p(base, 'nope', 12, 0)
             ];
         }""")
-        ok = r == ['s1', 's1', 's2', None, 's2', None, None, 'fc', None]
+        ok = r == ['s1', 's1', 's2', None, 's2', None, None, 'fc', 'fc', 'fc', 's1', None, None]
         if not ok: print("    auto-task-pick detail:", r)
         return ok
     safe("shared/auto-task-pick", auto_task_pick)
@@ -652,6 +658,104 @@ def run_pm(browser):
                 && log.args[0].actionType === 'task-done';
         }""")
     safe("PM/prep-check-ticks-task", auto_task_on_prep_check)
+
+    # Colonne des taches (maquette du 18/10/2026) : groupes par moment, securite en tete,
+    # retard dans la journee en orange, "Can't do" en gris. Taches fictives, base intacte.
+    FAKE_TASKS = """[
+      {id:'qa_n', title:'QA normal', type:'recurring', active:true, frequencyDays:1, scheduleTime:'00:00', dueBy:'23:59', durationMin:10, icon:'🪟',
+       steps:['Step one','Step two'], materials:['Microfiber','Alcohol'], doneWhen:'No streaks', subtitle:'Kitchen windows'},
+      {id:'qa_s', title:'QA safety', type:'recurring', active:true, frequencyDays:1, scheduleTime:'00:00', safety:true, icon:'🔥'},
+      {id:'qa_l', title:'QA late', type:'recurring', active:true, frequencyDays:1, scheduleTime:'00:00', dueBy:'00:00'},
+      {id:'qa_b', title:'QA blocked', type:'recurring', active:true, frequencyDays:1, scheduleTime:'00:00',
+       cantDo:{at:new Date().toISOString(), by:'Sinar', reason:'Equipment broken'}},
+      {id:'qa_a', title:'QA anytime', type:'recurring', active:true, frequencyDays:1}
+    ]"""
+
+    def task_cards():
+        clear_modals(pg)
+        r = pg.evaluate("""() => {
+            window.__realTasks = tasks; tasks = %s; updateTodoList();
+            const c = document.getElementById('todo-tasks-container');
+            const order = [...c.children].map(el => el.classList.contains('task-group-head')
+                ? 'H:' + el.firstElementChild.textContent : el.querySelector('.task-card__title').firstChild.textContent);
+            const card = t => [...c.querySelectorAll('.task-card')].find(x => x.querySelector('.task-card__title').firstChild.textContent === t);
+            const out = {
+              order,
+              safetyChip: !!card('QA safety').querySelector('.task-chip-safety'),
+              safetyCls: card('QA safety').classList.contains('task-card--safety'),
+              late: card('QA late').classList.contains('task-card--late') && card('QA late').querySelector('.task-card__meta').textContent,
+              blocked: card('QA blocked').classList.contains('task-card--blocked') && card('QA blocked').querySelector('.task-card__meta').textContent,
+              normal: card('QA normal').querySelector('.task-card__meta').textContent,
+              noOldTag: !c.querySelector('.todo-tag')
+            };
+            tasks = window.__realTasks; updateTodoList();
+            return out;
+        }""" % FAKE_TASKS)
+        ok = (r["order"] == ["H:OPENING", "QA safety", "QA late", "QA normal", "QA blocked", "H:ANYTIME", "QA anytime"]
+              and r["safetyChip"] and r["safetyCls"] and r["late"] == "Late · was due 00:00"
+              and r["blocked"] == "Can't do · Equipment broken (Sinar)"
+              and r["normal"] == "00:00 → 23:59 · 10 min" and r["noOldTag"])
+        if not ok: print("    task-cards detail:", r)
+        return ok
+    safe("PM/task-cards-grouped-and-states", task_cards)
+
+    # Fenetre de tache : etapes, materiel, critere de fin ; "Done" demande QUI, sans
+    # changer la personne connectee a la tablette.
+    def task_done_asks_who():
+        clear_modals(pg)
+        pg.evaluate(STUB)
+        pg.evaluate("() => { UserSession.set('Serge M', {toast:false}); window.__saveCalls = []; window.__t = (%s)[0]; showTaskModal(window.__t); }" % FAKE_TASKS)
+        pg.wait_for_timeout(300)
+        shape = pg.evaluate("""() => ({
+            steps: [...document.querySelectorAll('.task-steps li')].map(l => l.textContent),
+            needs: [...document.querySelectorAll('.task-needs span')].map(s => s.textContent),
+            doneWhen: (document.querySelector('.task-done-when') || {}).textContent,
+            when: (document.querySelector('.task-modal__when') || {}).textContent,
+            noType: !document.body.innerText.includes('Every 1 day') })""")
+        pg.evaluate("() => document.getElementById('task-done-btn').click()")
+        try: pg.wait_for_function("() => document.querySelectorAll('.staff-select-button').length > 0", timeout=8000)
+        except Exception: pass
+        nobody_preselected = pg.evaluate("() => !document.querySelector('.staff-select-button.selected')")
+        picked = pg.evaluate("""() => { const b=[...document.querySelectorAll('.staff-select-button')]
+            .find(x => x.getAttribute('data-staff') !== 'Serge M'); if (b) { b.click(); return b.getAttribute('data-staff'); } return null; }""")
+        pg.wait_for_timeout(300)
+        res = pg.evaluate("""() => { const f=(window.__saveCalls||[]).find(c=>c.fn==='saveTaskFields');
+            const l=(window.__saveCalls||[]).find(c=>c.fn==='saveActivityLog');
+            return { id: f && f.args[0], by: f && f.args[1].lastCompletedBy, cleared: f && f.args[1].cantDo === null,
+                     logUser: l && l.args[0].user, session: UserSession.get() }; }""")
+        clear_modals(pg)
+        ok = (shape["steps"] == ["Step one", "Step two"] and shape["needs"] == ["Microfiber", "Alcohol"]
+              and shape["doneWhen"] == "No streaks" and "00:00 → 23:59" in (shape["when"] or "") and shape["noType"]
+              and nobody_preselected
+              and picked and res["id"] == "qa_n" and res["by"] == picked and res["cleared"]
+              and res["logUser"] == picked and res["session"] == "Serge M")
+        if not ok: print("    task-done detail:", shape, picked, res)
+        return ok
+    safe("PM/task-done-asks-who", task_done_asks_who)
+
+    # "Can't do" : une raison en un toucher, puis qui ; ecrit la raison et une ligne d'historique.
+    def task_cant_do():
+        clear_modals(pg)
+        pg.evaluate(STUB)
+        pg.evaluate("() => { window.__saveCalls = []; window.__t = (%s)[0]; showTaskModal(window.__t); }" % FAKE_TASKS)
+        pg.wait_for_timeout(200)
+        pg.evaluate("() => document.getElementById('task-cant-btn').click()")
+        pg.wait_for_timeout(200)
+        pg.evaluate("() => document.querySelector('.task-reason[data-reason]').click()")
+        try: pg.wait_for_function("() => document.querySelectorAll('.staff-select-button').length > 0", timeout=8000)
+        except Exception: pass
+        pg.evaluate("() => { const b=document.querySelector('.staff-select-button'); if (b) b.click(); }")
+        pg.wait_for_timeout(300)
+        res = pg.evaluate("""() => { const f=(window.__saveCalls||[]).find(c=>c.fn==='saveTaskFields');
+            const l=(window.__saveCalls||[]).find(c=>c.fn==='saveActivityLog');
+            return { reason: f && f.args[1].cantDo && f.args[1].cantDo.reason, by: f && f.args[1].cantDo && f.args[1].cantDo.by,
+                     log: l && l.args[0].actionType, logReason: l && l.args[0].reason }; }""")
+        clear_modals(pg)
+        ok = (res["reason"] == "No product / no material" and bool(res["by"])
+              and res["log"] == "task-cantdo" and res["logReason"] == "No product / no material")
+        if not ok: print("    task-cantdo detail:", res)
+        return ok
+    safe("PM/task-cant-do", task_cant_do)
 
     pg.close()
 
@@ -1814,6 +1918,37 @@ def run_db(browser):
         pg.evaluate("() => { if (typeof cancelEdit === 'function') cancelEdit(); }")
         return bool(d) and d["tx"] and not d["plainSet"]
     safe("DB/add-uses-transaction", db_add_uses_transaction)
+
+    # Champs d'affichage d'une tache : relus dans le formulaire, enregistres, et ce que le
+    # formulaire ne gere pas ("Can't do" du jour, photos) n'est pas efface par la sauvegarde.
+    def db_task_display_fields():
+        d = pg.evaluate("""() => {
+            window.__saveCalls = [];
+            const t = {id:'qa_x', title:'QA task', name:'QA task', type:'recurring', active:true, frequencyDays:7,
+                       scheduleDays:[3], scheduleTime:'15:30', dueBy:'18:00', durationMin:15, icon:'🪟',
+                       steps:['One','Two'], materials:['A','B'], doneWhen:'Clean', safety:true, autoKind:'prep-check',
+                       cantDo:{at:'2026-10-18T10:00:00Z', by:'Sinar', reason:'x'}, howTo:[{text:'photo'}]};
+            allTasks.push(t);
+            showEditTaskForm('qa_x');
+            const shown = { steps: document.getElementById('task-steps-input').value,
+                            mats: document.getElementById('task-materials-input').value,
+                            safety: document.getElementById('task-safety-input').checked };
+            document.getElementById('task-steps-input').value = 'One\\nTwo\\nThree';
+            document.getElementById('task-duration-input').value = '';
+            saveTask();
+            allTasks = allTasks.filter(x => x.id !== 'qa_x');
+            const c = (window.__saveCalls || []).find(x => x.fn === 'saveTask');
+            const s = c && c.args[0];
+            if (typeof cancelTaskEdit === 'function') cancelTaskEdit();
+            return { shown, steps: s && s.steps, dur: s && s.durationMin, due: s && s.dueBy, icon: s && s.icon,
+                     cant: !!(s && s.cantDo), how: !!(s && s.howTo), safety: s && s.safety, auto: s && s.autoKind };
+        }""")
+        ok = (d["shown"] == {"steps": "One\nTwo", "mats": "A, B", "safety": True}
+              and d["steps"] == ["One", "Two", "Three"] and d["dur"] is None and d["due"] == "18:00"
+              and d["icon"] == "🪟" and d["cant"] and d["how"] and d["safety"] is True and d["auto"] == "prep-check")
+        if not ok: print("    db-task-fields detail:", d)
+        return ok
+    safe("DB/task-display-fields", db_task_display_fields)
 
     rec("DB/0-console-errors", len(errs) == 0, (str(errs[:3]) if errs else ""))
     pg.close()

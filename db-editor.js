@@ -904,6 +904,7 @@ function showAddTaskForm() {
     taskActiveInput.checked = true;
     document.querySelectorAll('.day-toggle').forEach(function(btn) { btn.classList.remove('active'); });
     document.getElementById('task-schedule-time').value = '';
+    fillTaskDisplayFields({});
     updateTaskTypeFields();
     deleteTaskButton.classList.add('hidden');
     document.body.style.overflow = 'hidden';
@@ -930,10 +931,44 @@ function showEditTaskForm(taskId) {
         }
     });
     document.getElementById('task-schedule-time').value = task.scheduleTime || '';
+    fillTaskDisplayFields(task);
     updateTaskTypeFields();
     deleteTaskButton.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     taskEditForm.classList.remove('hidden');
+}
+
+// Display fields of a task (card + task window in the Prep Manager).
+function fillTaskDisplayFields(task) {
+    document.getElementById('task-dueby-input').value = task.dueBy || '';
+    document.getElementById('task-duration-input').value = task.durationMin || '';
+    document.getElementById('task-icon-input').value = task.icon || '';
+    document.getElementById('task-subtitle-input').value = task.subtitle || '';
+    document.getElementById('task-steps-input').value = (task.steps || []).join('\n');
+    document.getElementById('task-materials-input').value = (task.materials || []).join(', ');
+    document.getElementById('task-donewhen-input').value = task.doneWhen || '';
+    document.getElementById('task-safety-input').checked = !!task.safety;
+    document.getElementById('task-autokind-input').value = task.autoKind || '';
+}
+
+function readTaskDisplayFields() {
+    const val = id => document.getElementById(id).value.trim();
+    const list = (id, sep) => val(id).split(sep).map(s => s.trim()).filter(Boolean);
+    const steps = list('task-steps-input', /\r?\n/);
+    const materials = list('task-materials-input', ',');
+    const duration = parseInt(val('task-duration-input'), 10);
+    // null (not undefined): set() then drops the field, so clearing a box clears it in the base.
+    return {
+        dueBy: val('task-dueby-input') || null,
+        durationMin: duration > 0 ? duration : null,
+        icon: val('task-icon-input') || null,
+        subtitle: val('task-subtitle-input') || null,
+        steps: steps.length ? steps : null,
+        materials: materials.length ? materials : null,
+        doneWhen: val('task-donewhen-input') || null,
+        safety: document.getElementById('task-safety-input').checked || null,
+        autoKind: document.getElementById('task-autokind-input').value || null
+    };
 }
 
 function cancelTaskEdit() {
@@ -973,6 +1008,7 @@ function saveTask() {
     });
     task.scheduleDays = selectedDays.length > 0 ? selectedDays : null;
     task.scheduleTime = document.getElementById('task-schedule-time').value || null;
+    Object.assign(task, readTaskDisplayFields());
     // Preserve completion state on edit
     if (!isAddingTask) {
         const existing = allTasks.find(t => t.id === currentEditingTaskId);
@@ -980,6 +1016,10 @@ function saveTask() {
             task.lastCompletedAt = existing.lastCompletedAt || null;
             task.lastCompletedBy = existing.lastCompletedBy || null;
             if (existing.forceDisplay) task.forceDisplay = existing.forceDisplay;
+            // Fields this form does not edit (today's "Can't do", the how-to photos):
+            // saveTask replaces the whole record, so they must be carried over.
+            if (existing.cantDo) task.cantDo = existing.cantDo;
+            if (existing.howTo) task.howTo = existing.howTo;
         }
     }
     window.firebaseDb.saveTask(task).then(() => {

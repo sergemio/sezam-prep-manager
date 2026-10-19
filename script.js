@@ -1090,6 +1090,72 @@ function getTaskDaysOverdue(task) {
     return 0;
 }
 
+// ---- Affichage des taches (carte de la colonne + fenetre), maquette validee le 18/10/2026 ----
+// Champs optionnels d'une tache, saisis dans le DB Editor : icon, subtitle, dueBy ("23:30"),
+// durationMin, safety, steps[], materials[], doneWhen, howTo[{img, text}], et cantDo
+// {at, by, reason} (pose par "Can't do", ne vaut que pour le jour meme).
+function minutesOfDay(hhmm) {
+    if (!hhmm) return null;
+    const p = String(hhmm).split(':');
+    const m = parseInt(p[0], 10) * 60 + (parseInt(p[1], 10) || 0);
+    return isNaN(m) ? null : m;
+}
+
+function isSameLocalDay(iso) {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+}
+
+function taskCantDoToday(task) {
+    return task.cantDo && isSameLocalDay(task.cantDo.at) ? task.cantDo : null;
+}
+
+// En retard dans la journee : l'heure limite est passee (le retard en JOURS reste
+// getTaskDaysOverdue).
+function taskIsLate(task) {
+    const due = minutesOfDay(task.dueBy);
+    if (due === null) return false;
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes() > due;
+}
+
+// Moment de la journee, d'apres l'heure d'apparition : c'est ce qui regroupe la colonne.
+const TASK_MOMENTS = [
+    { key: 'opening', label: 'OPENING' },
+    { key: 'afternoon', label: 'AFTERNOON' },
+    { key: 'closing', label: 'CLOSING' },
+    { key: 'anytime', label: 'ANYTIME' }
+];
+function taskMoment(task) {
+    const m = minutesOfDay(task.scheduleTime);
+    if (m === null) return 'anytime';
+    if (m < 14 * 60) return 'opening';
+    if (m < 21 * 60) return 'afternoon';
+    return 'closing';
+}
+
+function taskWhenText(task) {
+    const parts = [];
+    if (task.scheduleTime && task.dueBy) parts.push(task.scheduleTime + ' → ' + task.dueBy);
+    else if (task.scheduleTime) parts.push('From ' + task.scheduleTime);
+    else if (task.dueBy) parts.push('Before ' + task.dueBy);
+    if (task.durationMin) parts.push(task.durationMin + ' min');
+    return parts.join(' · ');
+}
+
+// "Last done Wednesday 14/10 at 15:42 by Parthvi". Les coches "setup" (creation de la
+// tache) ne sont pas un travail fait : rien n'est affiche.
+function taskLastDoneText(task) {
+    if (!task.lastCompletedAt || !task.lastCompletedBy || task.lastCompletedBy === 'setup') return '';
+    const d = new Date(task.lastCompletedAt);
+    if (isNaN(d.getTime())) return '';
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const p = n => String(n).padStart(2, '0');
+    return 'Last done ' + days[d.getDay()] + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1) +
+        ' at ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ' by ' + task.lastCompletedBy;
+}
+
 // Tracks which task ids were due at the previous render, so we can detect a
 // task that just popped into the due list and play a one-shot chime. Stays null
 // until the first render — so we never beep for tasks already due on page load.
@@ -1139,7 +1205,8 @@ function updateTodoList() {
         const missed = getTaskMissedCount(task);
         const overdue = getTaskDaysOverdue(task);
         const priority = (missed > 0 || overdue > 0) ? 1 : 3;
-        todoItems.push({ _type: 'task', _sortPriority: priority, _subSort: -missed, data: task, missed, overdue });
+        const late = taskIsLate(task) && !taskCantDoToday(task);
+        todoItems.push({ _type: 'task', _sortPriority: priority, _subSort: -missed, data: task, missed, overdue, late });
     });
 
     todoItems.sort((a, b) => {
@@ -1205,10 +1272,8 @@ function updateTodoList() {
         return;
     }
 
-    // Render tasks into tasks container
-    taskItems.forEach(entry => {
-        renderTaskTodoItem(entry.data, entry.missed, entry.overdue, tasksContainer);
-    });
+    // Render tasks into tasks container, grouped by moment of the day
+    renderTaskGroups(taskItems, tasksContainer);
 
     // Render preps into preps container
     prepItemsList.forEach(entry => {
@@ -1232,7 +1297,7 @@ function generateStatusSummary(todoItems) {
     let out = 0, low = 0, blocked = 0, overdue = 0, pending = 0;
     todoItems.forEach(entry => {
         if (entry._type === 'task') {
-            if (entry.missed > 0 || entry.overdue > 0) overdue++;
+            if (entry.missed > 0 || entry.overdue > 0 || entry.late) overdue++;
             else pending++;
         } else {
             const item = entry.data;
@@ -1313,6 +1378,16 @@ function applySummaryFilter() {
     const tasksLabel = document.getElementById('todo-tasks-label');
     if (prepsLabel) prepsLabel.style.display = anyVisible('#todo-list-container') ? 'flex' : 'none';
     if (tasksLabel) tasksLabel.style.display = anyVisible('#todo-tasks-container') ? 'flex' : 'none';
+
+    // Same for each moment header (OPENING / AFTERNOON / CLOSING): hidden when the
+    // filter leaves none of its cards visible.
+    let head = null, headHasCard = false;
+    const settle = () => { if (head) head.style.display = headHasCard ? '' : 'none'; };
+    document.querySelectorAll('#todo-tasks-container > *').forEach(el => {
+        if (el.classList.contains('task-group-head')) { settle(); head = el; headHasCard = false; }
+        else if (el.style.display !== 'none') headHasCard = true;
+    });
+    settle();
 }
 
 // Formate la quantite restante a prep : jamais negative, 1 decimale max ("2" et non "2.0")
@@ -1385,25 +1460,62 @@ function renderPrepTodoItem(item) {
     todoListContainer.appendChild(todoItem);
 }
 
+// The due tasks, grouped by moment of the day. Inside a group: safety first, then what
+// is late, then by time; a task marked "Can't do" sinks to the bottom. The header shows
+// how many of that moment's tasks are already done today.
+function renderTaskGroups(taskItems, container) {
+    if (!container) {
+        taskItems.forEach(e => renderTaskTodoItem(e.data, e.missed, e.overdue));
+        return;
+    }
+    const rank = e => {
+        if (taskCantDoToday(e.data)) return 3;
+        if (e.data.safety) return 0;
+        if (e.missed > 0 || e.overdue > 0 || e.late) return 1;
+        return 2;
+    };
+    const timeOf = e => minutesOfDay(e.data.scheduleTime) || 0;
+    TASK_MOMENTS.forEach(mo => {
+        const items = taskItems.filter(e => taskMoment(e.data) === mo.key);
+        if (!items.length) return;
+        items.sort((a, b) => rank(a) - rank(b) || timeOf(a) - timeOf(b) ||
+            String(a.data.title).localeCompare(String(b.data.title)));
+        const done = tasks.filter(t => t.active && taskMoment(t) === mo.key &&
+            isSameLocalDay(t.lastCompletedAt) && t.lastCompletedBy !== 'setup').length;
+        const head = document.createElement('div');
+        head.className = 'task-group-head';
+        head.innerHTML = `<span>${mo.label}</span><span class="task-group-progress">${done}/${done + items.length} done</span>`;
+        container.appendChild(head);
+        items.forEach(e => renderTaskTodoItem(e.data, e.missed, e.overdue, container));
+    });
+}
+
 function renderTaskTodoItem(task, missed, overdue, container) {
-    const isOverdue = missed > 0 || overdue > 0;
-    let freqText = '';
-    if (task.type === 'recurring') {
-        freqText = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
-    } else if (task.type === 'scheduled') {
-        freqText = task.scheduledDate + (task.scheduledTime ? ' ' + task.scheduledTime : '');
-    } else {
-        freqText = 'One-off';
+    const daysLate = missed > 0 || overdue > 0;
+    const cant = taskCantDoToday(task);
+    const late = !daysLate && !cant && taskIsLate(task);
+    let meta = taskWhenText(task);
+    let state = '';
+    if (cant) {
+        state = 'blocked';
+        meta = "Can't do · " + (cant.reason || '') + (cant.by ? ' (' + cant.by + ')' : '');
+    } else if (daysLate) {
+        const n = Math.max(overdue, missed, 1);
+        state = 'overdue';
+        meta = 'Overdue · ' + n + ' day' + (n > 1 ? 's' : '');
+    } else if (late) {
+        state = 'late';
+        meta = 'Late · was due ' + task.dueBy;
     }
     const todoItem = document.createElement('div');
-    todoItem.className = 'todo-item todo-item-task';
-    todoItem.dataset.status = isOverdue ? 'overdue' : 'pending';
-    todoItem.style.borderLeftColor = isOverdue ? 'var(--danger)' : 'var(--info)';
+    todoItem.className = 'todo-item todo-item-task task-card' +
+        (state ? ' task-card--' + state : '') + (task.safety ? ' task-card--safety' : '');
+    todoItem.dataset.status = (daysLate || late) ? 'overdue' : 'pending';
     todoItem.innerHTML = `
-        <div class="todo-item-name">${task.title}</div>
-        ${isOverdue ? '<div class="todo-item-detail">Overdue (' + overdue + ' day' + (overdue > 1 ? 's' : '') + ')</div>' : ''}
-        <div class="todo-footer">
-            <span class="todo-tag ${isOverdue ? 'overdue' : 'task'}">${isOverdue ? 'OVERDUE' : 'TASK'}</span>
+        <div class="task-card__icon" aria-hidden="true">${escapeHtml(task.icon || '📋')}</div>
+        <div class="task-card__body">
+            <div class="todo-item-name task-card__title">${escapeHtml(task.title)}${task.safety ? '<span class="task-chip-safety">SAFETY</span>' : ''}</div>
+            ${meta ? `<div class="task-card__meta">${escapeHtml(meta)}</div>` : ''}
         </div>
     `;
     todoItem.addEventListener('click', () => {
@@ -1415,67 +1527,164 @@ function renderTaskTodoItem(task, missed, overdue, container) {
 function showTaskModal(task) {
     SoundFX.pop();
     const { box: modalContent, close: closeModal } = openModal({});
+    const cant = taskCantDoToday(task);
+    const when = taskWhenText(task);
+    const steps = Array.isArray(task.steps) ? task.steps.filter(Boolean) : [];
+    const needs = Array.isArray(task.materials) ? task.materials.filter(Boolean) : [];
+    const howTo = Array.isArray(task.howTo) ? task.howTo.filter(h => h && (h.img || h.text)) : [];
+    const last = taskLastDoneText(task);
+    const esc = escapeHtml;
 
-    let freqText = '';
-    if (task.type === 'recurring') {
-        freqText = `Every ${task.frequencyDays} day${task.frequencyDays > 1 ? 's' : ''}`;
-    } else if (task.type === 'scheduled') {
-        freqText = task.scheduledDate + (task.scheduledTime ? ' at ' + task.scheduledTime : '');
-    } else {
-        freqText = 'One-off task';
-    }
+    // What to do, in this order: steps (or the free description when there are no
+    // steps), what you need, and how you know it is finished.
+    modalContent.innerHTML = `
+        <div class="task-modal">
+            <div class="task-modal__head">
+                <div class="task-modal__icon" aria-hidden="true">${esc(task.icon || '📋')}</div>
+                <div>
+                    <h3 class="task-modal__title">${esc(task.title)}</h3>
+                    ${task.subtitle ? `<div class="task-modal__sub">${esc(task.subtitle)}</div>` : ''}
+                </div>
+            </div>
+            ${when ? `<div class="task-modal__when">🕒 ${esc(when)}</div>` : ''}
+            ${cant ? `<div class="task-modal__cant">Marked "can't do" by ${esc(cant.by || '?')}: ${esc(cant.reason || '')}</div>` : ''}
+            ${steps.length
+                ? `<div class="task-modal__lbl">STEPS</div><ol class="task-steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
+                : (task.description ? `<p class="task-modal__desc">${esc(task.description)}</p>` : '')}
+            ${needs.length ? `<div class="task-modal__lbl">YOU NEED</div><div class="task-needs">${needs.map(n => `<span>${esc(n)}</span>`).join('')}</div>` : ''}
+            ${task.doneWhen ? `<div class="task-modal__lbl">DONE WHEN</div><div class="task-done-when">${esc(task.doneWhen)}</div>` : ''}
+            <div class="task-modal__actions">
+                <button type="button" id="task-done-btn" class="btn btn--primary task-btn-done">Done &#10003;</button>
+                ${howTo.length ? '<button type="button" id="task-howto-btn" class="btn task-btn-help">❓ How to do it</button>' : ''}
+                <button type="button" id="task-cant-btn" class="btn task-btn-cant">Can't do</button>
+                ${howTo.length ? '' : '<button type="button" id="task-close-btn" class="btn btn--secondary">Close</button>'}
+            </div>
+            ${last ? `<div class="task-modal__last">${esc(last)}</div>` : ''}
+        </div>`;
 
-    let lastDoneText = 'Never done';
-    if (task.lastCompletedAt) {
-        const d = new Date(task.lastCompletedAt);
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        lastDoneText = `By ${task.lastCompletedBy || '?'}, ${d.toLocaleDateString('fr-FR')} at ${hours}:${minutes}`;
-    }
+    const closeBtn = modalContent.querySelector('#task-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
-    // Build header row with title + user picker
-    const headerRow = document.createElement('div');
-    headerRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;';
-    headerRow.appendChild(createModalUserPicker());
-    const titleEl = document.createElement('h3');
-    titleEl.style.cssText = 'margin:0;color:#333;';
-    titleEl.textContent = task.title;
-    headerRow.appendChild(titleEl);
-    modalContent.appendChild(headerRow);
-
-    const infoHtml = `
-        ${task.description ? `<p style="margin: 0 0 16px 0; color: #555; font-size: 14px; line-height: 1.5;">${task.description}</p>` : ''}
-        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-light); border-radius: 6px; font-size: 14px;">
-            <div style="margin-bottom: 6px;"><strong>Type:</strong> ${freqText}</div>
-            <div><strong>Last done:</strong> ${lastDoneText}</div>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button id="task-done-btn" class="btn btn--primary">Mark as done &#10003;</button>
-            <button id="task-close-btn" class="btn btn--secondary">Close</button>
-        </div>
-    `;
-    const infoDiv = document.createElement('div');
-    infoDiv.innerHTML = infoHtml;
-    modalContent.appendChild(infoDiv);
-
-    modalContent.querySelector('#task-close-btn').addEventListener('click', closeModal);
-    modalContent.querySelector('#task-done-btn').addEventListener('click', function() {
-        completeTask(task);
-        SoundFX.complete();
+    // Done -> WHO did it. The tablet is shared: the logged-in user is often not the
+    // person who did the work, so the name is asked every time (one tap) and the
+    // session is left alone.
+    modalContent.querySelector('#task-done-btn').addEventListener('click', function () {
         closeModal();
+        UserSession.pick({ title: 'Who did it?', subtitle: task.title, keepSession: true })
+            .then(name => {
+                if (!name) return;
+                completeTask(task, name);
+                SoundFX.complete();
+                if (typeof showNotification === 'function') showNotification('Done', task.title + ' · ' + name, 'success');
+            });
+    });
+
+    const howBtn = modalContent.querySelector('#task-howto-btn');
+    if (howBtn) howBtn.addEventListener('click', function () {
+        closeModal();
+        showTaskHowTo(task, howTo);
+    });
+
+    modalContent.querySelector('#task-cant-btn').addEventListener('click', function () {
+        closeModal();
+        showTaskCantDo(task);
     });
 }
 
-function completeTask(task) {
+// "How to do it": the photos of the gesture and of the expected result.
+function showTaskHowTo(task, howTo) {
+    const { box, close } = openModal({});
+    box.innerHTML = `
+        <div class="task-modal">
+            <div class="task-modal__head"><div class="task-modal__icon" aria-hidden="true">❓</div>
+                <h3 class="task-modal__title">How to: ${escapeHtml(task.title)}</h3></div>
+            <div class="task-howto">${howTo.map(h => `
+                <figure>${h.img ? `<img src="${escapeHtml(h.img)}" alt="">` : ''}
+                ${h.text ? `<figcaption>${escapeHtml(h.text)}</figcaption>` : ''}</figure>`).join('')}
+            </div>
+            <div class="task-modal__actions"><button type="button" id="task-howto-back" class="btn btn--secondary task-btn-wide">Back to the task</button></div>
+        </div>`;
+    box.querySelector('#task-howto-back').addEventListener('click', function () {
+        close();
+        showTaskModal(task);
+    });
+}
+
+// "Can't do": a reason in one tap (like Can't Prep), then who. Valid for today only:
+// tomorrow the task is due again like any other.
+const TASK_CANT_REASONS = ['No product / no material', 'No time (rush)', 'Equipment broken'];
+function showTaskCantDo(task) {
+    const { box, close } = openModal({});
+    box.innerHTML = `
+        <div class="task-modal">
+            <div class="task-modal__head"><div class="task-modal__icon" aria-hidden="true">${escapeHtml(task.icon || '📋')}</div>
+                <h3 class="task-modal__title">Why can't you do it?</h3></div>
+            <div class="task-reasons">
+                ${TASK_CANT_REASONS.map(r => `<button type="button" class="task-reason" data-reason="${escapeHtml(r)}">${escapeHtml(r)}</button>`).join('')}
+                <button type="button" class="task-reason" id="task-reason-other">Other… (type a reason)</button>
+            </div>
+            <div class="task-other" hidden>
+                <input type="text" id="task-other-input" maxlength="120" placeholder="Reason">
+                <button type="button" id="task-other-save" class="btn btn--primary">Save</button>
+            </div>
+            <div class="task-modal__actions"><button type="button" id="task-cant-back" class="btn btn--secondary task-btn-wide">Back</button></div>
+        </div>`;
+    const choose = reason => {
+        close();
+        UserSession.pick({ title: 'Who is reporting this?', subtitle: task.title, keepSession: true })
+            .then(name => { if (name) saveTaskCantDo(task, reason, name); });
+    };
+    box.querySelectorAll('.task-reason[data-reason]').forEach(b =>
+        b.addEventListener('click', () => choose(b.getAttribute('data-reason'))));
+    const other = box.querySelector('.task-other');
+    box.querySelector('#task-reason-other').addEventListener('click', () => {
+        other.hidden = false;
+        box.querySelector('#task-other-input').focus();
+    });
+    box.querySelector('#task-other-save').addEventListener('click', () => {
+        const txt = box.querySelector('#task-other-input').value.trim();
+        if (txt) choose(txt);
+    });
+    box.querySelector('#task-cant-back').addEventListener('click', () => {
+        close();
+        showTaskModal(task);
+    });
+}
+
+function saveTaskCantDo(task, reason, who) {
     const now = new Date().toISOString();
-    const staffName = currentStaff || 'Unknown';
-    task.lastCompletedAt = now;
-    task.lastCompletedBy = staffName;
+    const previous = task.cantDo || null;
+    const cantDo = { at: now, by: who, reason: reason };
+    task.cantDo = cantDo;
+    updateTodoList();
+    window.firebaseDb.saveTaskFields(task.id, { cantDo: cantDo }).catch(() => {
+        task.cantDo = previous;
+        updateTodoList();
+    });
+    window.firebaseDb.saveActivityLog({
+        timestamp: now,
+        user: who,
+        itemName: task.title,
+        actionType: 'task-cantdo',
+        reason: reason
+    });
+}
+
+// Only the completion fields are written (never the whole task from this screen's
+// copy, which could be older than an edit made in the DB Editor). A completion also
+// clears today's "Can't do".
+function completeTask(task, who) {
+    const now = new Date().toISOString();
+    const staffName = who || currentStaff || 'Unknown';
+    const fields = { lastCompletedAt: now, lastCompletedBy: staffName, cantDo: null };
     // Clear forceDisplay so completed task doesn't stay in todo list
-    if (task.forceDisplay) {
-        task.forceDisplay = false;
-    }
-    window.firebaseDb.saveTask(task);
+    if (task.forceDisplay) fields.forceDisplay = false;
+    Object.assign(task, fields);
+    // Redraw now: the card leaves the column at once, even offline (the realtime
+    // listener only redraws when the write reaches Firebase).
+    updateTodoList();
+    if (window.firebaseDb.saveTaskFields) window.firebaseDb.saveTaskFields(task.id, fields);
+    else window.firebaseDb.saveTask(task);
     window.firebaseDb.saveActivityLog({
         timestamp: now,
         user: staffName,
