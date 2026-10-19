@@ -2,72 +2,78 @@
   "rules": {
     "prepItems": {
       ".read": true,
-      ".write": true,
       "$itemId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['id', 'name', 'currentLevel', 'targetLevel', 'unit'])"
       }
     },
     "staffMembers": {
       ".read": true,
-      ".write": true,
       "$staffId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['id', 'name', 'active'])"
       }
     },
     "activityLogs": {
       ".read": true,
-      ".write": true,
       "$logId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['timestamp', 'itemName', 'actionType'])"
       }
     },
     "lastCompleteCheck": {
       ".read": true,
-      ".write": true
+      ".write": "newData.exists()"
     },
     "icItems": {
       ".read": true,
-      ".write": true,
       "$itemId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['id', 'name', 'currentLevel', 'targetLevel', 'unit', 'location'])"
       }
     },
     "icActivityLogs": {
       ".read": true,
-      ".write": true
+      "$logId": {
+        ".write": true
+      }
     },
     "todos": {
       ".read": true,
-      ".write": true
+      "$todoId": {
+        ".write": true
+      }
     },
     "tasks": {
       ".read": true,
-      ".write": true,
       "$taskId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['title', 'type', 'active'])"
       }
     },
     "checklists": {
       ".read": true,
-      ".write": true
+      "$checklistId": {
+        ".write": true
+      }
     },
     "deliveryIssues": {
       ".read": true,
-      ".write": true,
       "$issueId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['id', 'itemName', 'missingQty', 'reportedAt'])"
       }
     },
     "teamMessages": {
       ".read": true,
-      ".write": true,
       "$msgId": {
+        ".write": true,
         ".validate": "newData.hasChildren(['id', 'text', 'sentAt'])"
       }
     },
     "settings": {
       ".read": true,
-      ".write": true
+      ".write": "newData.exists()"
     }
   }
 }
