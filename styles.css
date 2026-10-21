@@ -1007,6 +1007,156 @@ body {
     white-space: nowrap;
 }
 
+/* ========================================
+   Cartes de prep « lisibles de loin » (21/10/2026, version B choisie par Serge sur
+   captures reelles de l'ecran du Pi). Propre au Prep Manager (.prep-card) : les cartes
+   de l'I&C partagent .todo-item et restent telles quelles.
+   Large (carte >= ~230 px, ecran >= 1200 px) : nom a gauche, quantite en grand a droite,
+   « Updated » en petit au-dessus de l'heure. Etroit (769-1199 px, la colonne descend a
+   ~150-230 px) : la meme carte empilee, sinon le nom n'aurait plus que 2 ou 3 lettres
+   par ligne. Telephone (<= 768 px) : la colonne prend toute la largeur, donc mise en
+   page large.
+   ======================================== */
+.prep-card .todo-item-name {
+    font-size: 22px;   /* 20 px dans la maquette, +2 a la demande de Serge */
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1f2a14;   /* presque noir, teinte verte : le vert pale #577c2b se lisait mal de loin */
+    overflow-wrap: anywhere;
+}
+
+.prep-card .todo-need-num {
+    font-size: 32px;
+}
+
+.prep-card .todo-need-lbl {
+    font-size: 16px;   /* 14 px dans la maquette, +2 a la demande de Serge */
+    font-weight: 700;
+    color: #444;
+}
+
+.prep-card .todo-footer {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.prep-card .todo-footer > span:first-child {
+    font-size: 13px !important;   /* etiquette LOW / OUT, ecrite en ligne par statusBadgeHTML */
+}
+
+.prep-card .todo-updated {
+    color: #555;
+}
+
+.todo-updated__label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.todo-updated__time {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cant-prep-info {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: var(--danger-tint);
+    font-size: 14px;
+}
+
+.cant-prep-info__head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cant-prep-info__reason {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--danger);
+}
+
+.cant-prep-info__text {
+    margin-top: 4px;
+}
+
+.cant-prep-info__by > span {
+    white-space: nowrap;
+}
+
+.cant-prep-info__by {
+    display: flex;
+    flex-wrap: wrap;   /* colonne etroite (iPad portrait) : la date passe dessous, entiere */
+    justify-content: space-between;
+    gap: 0 8px;
+    margin-top: 4px;
+    font-size: 13px;
+    color: #666;
+}
+
+@media (min-width: 1200px), (max-width: 768px) {
+    .prep-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        column-gap: 12px;
+        align-items: center;
+        padding: 12px 16px;
+    }
+
+    .prep-card .todo-item-name {
+        grid-column: 1;
+        grid-row: 1;
+        margin: 0;
+    }
+
+    .prep-card .todo-need {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .prep-card .todo-need-num {
+        font-size: 40px;
+    }
+
+    .prep-card .todo-need-lbl {
+        margin: 2px 0 0;
+    }
+
+    .prep-card .todo-footer {
+        grid-column: 1;
+        grid-row: 2;
+        margin-top: 8px;
+    }
+
+    .prep-card .todo-updated {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.05;
+    }
+
+    /* Sans quantite (rien a preparer), le nom et le pied prennent toute la largeur. */
+    .prep-card:not(:has(.todo-need)) .todo-item-name,
+    .prep-card:not(:has(.todo-need)) .todo-footer {
+        grid-column: 1 / -1;
+    }
+
+    .prep-card .cant-prep-info {
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
+}
+
 /* Status Summary */
 #status-summary {
     position: relative;

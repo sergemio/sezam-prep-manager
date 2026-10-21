@@ -1414,7 +1414,9 @@ function renderPrepTodoItem(item) {
     }
     const needQty = formatNeed(item.targetLevel - item.currentLevel);
     const todoItem = document.createElement('div');
-    todoItem.className = 'todo-item';
+    // prep-card : mise en page « lisible de loin » (21/10/2026), propre aux cartes de prep
+    // du Prep Manager. Les cartes de l'I&C partagent .todo-item et ne doivent pas bouger.
+    todoItem.className = 'todo-item prep-card';
     todoItem.dataset.status = statusKind; // out | low | blocked — used by the summary counters to filter the rail
     // Left-border colour encodes urgency; the "to prep" number reuses it,
     // except for can't-prep items (slate — prepping them is blocked anyway).
@@ -1437,13 +1439,13 @@ function renderPrepTodoItem(item) {
         <div class="todo-item-name">${item.name}</div>
         ${needQty !== '0' ? `<div class="todo-need"><span class="todo-need-num" style="color:${needColor};">${needQty}</span><span class="todo-need-lbl">to prep</span></div>` : ''}
         ${item.canPrep === false ? `
-            <div class="cant-prep-info" style="margin-top: 8px; background-color: var(--danger-tint); padding: 8px; border-radius: 4px; font-size: 13px;">
-                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+            <div class="cant-prep-info">
+                <div class="cant-prep-info__head">
                     ${statusBadgeHTML('blocked', true)}
-                    <span style="font-weight: 600; font-size: 12px; color: var(--danger);">${item.cantPrepReason}</span>
+                    <span class="cant-prep-info__reason">${item.cantPrepReason}</span>
                 </div>
-                ${item.cantPrepReasonText ? `<div style="margin-top: 4px;">Reason: ${item.cantPrepReasonText}</div>` : ''}
-                <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #666;">
+                ${item.cantPrepReasonText ? `<div class="cant-prep-info__text">Reason: ${item.cantPrepReasonText}</div>` : ''}
+                <div class="cant-prep-info__by">
                     <span>By: ${item.cantPrepBy || 'Unknown'}</span>
                     <span>${formatDate(item.cantPrepTime)}</span>
                 </div>
@@ -1451,7 +1453,7 @@ function renderPrepTodoItem(item) {
         ` : `
         <div class="todo-footer">
             ${statusBadgeHTML(statusKind)}
-            <span class="todo-updated">Updated ${timeDisplay}</span>
+            <span class="todo-updated"><span class="todo-updated__label">Updated</span> <span class="todo-updated__time">${timeDisplay}</span></span>
         </div>`}
     `;
     todoItem.addEventListener('click', () => {
