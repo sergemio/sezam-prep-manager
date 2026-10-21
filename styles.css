@@ -1021,7 +1021,7 @@ body {
     font-size: 22px;   /* 20 px dans la maquette, +2 a la demande de Serge */
     font-weight: 700;
     line-height: 1.2;
-    color: #1f2a14;   /* presque noir, teinte verte : le vert pale #577c2b se lisait mal de loin */
+    color: var(--primary-dark);   /* le vert d'origine, garde par Serge apres comparaison avec un presque noir */
     overflow-wrap: anywhere;
 }
 
