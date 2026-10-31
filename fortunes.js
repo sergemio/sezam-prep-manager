@@ -113,23 +113,14 @@
     return String(name || '').trim().split(/\s+/)[0] || 'friend';
   }
 
-  // Each person sees every common phrase once before any repeats (per device).
-  function pickCommon(name) {
-    var key = 'fortunesSeen:' + name;
-    var seen = [];
-    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { seen = []; }
-    var left = [];
-    for (var i = 0; i < COMMON.length; i++) if (seen.indexOf(i) === -1) left.push(i);
-    if (!left.length) { seen = []; left = COMMON.map(function (_, i) { return i; }); }
-    var pick = left[Math.floor(Math.random() * left.length)];
-    seen.push(pick);
-    try { localStorage.setItem(key, JSON.stringify(seen)); } catch (e) { /* private mode */ }
-    return COMMON[pick];
+  function any(list) {
+    return list[Math.floor(Math.random() * list.length)];
   }
 
+  // Plain random draw: a repeat now and then is fine (Serge: it's a gimmick).
   function draw(name) {
     var rare = Math.random() < RARE_CHANCE;
-    var text = rare ? RARE[Math.floor(Math.random() * RARE.length)] : pickCommon(name);
+    var text = any(rare ? RARE : COMMON);
     return { text: text.replace(/\{name\}/g, firstName(name)), rare: rare };
   }
 

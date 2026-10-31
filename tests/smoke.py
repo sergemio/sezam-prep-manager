@@ -395,21 +395,19 @@ def run_pm(browser):
         return ok
     safe("PM/task-bell", g_taskbell)
 
-    # H4. fortune bubble: name filled in, no repeat before the whole list is seen,
-    # and the bubble appears with the phrase.
+    # H4. fortune bubble: name filled in, no forbidden topic, bubble shows the phrase.
     def g_fortune():
-        r = pg.evaluate("""() => { localStorage.removeItem('fortunesSeen:Smoke Tester');
-            const n = Fortunes.COMMON.length, got = new Set();
-            for (let i = 0; i < 200; i++) { const f = Fortunes.draw('Smoke Tester'); if (!f.rare) { if (got.size < n && got.has(f.text)) return {dup: f.text}; got.add(f.text); if (got.size === n) break; } }
+        r = pg.evaluate("""() => {
+            const got = []; for (let i = 0; i < 50; i++) got.push(Fortunes.draw('Smoke Tester').text);
             const all = Fortunes.COMMON.concat(Fortunes.RARE).join(' ');
             const f = Fortunes.show('Smoke Tester', 'SMOKE TASK');
             const el = document.querySelector('.fortune-toast');
-            const out = { full: got.size === n, noBrace: !/[{}]/.test([...got].join(' ')),
+            const out = { noBrace: !/[{}]/.test(got.join(' ')),
                           banned: /more than you think|finally|money|love|health/i.test(all),
                           shown: !!el && el.textContent.includes(f.text) && el.textContent.includes('Smoke') };
-            el && el.remove(); localStorage.removeItem('fortunesSeen:Smoke Tester');
+            el && el.remove();
             return out; }""")
-        ok = r == {"full": True, "noBrace": True, "banned": False, "shown": True}
+        ok = r == {"noBrace": True, "banned": False, "shown": True}
         if not ok: print("    fortune detail:", r)
         return ok
     safe("PM/fortune-bubble", g_fortune)
