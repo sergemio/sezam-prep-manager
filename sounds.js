@@ -203,6 +203,15 @@ const SoundFX = (() => {
             playTone(1047, 0.34, 'sine', 0.10, 0.12);   // C6 (soft ring-out)
         },
 
+        // Soft three-note bell — a task is ringing ("hey, something to do", never an
+        // alarm). Rising G5 -> C6 -> E6, sine, quieter than messageAlert. Played ~5
+        // times 2 s apart by the task bell in script.js.
+        taskRing() {
+            playTone(784, 0.16, 'sine', 0.10, 0);       // G5
+            playTone(1047, 0.16, 'sine', 0.10, 0.16);   // C6
+            playTone(1319, 0.40, 'sine', 0.09, 0.32);   // E6 (soft ring-out)
+        },
+
         // Short rising blip — a filter/selection was engaged (confirms the action)
         filterOn() {
             playTone(660, 0.06, 'sine', 0.09, 0);

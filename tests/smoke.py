@@ -356,6 +356,64 @@ def run_pm(browser):
         return base == 0 and after_new == 1 and after_repeat == 1
     safe("PM/task-appear-chime", g_taskbeep)
 
+    # H2. three tasks due at once: one chime each, one after the other.
+    def g_taskstagger():
+        pg.evaluate("""() => { window.__beeps=0; TASK_CHIME_GAP_MS=300; _nextChimeAt=0; updateTodoList();
+            ['__smoke_a','__smoke_b','__smoke_c'].forEach(id => tasks.push({id, name:id,
+                type:'recurring', frequencyDays:1, active:true, forceDisplay:true}));
+            updateTodoList(); }""")
+        first = pg.evaluate("() => window.__beeps")
+        pg.wait_for_timeout(1000)
+        last = pg.evaluate("() => window.__beeps")
+        pg.evaluate("() => { tasks = tasks.filter(t => !t.id.startsWith('__smoke_')); TASK_CHIME_GAP_MS=4000; updateTodoList(); }")
+        return first == 1 and last == 3
+    safe("PM/task-appear-stagger", g_taskstagger)
+
+    # H3. task bell: a ringing task chimes, sits first with the crossed bell, blinks;
+    # the crossed bell stops it (writes ringing:null) and the card stays in the list.
+    def g_taskbell():
+        pg.evaluate("""() => { window.__rings=0; SoundFX.taskRing=()=>{window.__rings++;};
+            TASK_RING_CHIMES=2; window.__saveCalls=[];
+            tasks.push({id:'__smoke_bell', title:'SMOKE BELL', type:'recurring', frequencyDays:1,
+                active:true, forceDisplay:true, ringing:new Date().toISOString()});
+            updateTodoList(); tickTaskBells(); }""")
+        pg.wait_for_timeout(2500)
+        r = pg.evaluate("""() => { const c=document.getElementById('todo-tasks-container');
+            const card=[...c.querySelectorAll('.task-card')].find(x=>x.textContent.includes('SMOKE BELL'));
+            const first=c.querySelector('.task-card');
+            return { rings: window.__rings, ringing: !!card && card.classList.contains('task-card--ringing'),
+                     first: first === card, bell: !!card && !!card.querySelector('.task-card__bell') }; }""")
+        pg.evaluate("() => document.querySelector('.task-card--ringing .task-card__bell').click()")
+        pg.wait_for_timeout(300)
+        s = pg.evaluate("""() => { const c=(window.__saveCalls||[]).find(x=>x.fn==='saveTaskFields' && x.args[0]==='__smoke_bell');
+            const card=[...document.querySelectorAll('.task-card')].find(x=>x.textContent.includes('SMOKE BELL'));
+            return { saved: !!c && c.args[1].ringing === null, stays: !!card,
+                     calm: !!card && !card.classList.contains('task-card--ringing') }; }""")
+        pg.evaluate("() => { tasks = tasks.filter(t => t.id !== '__smoke_bell'); TASK_RING_CHIMES=5; updateTodoList(); }")
+        ok = r == {"rings": 2, "ringing": True, "first": True, "bell": True} and s == {"saved": True, "stays": True, "calm": True}
+        if not ok: print("    task-bell detail:", r, s)
+        return ok
+    safe("PM/task-bell", g_taskbell)
+
+    # H4. fortune bubble: name filled in, no repeat before the whole list is seen,
+    # and the bubble appears with the phrase.
+    def g_fortune():
+        r = pg.evaluate("""() => { localStorage.removeItem('fortunesSeen:Smoke Tester');
+            const n = Fortunes.COMMON.length, got = new Set();
+            for (let i = 0; i < 200; i++) { const f = Fortunes.draw('Smoke Tester'); if (!f.rare) { if (got.size < n && got.has(f.text)) return {dup: f.text}; got.add(f.text); if (got.size === n) break; } }
+            const all = Fortunes.COMMON.concat(Fortunes.RARE).join(' ');
+            const f = Fortunes.show('Smoke Tester', 'SMOKE TASK');
+            const el = document.querySelector('.fortune-toast');
+            const out = { full: got.size === n, noBrace: !/[{}]/.test([...got].join(' ')),
+                          banned: /more than you think|finally|money|love|health/i.test(all),
+                          shown: !!el && el.textContent.includes(f.text) && el.textContent.includes('Smoke') };
+            el && el.remove(); localStorage.removeItem('fortunesSeen:Smoke Tester');
+            return out; }""")
+        ok = r == {"full": True, "noBrace": True, "banned": False, "shown": True}
+        if not ok: print("    fortune detail:", r)
+        return ok
+    safe("PM/fortune-bubble", g_fortune)
+
     # I. team message: injecté -> panneau brillant + bips ; Received -> log+calme ; Completed -> log+retrait
     def g_teammsg():
         pg.evaluate("""() => {

@@ -878,12 +878,17 @@ function renderTasksTable() {
             <td>${freqDisplay}</td>
             <td><span class="${task.active ? 'status-active' : 'status-inactive'}">${task.active ? 'Active' : 'Inactive'}</span></td>
             <td style="text-align:center"><button class="display-toggle ${isOn ? 'on' : ''}" data-task-id="${task.id}" title="${isOn ? 'Showing in to-do' : 'Hidden from to-do'}"></button></td>
+            <td style="text-align:center"><button class="ring-btn ${task.ringing ? 'ringing' : ''}" title="${task.ringing ? 'Ringing on the screens: press to ring again' : 'Ring on the kitchen screens'}">🔔</button></td>
             <td>${lastDone}</td>
         `;
         tasksTableBody.appendChild(row);
         row.querySelector('.display-toggle').addEventListener('click', function(e) {
             e.stopPropagation();
             toggleTaskForceDisplay(task.id, !isOn);
+        });
+        row.querySelector('.ring-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            ringTaskOnScreens(task.id);
         });
         row.addEventListener('click', function() {
             showEditTaskForm(this.getAttribute('data-task-id'));
@@ -1020,6 +1025,7 @@ function saveTask() {
             // saveTask replaces the whole record, so they must be carried over.
             if (existing.cantDo) task.cantDo = existing.cantDo;
             if (existing.howTo) task.howTo = existing.howTo;
+            if (existing.ringing) task.ringing = existing.ringing;
         }
     }
     window.firebaseDb.saveTask(task).then(() => {
@@ -1051,6 +1057,18 @@ function toggleTaskForceDisplay(taskId, newValue) {
             // The last user of PM/I&C (shared localStorage), not a constant 'admin'.
             user: localStorage.getItem('currentStaff') || 'admin'
         });
+    });
+}
+
+// Bell (31/10/2026): the task shows up and rings on every kitchen screen until someone
+// taps the crossed bell there. Each press is a new ring (new timestamp).
+function ringTaskOnScreens(taskId) {
+    const fields = { ringing: new Date().toISOString(), forceDisplay: true };
+    window.firebaseDb.saveTaskFields(taskId, fields).then(() => {
+        showSuccessMessage('Ringing on the kitchen screens');
+    }).catch(err => {
+        console.error('ringTaskOnScreens failed:', err);
+        showErrorMessage('Ring failed: check the connection');
     });
 }
 

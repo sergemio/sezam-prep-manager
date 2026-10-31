@@ -268,6 +268,7 @@ function initApp() {
 
         window.firebaseDb.onTasksChange(function(loadedTasks) {
             tasks = loadedTasks || [];
+            _tasksLoaded = true;
             updateTodoList();
         });
 
@@ -1160,22 +1161,42 @@ function taskLastDoneText(task) {
 // task that just popped into the due list and play a one-shot chime. Stays null
 // until the first render — so we never beep for tasks already due on page load.
 let _prevDueTaskIds = null;
+// The first renders run before Firebase sends the tasks: the baseline waits for
+// them, otherwise every task already due would ring once per page load.
+let _tasksLoaded = false;
 
-// Chime once when a NEW task appears in the due list. Compares the current due
-// task ids against the previous render: any id due now but not before is fresh.
-// Scope = tasks only (not preps). Rides whatever triggered this redraw — there
-// is no separate clock. Skipped while the tab is backgrounded (keeps the "new"
-// state so the chime can still fire on the next visible render).
+// One chime per new task (Serge, 31/10/2026): several tasks due at once ring one
+// after the other, TASK_CHIME_GAP_MS apart. The cards themselves show up at once.
+let TASK_CHIME_GAP_MS = 4000;
+let _nextChimeAt = 0;
+
+// Compares the current due task ids against the previous render: any id due now
+// but not before is fresh. Scope = tasks only (not preps). Skipped while the tab
+// is backgrounded (keeps the "new" state so the chime can still fire on the next
+// visible render).
 function notifyNewDueTasks(taskItems) {
-    if (document.hidden) return;
+    if (document.hidden || !_tasksLoaded) return;
     const currentIds = new Set(taskItems.map(e => e.data.id));
-    if (_prevDueTaskIds !== null) {
-        let hasNew = false;
-        currentIds.forEach(id => { if (!_prevDueTaskIds.has(id)) hasNew = true; });
-        if (hasNew && typeof SoundFX !== 'undefined') SoundFX.taskAppear();
+    if (_prevDueTaskIds !== null && typeof SoundFX !== 'undefined') {
+        currentIds.forEach(id => {
+            if (_prevDueTaskIds.has(id)) return;
+            const now = Date.now();
+            const at = Math.max(now, _nextChimeAt);
+            _nextChimeAt = at + TASK_CHIME_GAP_MS;
+            if (at === now) SoundFX.taskAppear();
+            else setTimeout(() => { if (!document.hidden) SoundFX.taskAppear(); }, at - now);
+        });
     }
     _prevDueTaskIds = currentIds;
 }
+
+// Nothing else redraws the list on a clock: a task whose scheduleTime passes would
+// wait for the next Firebase change or tap. Every 30 s, redraw if the due set changed.
+setInterval(() => {
+    if (document.hidden || _prevDueTaskIds === null) return;
+    const ids = tasks.filter(isTaskDue).map(t => t.id);
+    if (ids.length !== _prevDueTaskIds.size || ids.some(id => !_prevDueTaskIds.has(id))) updateTodoList();
+}, 30 * 1000);
 
 function updateTodoList() {
     const sortedItems = sortItemsByDisplayOrder(prepItems);
@@ -1471,6 +1492,7 @@ function renderTaskGroups(taskItems, container) {
         return;
     }
     const rank = e => {
+        if (e.data.ringing) return -1;
         if (taskCantDoToday(e.data)) return 3;
         if (e.data.safety) return 0;
         if (e.missed > 0 || e.overdue > 0 || e.late) return 1;
@@ -1511,7 +1533,8 @@ function renderTaskTodoItem(task, missed, overdue, container) {
     }
     const todoItem = document.createElement('div');
     todoItem.className = 'todo-item todo-item-task task-card' +
-        (state ? ' task-card--' + state : '') + (task.safety ? ' task-card--safety' : '');
+        (state ? ' task-card--' + state : '') + (task.safety ? ' task-card--safety' : '') +
+        (task.ringing ? ' task-card--ringing' : '');
     todoItem.dataset.status = (daysLate || late) ? 'overdue' : 'pending';
     todoItem.innerHTML = `
         <div class="task-card__icon" aria-hidden="true">${escapeHtml(task.icon || '📋')}</div>
@@ -1519,9 +1542,15 @@ function renderTaskTodoItem(task, missed, overdue, container) {
             <div class="todo-item-name task-card__title">${escapeHtml(task.title)}${task.safety ? '<span class="task-chip-safety">SAFETY</span>' : ''}</div>
             ${meta ? `<div class="task-card__meta">${escapeHtml(meta)}</div>` : ''}
         </div>
+        ${task.ringing ? '<button type="button" class="task-card__bell" aria-label="Stop the bell">🔔</button>' : ''}
     `;
     todoItem.addEventListener('click', () => {
         showTaskModal(task);
+    });
+    const bell = todoItem.querySelector('.task-card__bell');
+    if (bell) bell.addEventListener('click', e => {
+        e.stopPropagation();
+        stopTaskRinging(task);
     });
     (container || todoListContainer).appendChild(todoItem);
 }
@@ -1577,7 +1606,8 @@ function showTaskModal(task) {
                 if (!name) return;
                 completeTask(task, name);
                 SoundFX.complete();
-                if (typeof showNotification === 'function') showNotification('Done', task.title + ' · ' + name, 'success');
+                if (window.Fortunes) Fortunes.show(name, task.title);
+                else if (typeof showNotification === 'function') showNotification('Done', task.title + ' · ' + name, 'success');
             });
     });
 
@@ -1678,7 +1708,7 @@ function saveTaskCantDo(task, reason, who) {
 function completeTask(task, who) {
     const now = new Date().toISOString();
     const staffName = who || currentStaff || 'Unknown';
-    const fields = { lastCompletedAt: now, lastCompletedBy: staffName, cantDo: null };
+    const fields = { lastCompletedAt: now, lastCompletedBy: staffName, cantDo: null, ringing: null };
     // Clear forceDisplay so completed task doesn't stay in todo list
     if (task.forceDisplay) fields.forceDisplay = false;
     Object.assign(task, fields);
@@ -1692,6 +1722,56 @@ function completeTask(task, who) {
         user: staffName,
         itemName: task.title,
         actionType: 'task-done'
+    });
+}
+
+// ---- Task bell (Serge, 31/10/2026) ----
+// The DB Editor bell sets `ringing` (ISO time) on a task. Every screen then plays
+// soft chimes for ~10 s, keeps the card blinking orange, and rings again every hour,
+// until someone taps the crossed bell on the card (or Done). No name is shown: it
+// reads as an automatic reminder. Each new press in the DB Editor rings at once.
+let TASK_RING_CHIMES = 5;               // 5 chimes 2 s apart = ~10 s
+let TASK_RING_REPEAT_MS = 60 * 60 * 1000;
+const _taskRangAt = {};                 // id -> { mark: ringing value, at: ms } (local to this screen)
+
+function ringTask(id) {
+    _taskRangAt[id].at = Date.now();
+    let i = 0;
+    (function chime() {
+        if (i++ >= TASK_RING_CHIMES || !tasks.some(t => t.id === id && t.ringing)) return;
+        if (!document.hidden && typeof SoundFX !== 'undefined' && SoundFX.taskRing) SoundFX.taskRing();
+        setTimeout(chime, 2000);
+    })();
+}
+
+function tickTaskBells() {
+    const now = Date.now();
+    const ringing = tasks.filter(t => t.ringing && isTaskDue(t));
+    ringing.forEach(t => {
+        const seen = _taskRangAt[t.id];
+        if (!seen || seen.mark !== t.ringing) {
+            _taskRangAt[t.id] = { mark: t.ringing, at: 0 };
+            ringTask(t.id);
+        } else if (now - seen.at >= TASK_RING_REPEAT_MS) {
+            ringTask(t.id);
+        }
+    });
+    Object.keys(_taskRangAt).forEach(id => { if (!ringing.some(t => t.id === id)) delete _taskRangAt[id]; });
+    // Blink: one class toggle per second, no CSS loop (Pi CPU rule of 20/10/2026)
+    document.querySelectorAll('.task-card--ringing').forEach(el => el.classList.toggle('is-blink-on'));
+}
+setInterval(tickTaskBells, 1000);
+
+function stopTaskRinging(card) {
+    // The listener may have swapped `tasks` since the card was drawn: act on the live copy.
+    const task = tasks.find(t => t.id === card.id) || card;
+    const previous = task.ringing;
+    task.ringing = null;
+    if (typeof SoundFX !== 'undefined') SoundFX.tap();
+    updateTodoList();
+    window.firebaseDb.saveTaskFields(task.id, { ringing: null }).catch(() => {
+        task.ringing = previous;
+        updateTodoList();
     });
 }
 
@@ -1716,19 +1796,25 @@ function burstMessageAlert(times) {
 
 // Pour chaque message NON reçu : rafale immédiate puis relance toutes les 30 min
 // jusqu'au "Received" (ou disparition du message). Message reçu -> plus aucun son.
+// Message urgent (champ `urgent`, posé par le Pi : X1 presque vide, Serge 27/10/2026) :
+// ~10 s de carillons toutes les 2 min jusqu'au "Received".
 function manageMessageSounds(active) {
     const unreceived = active.filter(m => !m.receivedAt);
-    const liveIds = new Set(unreceived.map(m => m.id));
-    Object.keys(_msgSoundTimers).forEach(id => {
-        if (!liveIds.has(id)) { clearInterval(_msgSoundTimers[id]); delete _msgSoundTimers[id]; }
+    // Clé = id + mode : un message qui devient urgent est reprogrammé au rythme urgent.
+    const key = m => m.id + (m.urgent ? ':urgent' : '');
+    const liveKeys = new Set(unreceived.map(key));
+    Object.keys(_msgSoundTimers).forEach(k => {
+        if (!liveKeys.has(k)) { clearInterval(_msgSoundTimers[k]); delete _msgSoundTimers[k]; }
     });
     if (document.hidden) return;              // pas de son quand l'onglet est en arrière-plan
     unreceived.forEach(m => {
-        if (_msgSoundTimers[m.id]) return;    // déjà programmé sur cet appareil
-        burstMessageAlert(6);                 // rafale d'arrivée
-        _msgSoundTimers[m.id] = setInterval(function () {
-            if (!document.hidden) burstMessageAlert(6);
-        }, 30 * 60 * 1000);                   // relance toutes les 30 min
+        const k = key(m);
+        if (_msgSoundTimers[k]) return;       // déjà programmé sur cet appareil
+        const rafale = m.urgent ? 11 : 6;     // 11 carillons à 900 ms = ~10 s
+        burstMessageAlert(rafale);            // rafale d'arrivée
+        _msgSoundTimers[k] = setInterval(function () {
+            if (!document.hidden) burstMessageAlert(rafale);
+        }, (m.urgent ? 2 : 30) * 60 * 1000);  // relance toutes les 2 min (urgent) ou 30 min
     });
 }
 
@@ -1744,7 +1830,8 @@ function renderTeamMessages() {
             : 'Envoyé par ' + escapeHtml(m.sentBy || '?');
         const receivedBtn = received ? '' :
             '<button class="team-message-btn team-message-btn--received" onclick="markMessageReceived(\'' + m.id + '\')">Received</button>';
-        return '<div class="team-message' + (received ? '' : ' is-new') + '">' +
+        return '<div class="team-message' + (received ? '' : ' is-new') +
+            (m.urgent ? ' is-urgent' : '') + '">' +
             '<div class="team-message-label">MESSAGE MANAGEMENT</div>' +
             '<div class="team-message-text">' + escapeHtml(m.text) + '</div>' +
             '<div class="team-message-meta">' + meta + '</div>' +
